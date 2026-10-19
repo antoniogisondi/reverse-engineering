@@ -44,7 +44,8 @@ SicurCantiere le realizza.
 | Sostanze pericolose e schede di sicurezza | `sostanze.py`, `sds.py`: classificazione dalle frasi H, lettura SDS in PDF | v0.5 |
 | Valutazioni rumore e vibrazioni | `valutazioni/rumore.py`, `valutazioni/vibrazioni.py` | v0.6 |
 | Valutazioni traino/spinta, trasporto, rischio chimico | - | da fare |
-| Modulistica per CSE e imprese (verbali, consegna DPI) | - | da fare |
+| Modulistica per le imprese (verbale di consegna DPI) | `documenti/moduli.py` | v0.5 |
+| Modulistica per il CSE (verbali di coordinamento e sopralluogo) | - | da fare |
 | Layout di cantiere e modello 3D/BIM | - | fuori obiettivo per ora |
 
 ## Scelte di progetto

@@ -138,7 +138,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 - DUVRI, PSS, piano di emergenza
 - Altre valutazioni specifiche: traino e spinta, trasporto (ISO 11228-2), rischio chimico
 - Esportazione dei costi in Excel
-- Modulistica (verbali di coordinamento, consegna DPI)
+- Modulistica del CSE (verbali di coordinamento e di sopralluogo)
 - Importazione di prezzari regionali per i costi della sicurezza
 - Layout di cantiere (planimetria)
 
