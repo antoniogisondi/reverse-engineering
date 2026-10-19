@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -26,7 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from sicurcantiere import __version__, controlli
-from sicurcantiere.db import ESTENSIONE, ErroreProgetto, Progetto
+from sicurcantiere.db import ESTENSIONE, ErroreProgetto, Progetto, anteprima
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui import tema
 from sicurcantiere.ui.icone import icona
@@ -37,11 +38,55 @@ MAX_RECENTI = 8
 INTERVALLO_STATO_MS = 3000
 
 
+class SchedaRecente(QPushButton):
+    """Scheda cliccabile di un cantiere recente."""
+
+    def __init__(self, percorso: str, colore_icona: str):
+        super().__init__()
+        self.setObjectName("schedaRecente")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.percorso = percorso
+        dati = anteprima(percorso) or {}
+        file = Path(percorso)
+        nome = dati.get("nome") or file.stem
+        luogo = " ".join(v for v in (dati.get("comune", ""),
+                                      f"({dati['provincia']})" if dati.get("provincia") else "") if v)
+        try:
+            modificato = f"modificato il {datetime.fromtimestamp(file.stat().st_mtime):%d/%m/%Y %H:%M}"
+        except OSError:
+            modificato = ""
+        self.setToolTip(percorso)
+
+        icona_lbl = QLabel()
+        icona_lbl.setPixmap(icona("cantiere", colore_icona, 32).pixmap(32, 32))
+        titolo = QLabel(nome)
+        titolo.setObjectName("schedaTitolo")
+        dettagli = QLabel(" · ".join(v for v in (luogo, modificato) if v))
+        dettagli.setObjectName("sottotitolo")
+        dettagli.setWordWrap(True)
+        nome_file = QLabel(file.name)
+        nome_file.setObjectName("sottotitolo")
+        testi = QVBoxLayout()
+        testi.setSpacing(2)
+        for w in (titolo, dettagli, nome_file):
+            testi.addWidget(w)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.addWidget(icona_lbl, 0, Qt.AlignmentFlag.AlignTop)
+        layout.addLayout(testi, 1)
+        for w in (icona_lbl, titolo, dettagli, nome_file):
+            w.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setMinimumHeight(78)
+
+
 class Benvenuto(QWidget):
-    def __init__(self, finestra: FinestraPrincipale, colore_icona: str):
+    COLONNE_RECENTI = 3
+    MAX_SCHEDE = 6
+
+    def __init__(self, finestra: FinestraPrincipale, colore_icona: str, recenti: list[str]):
         super().__init__()
         layout = QVBoxLayout(self)
-        layout.addStretch()
+        layout.addStretch(1)
         logo = QLabel()
         logo.setPixmap(icona("cantiere", colore_icona, 96).pixmap(96, 96))
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -70,7 +115,29 @@ class Benvenuto(QWidget):
         pulsanti.addStretch()
         layout.addSpacing(20)
         layout.addLayout(pulsanti)
-        layout.addStretch()
+
+        if recenti:
+            layout.addSpacing(36)
+            contenitore = QWidget()
+            contenitore.setMaximumWidth(1000)
+            griglia = QGridLayout(contenitore)
+            griglia.setContentsMargins(0, 0, 0, 0)
+            griglia.setSpacing(12)
+            intestazione = QLabel("Cantieri recenti")
+            intestazione.setObjectName("schedaTitolo")
+            griglia.addWidget(intestazione, 0, 0, 1, self.COLONNE_RECENTI)
+            for n, percorso in enumerate(recenti[:self.MAX_SCHEDE]):
+                scheda = SchedaRecente(percorso, colore_icona)
+                scheda.clicked.connect(lambda _=False, p=percorso: finestra.apri_file(p))
+                griglia.addWidget(scheda, 1 + n // self.COLONNE_RECENTI, n % self.COLONNE_RECENTI)
+            for c in range(self.COLONNE_RECENTI):
+                griglia.setColumnStretch(c, 1)
+            riga = QHBoxLayout()
+            riga.addStretch()
+            riga.addWidget(contenitore, 4)
+            riga.addStretch()
+            layout.addLayout(riga)
+        layout.addStretch(2)
 
 
 class FinestraPrincipale(QMainWindow):
@@ -355,7 +422,7 @@ class FinestraPrincipale(QMainWindow):
             w = self.contenitore.widget(0)
             self.contenitore.removeWidget(w)
             w.deleteLater()
-        self.contenitore.addWidget(Benvenuto(self, self.colori.icone))
+        self.contenitore.addWidget(Benvenuto(self, self.colori.icone, self._recenti()))
 
     def _chiudi_progetto(self) -> None:
         self._salva_in_sospeso()

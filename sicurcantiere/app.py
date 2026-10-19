@@ -8,7 +8,7 @@ import traceback
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import QLocale, QSettings, QStandardPaths
+from PySide6.QtCore import QEvent, QLocale, QSettings, QStandardPaths
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from sicurcantiere import __version__
@@ -61,4 +61,9 @@ def main(argv: list[str] | None = None) -> int:
     finestra.show()
     if len(argv) > 1:
         finestra.apri_file(argv[1])
-    return app.exec()
+    codice = app.exec()
+    # Distruzione esplicita prima della chiusura dell'interprete, per evitare
+    # che Python liberi i widget dopo l'applicazione Qt.
+    finestra.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    return codice

@@ -7,6 +7,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+QtCore = pytest.importorskip("PySide6.QtCore")
 
 from sicurcantiere.archivio import LAVORAZIONI  # noqa: E402
 from sicurcantiere.db import Progetto  # noqa: E402
@@ -36,7 +37,14 @@ def app():
     a = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     a.setOrganizationName("SicurCantiereTest")
     a.setApplicationName("SicurCantiereTest")
-    return a
+    yield a
+    # Distrugge i widget prima dell'uscita dell'interprete: lasciati al
+    # garbage collector verrebbero liberati in ordine casuale (crash di Qt).
+    for w in a.topLevelWidgets():
+        w.close()
+        w.deleteLater()
+    a.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
+    a.processEvents()
 
 
 def _pagina(finestra, classe):
@@ -147,3 +155,87 @@ def test_campi_numerici_visibili(app):
     app.processEvents()
     assert s.lineEdit().width() > 200
     s.close()
+
+
+def test_riepilogo(app, tmp_path):
+    from sicurcantiere.ui.riepilogo import ATTENZIONE, ERRORE, OK, calcola
+
+    p = Progetto(tmp_path / "r.scs", crea=True)
+    r = Repository(p)
+    voci = {v.chiave: v for v in calcola(r)}
+    assert voci["psc"].stato == OK and voci["interferenze"].stato == OK
+    r.aggiorna_cantiere(importo_lavori=100000)
+    a = r.inserisci("imprese", ragione_sociale="A")
+    b = r.inserisci("imprese", ragione_sociale="B")
+    f1 = r.importa_lavorazione(LAVORAZIONI[1])  # ponteggio: rischio molto alto
+    f2 = r.inserisci("fasi", codice="X")
+    r.aggiorna("fasi", f1, impresa_id=a, data_inizio="2025-10-06", data_fine="2025-10-10", lavoratori=3)
+    r.aggiorna("fasi", f2, impresa_id=b, data_inizio="2025-10-08", data_fine="2025-10-09", lavoratori=2)
+    r.inserisci("costi", quantita=1, prezzo_unitario=3000)
+    voci = {v.chiave: v for v in calcola(r)}
+    assert voci["psc"].stato == ATTENZIONE
+    assert voci["interferenze"].valore == "1" and voci["interferenze"].stato == ERRORE
+    assert voci["picco"].valore == "5"
+    assert "3,0%" in voci["importo"].nota
+    assert voci["controlli"].stato == ERRORE
+    p.chiudi()
+
+
+def test_gantt_trascinamento_e_zoom(app):
+    from datetime import date
+
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+
+    from sicurcantiere.ui.gantt import ALTEZZA_INTESTAZIONE, ALTEZZA_RIGA, ZOOM, Gantt
+
+    g = Gantt()
+    fasi = [
+        {"id": 1, "codice": "A", "descrizione": "", "impresa_id": 1, "zona": "", "lavoratori": 2,
+         "data_inizio": "2025-10-06", "data_fine": "2025-10-10"},
+        {"id": 2, "codice": "B", "descrizione": "", "impresa_id": 2, "zona": "", "lavoratori": 2,
+         "data_inizio": "2025-10-08", "data_fine": "2025-10-09"},
+    ]
+    g.imposta_fasi(fasi, {}, {1: "Alfa", 2: "Beta"})
+    assert g.colore_impresa(1) != g.colore_impresa(2)
+    g.imposta_zoom("Giorni")
+    g.show()
+    app.processEvents()
+    assert g.width() > 30 * ZOOM["Giorni"]
+    g.grab()  # il disegno non deve sollevare eccezioni
+
+    ricevuti = []
+    g.fase_modificata.connect(lambda *a: ricevuti.append(a))
+    y = ALTEZZA_INTESTAZIONE + ALTEZZA_RIGA // 2
+    barra = g._rett_barra(0, date(2025, 10, 6), date(2025, 10, 10))
+    # Sposta di 3 giorni trascinando dal centro.
+    centro = QPoint(int(barra.center().x()), y)
+    QTest.mousePress(g, QtCore.Qt.MouseButton.LeftButton, pos=centro)
+    QTest.mouseMove(g, centro + QPoint(3 * ZOOM["Giorni"], 0))
+    QTest.mouseRelease(g, QtCore.Qt.MouseButton.LeftButton, pos=centro + QPoint(3 * ZOOM["Giorni"], 0))
+    assert ricevuti[-1] == (1, "2025-10-09", "2025-10-13")
+    # Allunga di 2 giorni dal bordo destro.
+    bordo = QPoint(int(barra.right()) - 2, y)
+    QTest.mousePress(g, QtCore.Qt.MouseButton.LeftButton, pos=bordo)
+    QTest.mouseMove(g, bordo + QPoint(2 * ZOOM["Giorni"], 0))
+    QTest.mouseRelease(g, QtCore.Qt.MouseButton.LeftButton, pos=bordo + QPoint(2 * ZOOM["Giorni"], 0))
+    assert ricevuti[-1] == (1, "2025-10-06", "2025-10-12")
+    g.close()
+
+
+def test_benvenuto_con_recenti(app, tmp_path):
+    p = Progetto(tmp_path / "recente.scs", crea=True)
+    Repository(p).aggiorna_cantiere(nome="Cantiere Rossi", comune="Lecce")
+    p.chiudi()
+    f = FinestraPrincipale()
+    f.impostazioni.setValue("recenti", [str(tmp_path / "recente.scs"), str(tmp_path / "sparito.scs")])
+    f._mostra_benvenuto()
+    from sicurcantiere.ui.finestra import SchedaRecente
+
+    schede = f.contenitore.widget(0).findChildren(SchedaRecente)
+    assert len(schede) == 1
+    testi = " ".join(l.text() for l in schede[0].findChildren(QtWidgets.QLabel))
+    assert "Cantiere Rossi" in testi and "Lecce" in testi
+    schede[0].click()
+    assert f.progetto is not None and f.progetto.percorso.name == "recente.scs"
+    f.close()

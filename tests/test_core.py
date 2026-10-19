@@ -313,3 +313,16 @@ def test_elenco_dpi():
     from sicurcantiere.documenti.pos import elenco_dpi
 
     assert elenco_dpi(["Casco, guanti", "casco; otoprotettori.", ""]) == ["Casco", "Guanti", "Otoprotettori"]
+
+
+def test_anteprima(tmp_path):
+    from sicurcantiere.db import anteprima
+
+    p = Progetto(tmp_path / "a.scs", crea=True)
+    Repository(p).aggiorna_cantiere(nome="Scuola", comune="Bari", provincia="BA")
+    p.chiudi()
+    assert anteprima(tmp_path / "a.scs") == {"nome": "Scuola", "comune": "Bari", "provincia": "BA"}
+    assert not (tmp_path / "a.scs.bak").exists()  # sola lettura: niente backup
+    (tmp_path / "rotto.scs").write_bytes(b"x" * 200)
+    assert anteprima(tmp_path / "rotto.scs") is None
+    assert anteprima(tmp_path / "manca.scs") is None

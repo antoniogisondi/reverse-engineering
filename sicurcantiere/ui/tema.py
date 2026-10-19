@@ -109,6 +109,27 @@ def foglio_di_stile(c: Colori) -> str:
     QLabel#titoloPagina {{ font-size: 16pt; font-weight: 600; color: {c.testo}; padding: 2px 0 6px 0; }}
     QLabel#sottotitolo {{ color: {c.testo_debole}; }}
 
+    /* Riquadri di riepilogo */
+    QFrame#tessera {{
+        background: {c.superficie}; border: 1px solid {c.bordo}; border-radius: 8px;
+        border-left: 4px solid {c.bordo};
+    }}
+    QFrame#tessera[stato="ok"] {{ border-left-color: #27AE60; }}
+    QFrame#tessera[stato="attenzione"] {{ border-left-color: #E6A23C; }}
+    QFrame#tessera[stato="errore"] {{ border-left-color: #D93B30; }}
+    QFrame#tessera[stato="neutro"] {{ border-left-color: {c.primario if c is CHIARO else c.selezione}; }}
+    QLabel#tesseraTitolo {{ color: {c.testo_debole}; font-size: 8pt; font-weight: 600; }}
+    QLabel#tesseraValore {{ color: {c.testo}; font-size: 15pt; font-weight: 600; }}
+    QLabel#tesseraNota {{ color: {c.testo_debole}; font-size: 9pt; }}
+
+    /* Schede dei cantieri recenti */
+    QPushButton#schedaRecente {{
+        background: {c.superficie}; border: 1px solid {c.bordo}; border-radius: 8px;
+        padding: 12px 14px; text-align: left; color: {c.testo};
+    }}
+    QLabel#schedaTitolo {{ font-size: 11pt; font-weight: 600; color: {c.testo}; }}
+    QPushButton#schedaRecente:hover {{ border: 1px solid {c.accento}; background: {c.superficie_alt}; }}
+
     /* Pulsanti */
     QPushButton {{
         background: {c.superficie}; color: {c.testo}; border: 1px solid {c.bordo};

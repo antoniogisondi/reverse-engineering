@@ -45,7 +45,8 @@ from sicurcantiere.documenti.pos import SEZIONI_POS, chiave_testo, genera_pos
 from sicurcantiere.documenti.psc import genera_psc
 from sicurcantiere.relazione import SEZIONI
 from sicurcantiere.repository import Repository
-from sicurcantiere.ui.gantt import Gantt, colore_livello
+from sicurcantiere.ui.gantt import ZOOM, ZOOM_PREDEFINITO, Gantt, colore_livello
+from sicurcantiere.ui.riepilogo import Riepilogo
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
 
 RUOLI = [
@@ -185,6 +186,9 @@ class PaginaDatiGenerali(Pagina):
     def __init__(self, repo: Repository):
         super().__init__(repo)
         self._caricata = False
+        self.riepilogo = Riepilogo()
+        self.layout_.addWidget(self.riepilogo)
+        self.layout_.addSpacing(8)
         modulo = QFormLayout()
         self.campi: dict[str, QLineEdit] = {}
         for campo, etichetta in self.CAMPI:
@@ -208,9 +212,6 @@ class PaginaDatiGenerali(Pagina):
         modulo.addRow("Descrizione", self.descrizione)
         self.layout_.addLayout(modulo)
 
-        self.obblighi = QLabel()
-        self.obblighi.setWordWrap(True)
-        self.layout_.addWidget(_riquadro("Obblighi (D.Lgs. 81/2008)", self.obblighi))
 
     def _numero(self, suffisso: str, campo: str) -> QDoubleSpinBox:
         s = QDoubleSpinBox()
@@ -218,8 +219,12 @@ class PaginaDatiGenerali(Pagina):
         s.setDecimals(2)
         s.setGroupSeparatorShown(True)
         s.setSuffix(suffisso)
-        s.editingFinished.connect(lambda: self.repo.aggiorna_cantiere(**{campo: s.value()}))
+        s.editingFinished.connect(lambda: self._salva_numero(campo, s.value()))
         return s
+
+    def _salva_numero(self, campo: str, valore: float) -> None:
+        self.repo.aggiorna_cantiere(**{campo: valore})
+        self.riepilogo.aggiorna(self.repo)
 
     def _salva_descrizione(self) -> None:
         self.repo.aggiorna_cantiere(descrizione=self.descrizione.toPlainText())
@@ -247,11 +252,7 @@ class PaginaDatiGenerali(Pagina):
         self.descrizione.blockSignals(True)
         self.descrizione.setPlainText(c["descrizione"])
         self.descrizione.blockSignals(False)
-        fasi = self.repo.elenco("fasi")
-        o = analisi.obblighi(self.repo.elenco("imprese"), fasi)
-        righe = o.descrizione()
-        righe.insert(2, f"Numero massimo presunto di lavoratori contemporanei: {analisi.picco_lavoratori(fasi)}")
-        self.obblighi.setText("\n".join(righe))
+        self.riepilogo.aggiorna(self.repo)
 
 
 class PaginaSoggetti(Pagina):
@@ -466,15 +467,32 @@ class PaginaFasi(Pagina):
         self.dettaglio.setEnabled(False)
 
         self.gantt = Gantt()
+        self.gantt.fase_modificata.connect(self._fase_trascinata)
         scorrimento = QScrollArea()
         scorrimento.setWidget(self.gantt)
         scorrimento.setWidgetResizable(False)
+        self.zoom = QComboBox()
+        self.zoom.addItems(list(ZOOM))
+        self.zoom.setCurrentText(ZOOM_PREDEFINITO)
+        self.zoom.currentTextChanged.connect(self.gantt.imposta_zoom)
+        barra_gantt = QHBoxLayout()
+        barra_gantt.addWidget(QLabel("Cronoprogramma - scala:"))
+        barra_gantt.addWidget(self.zoom)
+        barra_gantt.addStretch()
+        aiuto = QLabel("Trascina una barra per spostare la fase, dal bordo destro per cambiarne la durata.")
+        aiuto.setObjectName("sottotitolo")
+        barra_gantt.addWidget(aiuto)
+        riquadro_gantt = QWidget()
+        lay_gantt = QVBoxLayout(riquadro_gantt)
+        lay_gantt.setContentsMargins(0, 0, 0, 0)
+        lay_gantt.addLayout(barra_gantt)
+        lay_gantt.addWidget(scorrimento)
 
         divisore = QSplitter(Qt.Orientation.Vertical)
         divisore.addWidget(self.fasi)
-        divisore.addWidget(scorrimento)
+        divisore.addWidget(riquadro_gantt)
         divisore.addWidget(self.dettaglio)
-        divisore.setSizes([260, 260, 280])
+        divisore.setSizes([200, 400, 220])
         self.layout_.addWidget(divisore)
 
         self.fasi.selezione_cambiata.connect(self._fase_selezionata)
@@ -492,7 +510,14 @@ class PaginaFasi(Pagina):
         self.attrezzature.imposta_filtro(fase_id=filtro)
 
     def _aggiorna_gantt(self) -> None:
-        self.gantt.imposta_fasi(self.fasi.righe(), analisi.livelli_fasi(self.repo.elenco("rischi")))
+        imprese = {i["id"]: i["ragione_sociale"] or f"Impresa {i['id']}" for i in self.repo.elenco("imprese")}
+        self.gantt.imposta_fasi(self.fasi.righe(), analisi.livelli_fasi(self.repo.elenco("rischi")), imprese)
+
+    def _fase_trascinata(self, id_: int, inizio: str, fine: str) -> None:
+        self.repo.aggiorna("fasi", id_, data_inizio=inizio, data_fine=fine)
+        self.fasi.ricarica()
+        self.fasi.seleziona(id_)
+        self._aggiorna_gantt()
 
     def _importa(self) -> None:
         dialogo = DialogoArchivio(self)

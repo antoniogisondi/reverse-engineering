@@ -160,6 +160,25 @@ MIGRAZIONI: list[str] = [
 VERSIONE_SCHEMA = len(MIGRAZIONI)
 
 
+def anteprima(percorso: str | Path) -> dict[str, str] | None:
+    """Nome e comune del cantiere letti in sola lettura, senza backup né migrazioni.
+
+    Restituisce None se il file non esiste o non è un progetto leggibile.
+    """
+    try:
+        uri = Path(percorso).resolve().as_uri() + "?mode=ro"
+        conn = sqlite3.connect(uri, uri=True)
+        try:
+            riga = conn.execute("SELECT nome, comune, provincia FROM cantiere WHERE id = 1").fetchone()
+        finally:
+            conn.close()
+    except (sqlite3.Error, OSError, ValueError):
+        return None
+    if riga is None:
+        return None
+    return {"nome": riga[0], "comune": riga[1], "provincia": riga[2]}
+
+
 class ErroreProgetto(Exception):
     """Il file non è un progetto valido o è di una versione più recente."""
 

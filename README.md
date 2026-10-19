@@ -30,11 +30,18 @@ archivi o contenuti di software commerciali.
 - **Controlli di completezza** prima della stampa (errori e avvisi)
 - **Interfaccia** con tema chiaro e scuro, barra laterale con icone, barra degli strumenti
   e barra di stato con ultimo salvataggio e riepilogo dei controlli sempre visibili
+- **Pagina iniziale** con le schede dei cantieri recenti; **riepilogo a riquadri** del cantiere
+  (importo, durata, uomini-giorno, picco di lavoratori, interferenze, obblighi, controlli)
+- **Gantt interattivo**: colori per impresa con legenda, interferenze tratteggiate in rosso,
+  scala giorni/settimane/mesi, linea di oggi, barre trascinabili per spostare le fasi o
+  cambiarne la durata
 
 Le funzioni da implementare sono state individuate dalla documentazione pubblica dei
 software del settore e realizzate da zero: vedi [docs/analisi-funzionale.md](docs/analisi-funzionale.md).
 
-Ogni cantiere è un singolo file `.scs` (database SQLite).
+Ogni cantiere è un singolo file `.scs` (database SQLite), per esempio
+`Scuola via Roma.scs`: l'estensione viene aggiunta automaticamente. I documenti
+generati (PSC, POS, fascicolo, notifica) sono file Word `.docx` separati.
 
 ## Stabilità
 
