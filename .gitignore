@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+*.scs
+*.scs.bak
+*.docx
+.pytest_cache/
