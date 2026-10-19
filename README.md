@@ -10,15 +10,27 @@ archivi o contenuti di software commerciali.
 ## Funzioni
 
 - **Dati generali** del cantiere, con verifica automatica degli obblighi:
-  PSC/coordinatori (art. 90) e notifica preliminare (art. 99, soglia 200 uomini-giorno)
+  PSC e coordinatori (art. 90), notifica preliminare (art. 99), picco di lavoratori presenti
 - **Soggetti** con compiti di sicurezza (committente, CSP, CSE, ...)
-- **Imprese** affidatarie, esecutrici e lavoratori autonomi
-- **Fasi di lavoro** con importazione dall'archivio, rischi valutati con la matrice
-  P x D, misure di prevenzione e DPI
-- **Cronoprogramma** (Gantt) con evidenza delle fasi interferenti in rosso
+- **Imprese e lavoratori**: figure della sicurezza (datore di lavoro, RSPP, medico competente,
+  RLS, preposto, addetti alle emergenze), lavoratori con mansione, formazione e idoneità,
+  testi specifici del POS
+- **Archivio** di 27 lavorazioni in 5 categorie (allestimento, nuove costruzioni,
+  ristrutturazioni, infrastrutture, restauro) e di 21 macchine, attrezzi e opere
+  provvisionali. Ognuna ha i propri rischi, che vengono importati con la fase
+- **Gantt analitico**: per ogni fase importo, incidenza della manodopera e squadra
+  → uomini-giorno e durata; grafici di **affollamento** e **pericolosità**
+- **Interferenze** tra imprese diverse nella stessa zona, ordinate per gravità, con
+  prescrizioni del coordinatore per ogni coppia di fasi
 - **Costi della sicurezza** con totale
-- **Relazione**: sezioni testuali dell'Allegato XV
-- **Generazione del PSC** in formato Word (.docx)
+- **Relazione** del PSC (sezioni dell'Allegato XV)
+- **Fascicolo dell'opera**: interventi di manutenzione e documentazione di supporto
+- **Documenti Word**: PSC, POS per impresa, fascicolo dell'opera, notifica preliminare,
+  con tabella delle **revisioni** nel frontespizio
+- **Controlli di completezza** prima della stampa (errori e avvisi)
+
+Le funzioni da implementare sono state individuate dalla documentazione pubblica dei
+software del settore e realizzate da zero: vedi [docs/analisi-funzionale.md](docs/analisi-funzionale.md).
 
 Ogni cantiere è un singolo file `.scs` (database SQLite).
 
@@ -59,16 +71,19 @@ Da Windows lanciare `scripts\build_windows.bat`: esegue i test e crea
 | --- | --- |
 | `sicurcantiere/db.py` | File di progetto, schema e migrazioni |
 | `sicurcantiere/repository.py` | Lettura e scrittura dei dati |
-| `sicurcantiere/analisi.py` | Rischi, interferenze, uomini-giorno, obblighi |
-| `sicurcantiere/archivio.py` | Archivio di base delle lavorazioni |
-| `sicurcantiere/documenti/psc.py` | Generazione del PSC in DOCX |
+| `sicurcantiere/analisi.py` | Rischi, Gantt analitico, interferenze, affollamento, obblighi |
+| `sicurcantiere/archivio.py` | Archivio di lavorazioni, macchine e attrezzi |
+| `sicurcantiere/controlli.py` | Controlli di completezza |
+| `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
 | `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt) |
 
 ## Prossimi passi
 
-- POS (Allegato XV punto 3.2) e fascicolo dell'opera (Allegato XVI)
-- Notifica preliminare (Allegato XII)
-- Archivio delle lavorazioni modificabile dall'utente
+- Archivio delle lavorazioni modificabile dall'utente e archivi dei responsabili ricorrenti
+- DUVRI, PSS, piano di emergenza
+- Valutazioni specifiche (rumore, vibrazioni, movimentazione carichi)
+- Esportazione dei costi in Excel
+- Modulistica (verbali di coordinamento, consegna DPI)
 - Importazione di prezzari regionali per i costi della sicurezza
 - Layout di cantiere (planimetria)
 

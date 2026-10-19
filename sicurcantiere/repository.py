@@ -6,7 +6,14 @@ from typing import Any
 
 from sicurcantiere.db import Progetto
 
-TABELLE_ELENCO = ("soggetti", "imprese", "fasi", "rischi", "costi")
+TABELLE_ELENCO = (
+    "soggetti", "imprese", "lavoratori", "fasi", "rischi", "attrezzature",
+    "costi", "revisioni", "interventi", "elaborati",
+)
+ORDINAMENTO = {
+    "fasi": "data_inizio IS NULL, data_inizio, id",
+    "revisioni": "documento, numero, id",
+}
 
 
 class Repository:
@@ -48,8 +55,7 @@ class Repository:
         sql = f"SELECT * FROM {tabella}"
         if filtri:
             sql += " WHERE " + " AND ".join(f"{c} = ?" for c in filtri)
-        ordine = "data_inizio IS NULL, data_inizio, id" if tabella == "fasi" else "id"
-        sql += f" ORDER BY {ordine}"
+        sql += f" ORDER BY {ORDINAMENTO.get(tabella, 'id')}"
         return [dict(r) for r in self.progetto.query(sql, tuple(filtri.values()))]
 
     def leggi(self, tabella: str, id_: int) -> dict[str, Any] | None:
@@ -99,21 +105,67 @@ class Repository:
                 (sezione, testo),
             )
 
+    # --- prescrizioni sulle interferenze (coppie di fasi) ---
+
+    def prescrizioni(self) -> dict[tuple[int, int], str]:
+        return {
+            (r["fase_a"], r["fase_b"]): r["testo"]
+            for r in self.progetto.query("SELECT * FROM prescrizioni")
+        }
+
+    def salva_prescrizione(self, fase_a: int, fase_b: int, testo: str) -> None:
+        a, b = sorted((fase_a, fase_b))
+        with self.progetto.transazione() as c:
+            if testo.strip():
+                c.execute(
+                    "INSERT INTO prescrizioni (fase_a, fase_b, testo) VALUES (?, ?, ?) "
+                    "ON CONFLICT(fase_a, fase_b) DO UPDATE SET testo = excluded.testo",
+                    (a, b, testo),
+                )
+            else:
+                c.execute("DELETE FROM prescrizioni WHERE fase_a = ? AND fase_b = ?", (a, b))
+
     # --- archivio ---
 
     def importa_lavorazione(self, lavorazione: dict[str, Any]) -> int:
-        """Copia una lavorazione dell'archivio nel progetto come nuova fase."""
+        """Copia una lavorazione dell'archivio nel progetto come nuova fase.
+
+        Vengono copiati anche le macchine e gli attrezzi, con i loro rischi.
+        """
+        from sicurcantiere.archivio import ATTREZZATURE
+
         with self.progetto.transazione() as c:
             fase_id = int(
                 c.execute(
-                    "INSERT INTO fasi (codice, descrizione) VALUES (?, ?)",
-                    (lavorazione["codice"], lavorazione["descrizione"]),
+                    "INSERT INTO fasi (codice, descrizione, incidenza_manodopera) VALUES (?, ?, ?)",
+                    (lavorazione["codice"], lavorazione["descrizione"],
+                     lavorazione.get("incidenza_manodopera", 0)),
                 ).lastrowid
             )
-            for r in lavorazione["rischi"]:
-                c.execute(
-                    "INSERT INTO rischi (fase_id, descrizione, probabilita, danno, misure, dpi) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (fase_id, r["descrizione"], r["probabilita"], r["danno"], r["misure"], r["dpi"]),
-                )
+            self._inserisci_rischi(c, fase_id, "", lavorazione["rischi"])
+            for nome in lavorazione.get("attrezzature", []):
+                self._inserisci_attrezzatura(c, fase_id, nome, ATTREZZATURE[nome])
         return fase_id
+
+    def aggiungi_attrezzatura(self, fase_id: int, nome: str) -> None:
+        """Aggiunge alla fase una macchina o un attrezzo dell'archivio con i suoi rischi."""
+        from sicurcantiere.archivio import ATTREZZATURE
+
+        with self.progetto.transazione() as c:
+            self._inserisci_attrezzatura(c, fase_id, nome, ATTREZZATURE[nome])
+
+    def _inserisci_attrezzatura(self, c, fase_id: int, nome: str, attrezzatura: dict[str, Any]) -> None:
+        c.execute(
+            "INSERT INTO attrezzature (fase_id, tipo, nome) VALUES (?, ?, ?)",
+            (fase_id, attrezzatura["tipo"], nome),
+        )
+        self._inserisci_rischi(c, fase_id, nome, attrezzatura["rischi"])
+
+    @staticmethod
+    def _inserisci_rischi(c, fase_id: int, fonte: str, rischi: list[dict[str, Any]]) -> None:
+        for r in rischi:
+            c.execute(
+                "INSERT INTO rischi (fase_id, fonte, descrizione, probabilita, danno, misure, dpi) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (fase_id, fonte, r["descrizione"], r["probabilita"], r["danno"], r["misure"], r["dpi"]),
+            )

@@ -64,7 +64,7 @@ class FinestraPrincipale(QMainWindow):
         self.pagine: list[Pagina] = []
 
         self.navigazione = QListWidget()
-        self.navigazione.setFixedWidth(270)
+        self.navigazione.setFixedWidth(200)
         self.navigazione.currentRowChanged.connect(self._mostra_pagina)
         self.contenitore = QStackedWidget()
         centrale = QWidget()
@@ -210,7 +210,7 @@ class FinestraPrincipale(QMainWindow):
             pagina = classe(repo)
             self.pagine.append(pagina)
             self.contenitore.addWidget(pagina)
-            self.navigazione.addItem(classe.titolo)
+            self.navigazione.addItem(classe.voce or classe.titolo)
         self.navigazione.setEnabled(True)
         self.navigazione.setCurrentRow(0)
         self.azione_salva_con_nome.setEnabled(True)

@@ -85,6 +85,76 @@ MIGRAZIONI: list[str] = [
         testo TEXT NOT NULL DEFAULT ''
     );
     """,
+    # v0.2: Gantt analitico, interferenze per zona, POS, fascicolo, revisioni.
+    """
+    ALTER TABLE cantiere ADD COLUMN costo_uomo_giorno REAL NOT NULL DEFAULT 250;
+
+    ALTER TABLE fasi ADD COLUMN zona TEXT NOT NULL DEFAULT '';
+    ALTER TABLE fasi ADD COLUMN importo REAL NOT NULL DEFAULT 0;
+    ALTER TABLE fasi ADD COLUMN incidenza_manodopera REAL NOT NULL DEFAULT 0;
+
+    ALTER TABLE rischi ADD COLUMN fonte TEXT NOT NULL DEFAULT '';
+
+    CREATE TABLE attrezzature (
+        id INTEGER PRIMARY KEY,
+        fase_id INTEGER NOT NULL REFERENCES fasi(id) ON DELETE CASCADE,
+        tipo TEXT NOT NULL DEFAULT 'Attrezzo',
+        nome TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE prescrizioni (
+        fase_a INTEGER NOT NULL REFERENCES fasi(id) ON DELETE CASCADE,
+        fase_b INTEGER NOT NULL REFERENCES fasi(id) ON DELETE CASCADE,
+        testo TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (fase_a, fase_b),
+        CHECK (fase_a < fase_b)
+    );
+
+    CREATE TABLE revisioni (
+        id INTEGER PRIMARY KEY,
+        documento TEXT NOT NULL DEFAULT 'PSC',
+        numero INTEGER NOT NULL DEFAULT 0,
+        data TEXT,
+        descrizione TEXT NOT NULL DEFAULT ''
+    );
+
+    ALTER TABLE imprese ADD COLUMN codice_fiscale TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN datore_lavoro TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN rspp TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN medico_competente TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN rls TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN preposto TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN addetti_emergenze TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN posizione_inail_inps TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN orario_lavoro TEXT NOT NULL DEFAULT '';
+
+    CREATE TABLE lavoratori (
+        id INTEGER PRIMARY KEY,
+        impresa_id INTEGER NOT NULL REFERENCES imprese(id) ON DELETE CASCADE,
+        nome TEXT NOT NULL DEFAULT '',
+        mansione TEXT NOT NULL DEFAULT '',
+        formazione TEXT NOT NULL DEFAULT '',
+        idoneita_scadenza TEXT
+    );
+
+    CREATE TABLE interventi (
+        id INTEGER PRIMARY KEY,
+        parte_opera TEXT NOT NULL DEFAULT '',
+        intervento TEXT NOT NULL DEFAULT '',
+        periodicita TEXT NOT NULL DEFAULT '',
+        rischi TEXT NOT NULL DEFAULT '',
+        misure_in_dotazione TEXT NOT NULL DEFAULT '',
+        misure_ausiliarie TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE elaborati (
+        id INTEGER PRIMARY KEY,
+        titolo TEXT NOT NULL DEFAULT '',
+        autore TEXT NOT NULL DEFAULT '',
+        data TEXT,
+        collocazione TEXT NOT NULL DEFAULT ''
+    );
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

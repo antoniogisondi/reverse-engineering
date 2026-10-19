@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
@@ -53,6 +54,32 @@ def giorni_lavorativi(inizio: date, fine: date) -> int:
     return giorni
 
 
+def fine_dopo_giorni_lavorativi(inizio: date, giorni: int) -> date:
+    """Data dell'ultimo giorno di una lavorazione di `giorni` giorni lavorativi."""
+    giorno = inizio
+    while giorno.weekday() >= 5:
+        giorno += timedelta(days=1)
+    contati = 1
+    while contati < max(giorni, 1):
+        giorno += timedelta(days=1)
+        if giorno.weekday() < 5:
+            contati += 1
+    return giorno
+
+
+def durata_stimata(importo: float, incidenza_manodopera: float, costo_uomo_giorno: float,
+                   lavoratori: int) -> int | None:
+    """Giorni lavorativi stimati di una fase (Gantt analitico).
+
+    uomini-giorno = importo x incidenza% / costo di un uomo-giorno;
+    durata = uomini-giorno / lavoratori della squadra, arrotondata per eccesso.
+    """
+    if importo <= 0 or incidenza_manodopera <= 0 or costo_uomo_giorno <= 0 or lavoratori <= 0:
+        return None
+    ug = importo * incidenza_manodopera / 100 / costo_uomo_giorno
+    return max(1, math.ceil(ug / lavoratori - 1e-9))
+
+
 def uomini_giorno(fasi: list[dict[str, Any]]) -> int:
     totale = 0
     for f in fasi:
@@ -70,20 +97,41 @@ def periodo_lavori(fasi: list[dict[str, Any]]) -> tuple[date, date] | None:
     return min(inizi), max(fini)
 
 
+def livelli_fasi(rischi: list[dict[str, Any]]) -> dict[int, int]:
+    """Livello di rischio massimo di ogni fase."""
+    livelli: dict[int, int] = {}
+    for r in rischi:
+        livello = livello_rischio(r["probabilita"], r["danno"])
+        livelli[r["fase_id"]] = max(livelli.get(r["fase_id"], 0), livello)
+    return livelli
+
+
 @dataclass(frozen=True)
 class Interferenza:
     fase_a: dict[str, Any]
     fase_b: dict[str, Any]
     inizio: date
     fine: date
+    gravita: int = 0  # livello di rischio massimo tra le due fasi
+
+    @property
+    def chiave(self) -> tuple[int, int]:
+        return tuple(sorted((self.fase_a["id"], self.fase_b["id"])))  # type: ignore[return-value]
 
 
-def interferenze(fasi: list[dict[str, Any]]) -> list[Interferenza]:
-    """Coppie di fasi sovrapposte nel tempo eseguite da imprese diverse.
+def _stessa(a: Any, b: Any) -> bool:
+    return bool(a) and a == b
 
-    Le fasi senza impresa assegnata sono considerate potenzialmente
-    interferenti con tutte le altre, finché l'impresa non viene indicata.
+
+def interferenze(fasi: list[dict[str, Any]],
+                 livelli: dict[int, int] | None = None) -> list[Interferenza]:
+    """Coppie di fasi sovrapposte nel tempo eseguite da imprese diverse nella stessa zona.
+
+    Le fasi senza impresa o senza zona sono considerate potenzialmente
+    interferenti, finché il dato non viene indicato. Risultato ordinato per
+    gravità decrescente e poi per data.
     """
+    livelli = livelli or {}
     risultato = []
     datate = [
         (f, i, e)
@@ -93,12 +141,52 @@ def interferenze(fasi: list[dict[str, Any]]) -> list[Interferenza]:
     for n, (a, ia, fa) in enumerate(datate):
         for b, ib, fb in datate[n + 1:]:
             inizio, fine = max(ia, ib), min(fa, fb)
-            if inizio > fine:
+            if inizio > fine or giorni_lavorativi(inizio, fine) == 0:
                 continue
-            stessa_impresa = a.get("impresa_id") and a.get("impresa_id") == b.get("impresa_id")
-            if not stessa_impresa:
-                risultato.append(Interferenza(a, b, inizio, fine))
+            if _stessa(a.get("impresa_id"), b.get("impresa_id")):
+                continue
+            za, zb = (a.get("zona") or "").strip().lower(), (b.get("zona") or "").strip().lower()
+            if za and zb and za != zb:
+                continue
+            gravita = max(livelli.get(a["id"], 0), livelli.get(b["id"], 0))
+            risultato.append(Interferenza(a, b, inizio, fine, gravita))
+    risultato.sort(key=lambda i: (-i.gravita, i.inizio))
     return risultato
+
+
+@dataclass(frozen=True)
+class Giornata:
+    giorno: date
+    lavoratori: int
+    pericolosita: int
+
+
+def andamento(fasi: list[dict[str, Any]], livelli: dict[int, int]) -> list[Giornata]:
+    """Affollamento (lavoratori presenti) e pericolosità (rischio massimo) per giorno lavorativo."""
+    periodo = periodo_lavori(fasi)
+    if not periodo:
+        return []
+    intervalli = [
+        (i, e, int(f.get("lavoratori") or 0), livelli.get(f["id"], 0))
+        for f in fasi
+        if (i := data(f.get("data_inizio"))) and (e := data(f.get("data_fine")))
+    ]
+    risultato = []
+    giorno = periodo[0]
+    while giorno <= periodo[1]:
+        if giorno.weekday() < 5:
+            attive = [(l, p) for i, e, l, p in intervalli if i <= giorno <= e]
+            risultato.append(Giornata(
+                giorno,
+                sum(l for l, _ in attive),
+                max((p for _, p in attive), default=0),
+            ))
+        giorno += timedelta(days=1)
+    return risultato
+
+
+def picco_lavoratori(fasi: list[dict[str, Any]]) -> int:
+    return max((g.lavoratori for g in andamento(fasi, {})), default=0)
 
 
 def totale_costi(costi: list[dict[str, Any]]) -> float:

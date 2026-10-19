@@ -6,63 +6,32 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
-from docx import Document
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
+from docx.shared import Pt
 
 from sicurcantiere import analisi
+from sicurcantiere.documenti.comune import (
+    data_it,
+    euro,
+    firma,
+    frontespizio,
+    indirizzo_cantiere,
+    nome_fase,
+    nuovo_documento,
+    ombreggia,
+    tabella,
+    tabella_voci,
+    testo_o_segnaposto,
+)
 from sicurcantiere.relazione import SEZIONI
 from sicurcantiere.repository import Repository
 
 COLORE_BARRA = "4F81BD"
 COLORE_INTERFERENZA = "C0504D"
 MAX_COLONNE_CRONO = 26
-
-
-def euro(valore: float) -> str:
-    testo = f"{valore:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"€ {testo}"
-
-
-def data_it(valore: str | date | None) -> str:
-    d = analisi.data(valore) if isinstance(valore, str) or valore is None else valore
-    return d.strftime("%d/%m/%Y") if d else "-"
-
-
-def _ombreggia(cella, colore: str) -> None:
-    proprieta = cella._tc.get_or_add_tcPr()
-    sfondo = OxmlElement("w:shd")
-    sfondo.set(qn("w:val"), "clear")
-    sfondo.set(qn("w:color"), "auto")
-    sfondo.set(qn("w:fill"), colore)
-    proprieta.append(sfondo)
-
-
-def _tabella(doc, intestazioni: list[str], righe: list[list[str]]):
-    t = doc.add_table(rows=1, cols=len(intestazioni))
-    t.style = "Table Grid"
-    for cella, testo in zip(t.rows[0].cells, intestazioni):
-        cella.text = testo
-        for run in cella.paragraphs[0].runs:
-            run.bold = True
-        _ombreggia(cella, "D9D9D9")
-    for riga in righe:
-        celle = t.add_row().cells
-        for cella, testo in zip(celle, riga):
-            cella.text = testo
-    return t
-
-
-def _testo_o_segnaposto(doc, testo: str) -> None:
-    if testo.strip():
-        for paragrafo in testo.strip().split("\n"):
-            doc.add_paragraph(paragrafo)
-    else:
-        p = doc.add_paragraph()
-        r = p.add_run("[Sezione da compilare]")
-        r.italic = True
+PRESCRIZIONE_GENERICA = (
+    "Sfasamento spaziale delle lavorazioni o, se non possibile, sfasamento temporale; "
+    "verifica del CSE prima dell'inizio."
+)
 
 
 def _colonne_cronoprogramma(inizio: date, fine: date) -> list[tuple[date, date, str]]:
@@ -79,15 +48,14 @@ def _colonne_cronoprogramma(inizio: date, fine: date) -> list[tuple[date, date, 
     return colonne
 
 
-def _cronoprogramma(doc, fasi: list[dict[str, Any]], imprese: dict[int, str]) -> None:
+def _cronoprogramma(doc, fasi: list[dict[str, Any]], imprese: dict[int, str],
+                    interferenze: list[analisi.Interferenza]) -> None:
     periodo = analisi.periodo_lavori(fasi)
     if not periodo:
-        _testo_o_segnaposto(doc, "")
+        testo_o_segnaposto(doc, "")
         return
     colonne = _colonne_cronoprogramma(*periodo)
-    interferenti = {
-        f["id"] for i in analisi.interferenze(fasi) for f in (i.fase_a, i.fase_b)
-    }
+    interferenti = {f["id"] for i in interferenze for f in (i.fase_a, i.fase_b)}
     t = doc.add_table(rows=1, cols=len(colonne) + 2)
     t.style = "Table Grid"
     intestazione = t.rows[0].cells
@@ -102,7 +70,7 @@ def _cronoprogramma(doc, fasi: list[dict[str, Any]], imprese: dict[int, str]) ->
     for f in fasi:
         inizio, fine = analisi.data(f["data_inizio"]), analisi.data(f["data_fine"])
         celle = t.add_row().cells
-        celle[0].text = f"{f['codice']} {f['descrizione']}".strip()
+        celle[0].text = nome_fase(f)
         celle[1].text = imprese.get(f["impresa_id"], "")
         for cella in celle[:2]:
             for run in cella.paragraphs[0].runs:
@@ -112,7 +80,7 @@ def _cronoprogramma(doc, fasi: list[dict[str, Any]], imprese: dict[int, str]) ->
         colore = COLORE_INTERFERENZA if f["id"] in interferenti else COLORE_BARRA
         for cella, (da, a, _) in zip(celle[2:], colonne):
             if inizio <= a and fine >= da:
-                _ombreggia(cella, colore)
+                ombreggia(cella, colore)
     doc.add_paragraph(
         "In rosso le fasi con sovrapposizioni temporali tra imprese diverse (interferenze)."
     ).runs[0].italic = True
@@ -124,59 +92,41 @@ def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
     imprese = repo.elenco("imprese")
     fasi = repo.elenco("fasi")
     costi = repo.elenco("costi")
+    rischi = repo.elenco("rischi")
     nomi_imprese = {i["id"]: i["ragione_sociale"] for i in imprese}
+    livelli = analisi.livelli_fasi(rischi)
+    elenco_interferenze = analisi.interferenze(fasi, livelli)
+    prescrizioni = repo.prescrizioni()
 
-    doc = Document()
-    for sezione in doc.sections:
-        sezione.left_margin = sezione.right_margin = Cm(2)
-    doc.styles["Normal"].font.name = "Calibri"
-    doc.styles["Normal"].font.size = Pt(10)
-
-    # Frontespizio
-    titolo = doc.add_heading("PIANO DI SICUREZZA E COORDINAMENTO", 0)
-    titolo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p = doc.add_paragraph("art. 100 e Allegato XV del D.Lgs. 9 aprile 2008, n. 81")
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph()
-    for etichetta, valore in [
-        ("Opera", cantiere["nome"]),
-        ("Natura dell'opera", cantiere["natura_opera"]),
-        ("Indirizzo del cantiere", ", ".join(
-            v for v in (cantiere["indirizzo"], cantiere["comune"], cantiere["provincia"]) if v
-        )),
-        ("Data", data_it(date.today())),
-    ]:
-        p = doc.add_paragraph()
-        p.add_run(f"{etichetta}: ").bold = True
-        p.add_run(valore or "-")
-    doc.add_page_break()
+    doc = nuovo_documento()
+    frontespizio(doc, repo, "PIANO DI SICUREZZA E COORDINAMENTO",
+                 "art. 100 e Allegato XV del D.Lgs. 9 aprile 2008, n. 81", "PSC")
 
     # a) Identificazione e descrizione dell'opera
     doc.add_heading("1. Identificazione e descrizione dell'opera", 1)
     periodo = analisi.periodo_lavori(fasi)
-    ug = analisi.uomini_giorno(fasi)
-    _tabella(doc, ["Voce", "Valore"], [
-        ["Opera", cantiere["nome"]],
-        ["Natura dell'opera", cantiere["natura_opera"]],
-        ["Indirizzo", cantiere["indirizzo"]],
-        ["Comune", f"{cantiere['comune']} ({cantiere['provincia']})" if cantiere["provincia"] else cantiere["comune"]],
-        ["Importo presunto dei lavori", euro(cantiere["importo_lavori"])],
-        ["Inizio lavori presunto", data_it(periodo[0]) if periodo else "-"],
-        ["Fine lavori presunta", data_it(periodo[1]) if periodo else "-"],
-        ["Entità presunta del cantiere", f"{ug} uomini-giorno"],
+    tabella_voci(doc, [
+        ("Opera", cantiere["nome"]),
+        ("Natura dell'opera", cantiere["natura_opera"]),
+        ("Indirizzo del cantiere", indirizzo_cantiere(cantiere)),
+        ("Importo presunto dei lavori", euro(cantiere["importo_lavori"])),
+        ("Inizio lavori presunto", data_it(periodo[0]) if periodo else "-"),
+        ("Fine lavori presunta", data_it(periodo[1]) if periodo else "-"),
+        ("Entità presunta del cantiere", f"{analisi.uomini_giorno(fasi)} uomini-giorno"),
+        ("Numero massimo presunto di lavoratori", str(analisi.picco_lavoratori(fasi))),
     ])
     doc.add_heading("Descrizione sintetica dell'opera", 2)
-    _testo_o_segnaposto(doc, cantiere["descrizione"])
+    testo_o_segnaposto(doc, cantiere["descrizione"])
 
     # b) Soggetti
     doc.add_heading("2. Soggetti con compiti di sicurezza", 1)
-    _tabella(doc, ["Ruolo", "Nominativo", "Codice fiscale", "Recapiti"], [
+    tabella(doc, ["Ruolo", "Nominativo", "Codice fiscale", "Recapiti"], [
         [s["ruolo"], s["nome"], s["codice_fiscale"],
          " - ".join(v for v in (s["indirizzo"], s["telefono"], s["email"]) if v)]
         for s in soggetti
     ])
     doc.add_heading("Imprese e lavoratori autonomi", 2)
-    _tabella(doc, ["Ragione sociale", "Tipo", "P. IVA", "Referente", "Telefono"], [
+    tabella(doc, ["Ragione sociale", "Tipo", "P. IVA", "Referente", "Telefono"], [
         [i["ragione_sociale"], i["tipo"], i["partita_iva"], i["referente"], i["telefono"]]
         for i in imprese
     ])
@@ -186,7 +136,7 @@ def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
     numero = 3
     for chiave, titolo_sezione in SEZIONI[:3]:
         doc.add_heading(f"{numero}. {titolo_sezione}", 1)
-        _testo_o_segnaposto(doc, testi[chiave])
+        testo_o_segnaposto(doc, testi[chiave])
         numero += 1
 
     # c-d) Rischi per fase
@@ -197,37 +147,44 @@ def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
         "Classi: 1-2 basso, 3-4 medio, 6-8 alto, 9-16 molto alto."
     )
     for f in fasi:
-        doc.add_heading(f"{f['codice']} {f['descrizione']}".strip(), 2)
+        doc.add_heading(nome_fase(f), 2)
         p = doc.add_paragraph()
         p.add_run("Impresa: ").bold = True
         p.add_run(nomi_imprese.get(f["impresa_id"], "da definire"))
         p.add_run("   Periodo: ").bold = True
         p.add_run(f"{data_it(f['data_inizio'])} - {data_it(f['data_fine'])}")
-        rischi = repo.elenco("rischi", fase_id=f["id"])
-        if rischi:
+        if f["zona"]:
+            p.add_run("   Zona: ").bold = True
+            p.add_run(f["zona"])
+        attrezzature = repo.elenco("attrezzature", fase_id=f["id"])
+        if attrezzature:
+            p = doc.add_paragraph()
+            p.add_run("Macchine, attrezzi e opere provvisionali: ").bold = True
+            p.add_run(", ".join(a["nome"] for a in attrezzature))
+        rischi_fase = [r for r in rischi if r["fase_id"] == f["id"]]
+        if rischi_fase:
             righe = []
-            for r in rischi:
+            for r in rischi_fase:
                 livello = analisi.livello_rischio(r["probabilita"], r["danno"])
+                descrizione = f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"]
                 righe.append([
-                    r["descrizione"], f"{r['probabilita']}x{r['danno']}={livello}",
+                    descrizione, f"{r['probabilita']}x{r['danno']}={livello}",
                     analisi.classe_rischio(livello), r["misure"], r["dpi"],
                 ])
-            _tabella(doc, ["Rischio", "PxD", "Classe", "Misure di prevenzione e protezione", "DPI"], righe)
+            tabella(doc, ["Rischio", "PxD", "Classe", "Misure di prevenzione e protezione", "DPI"], righe)
         else:
-            _testo_o_segnaposto(doc, "")
+            testo_o_segnaposto(doc, "")
 
     # e) Interferenze
     doc.add_heading(f"{numero}. Interferenze tra le lavorazioni e prescrizioni operative", 1)
     numero += 1
-    elenco_interferenze = analisi.interferenze(fasi)
     if elenco_interferenze:
-        _tabella(doc, ["Fase", "Fase interferente", "Periodo di sovrapposizione", "Prescrizione"], [
+        tabella(doc, ["Fase", "Fase interferente", "Periodo", "Gravità", "Prescrizioni"], [
             [
-                f"{i.fase_a['codice']} {i.fase_a['descrizione']}".strip(),
-                f"{i.fase_b['codice']} {i.fase_b['descrizione']}".strip(),
+                nome_fase(i.fase_a), nome_fase(i.fase_b),
                 f"{data_it(i.inizio)} - {data_it(i.fine)}",
-                "Sfasamento spaziale delle lavorazioni o, se non possibile, sfasamento temporale; "
-                "verifica del CSE prima dell'inizio.",
+                f"{i.gravita} {analisi.classe_rischio(i.gravita)}" if i.gravita else "-",
+                prescrizioni.get(i.chiave) or PRESCRIZIONE_GENERICA,
             ]
             for i in elenco_interferenze
         ])
@@ -237,13 +194,13 @@ def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
     # f-h) Coordinamento ed emergenze
     for chiave, titolo_sezione in SEZIONI[3:]:
         doc.add_heading(f"{numero}. {titolo_sezione}", 1)
-        _testo_o_segnaposto(doc, testi[chiave])
+        testo_o_segnaposto(doc, testi[chiave])
         numero += 1
 
     # i) Cronoprogramma
     doc.add_heading(f"{numero}. Cronoprogramma dei lavori", 1)
     numero += 1
-    _cronoprogramma(doc, fasi, nomi_imprese)
+    _cronoprogramma(doc, fasi, nomi_imprese, elenco_interferenze)
 
     # l) Costi
     doc.add_heading(f"{numero}. Stima dei costi della sicurezza", 1)
@@ -255,14 +212,11 @@ def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
     ]
     righe_costi.append(["", "TOTALE COSTI DELLA SICUREZZA (non soggetti a ribasso)", "", "", "",
                         euro(analisi.totale_costi(costi))])
-    t = _tabella(doc, ["Codice", "Descrizione", "U.M.", "Quantità", "Prezzo unit.", "Importo"], righe_costi)
+    t = tabella(doc, ["Codice", "Descrizione", "U.M.", "Quantità", "Prezzo unit.", "Importo"], righe_costi)
     for run in t.rows[-1].cells[1].paragraphs[0].runs + t.rows[-1].cells[5].paragraphs[0].runs:
         run.bold = True
 
-    # Firme
-    doc.add_paragraph()
-    doc.add_paragraph("Il Coordinatore per la sicurezza in fase di progettazione")
-    doc.add_paragraph("_______________________________")
+    firma(doc, "Il Coordinatore per la sicurezza in fase di progettazione")
 
     destinazione = Path(destinazione)
     doc.save(destinazione)
