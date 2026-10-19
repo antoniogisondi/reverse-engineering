@@ -155,6 +155,50 @@ MIGRAZIONI: list[str] = [
         collocazione TEXT NOT NULL DEFAULT ''
     );
     """,
+    # v0.3: valutazioni dei rischi specifici con metodi normati, PiMUS.
+    """
+    CREATE TABLE valutazioni (
+        id INTEGER PRIMARY KEY,
+        metodo TEXT NOT NULL DEFAULT 'niosh',
+        titolo TEXT NOT NULL DEFAULT '',
+        mansione TEXT NOT NULL DEFAULT '',
+        fase_id INTEGER REFERENCES fasi(id) ON DELETE SET NULL,
+        impresa_id INTEGER REFERENCES imprese(id) ON DELETE SET NULL,
+        dati TEXT NOT NULL DEFAULT '{}',
+        note TEXT NOT NULL DEFAULT '',
+        data TEXT
+    );
+
+    CREATE TABLE ponteggi (
+        id INTEGER PRIMARY KEY,
+        nome TEXT NOT NULL DEFAULT '',
+        impresa_id INTEGER REFERENCES imprese(id) ON DELETE SET NULL,
+        tipo TEXT NOT NULL DEFAULT 'Telai prefabbricati',
+        altezza REAL NOT NULL DEFAULT 0,
+        lunghezza REAL NOT NULL DEFAULT 0,
+        conforme_schemi INTEGER NOT NULL DEFAULT 1,
+        fabbricante TEXT NOT NULL DEFAULT '',
+        modello TEXT NOT NULL DEFAULT '',
+        autorizzazione TEXT NOT NULL DEFAULT '',
+        classe_carico TEXT NOT NULL DEFAULT '',
+        ancoraggi TEXT NOT NULL DEFAULT '',
+        piano_appoggio TEXT NOT NULL DEFAULT '',
+        progettista TEXT NOT NULL DEFAULT '',
+        preposto TEXT NOT NULL DEFAULT '',
+        squadra TEXT NOT NULL DEFAULT '',
+        sollevamento TEXT NOT NULL DEFAULT '',
+        dpi TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE verifiche_ponteggio (
+        id INTEGER PRIMARY KEY,
+        ponteggio_id INTEGER NOT NULL REFERENCES ponteggi(id) ON DELETE CASCADE,
+        momento TEXT NOT NULL DEFAULT 'Prima del montaggio',
+        voce TEXT NOT NULL DEFAULT '',
+        esito TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT ''
+    );
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

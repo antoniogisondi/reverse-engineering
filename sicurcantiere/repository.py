@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from sicurcantiere.db import Progetto
@@ -9,6 +10,7 @@ from sicurcantiere.db import Progetto
 TABELLE_ELENCO = (
     "soggetti", "imprese", "lavoratori", "fasi", "rischi", "attrezzature",
     "costi", "revisioni", "interventi", "elaborati",
+    "valutazioni", "ponteggi", "verifiche_ponteggio",
 )
 ORDINAMENTO = {
     "fasi": "data_inizio IS NULL, data_inizio, id",
@@ -104,6 +106,21 @@ class Repository:
                 "ON CONFLICT(sezione) DO UPDATE SET testo = excluded.testo",
                 (sezione, testo),
             )
+
+    # --- valutazioni dei rischi specifici (parametri salvati in JSON) ---
+
+    def dati_valutazione(self, id_: int) -> dict[str, Any]:
+        riga = self.leggi("valutazioni", id_)
+        if riga is None:
+            return {}
+        try:
+            dati = json.loads(riga["dati"] or "{}")
+        except json.JSONDecodeError:
+            return {}
+        return dati if isinstance(dati, dict) else {}
+
+    def salva_dati_valutazione(self, id_: int, dati: dict[str, Any]) -> None:
+        self.aggiorna("valutazioni", id_, dati=json.dumps(dati, ensure_ascii=False, sort_keys=True))
 
     # --- prescrizioni sulle interferenze (coppie di fasi) ---
 

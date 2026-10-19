@@ -1,0 +1,287 @@
+"""Assistente AI per velocizzare la compilazione.
+
+L'assistente propone valori e testi; non salva nulla da solo: è sempre
+l'utente a confermare e il professionista resta responsabile della
+valutazione. Le risposte sono vincolate a uno schema JSON (structured
+outputs), così possono essere inserite direttamente nei campi.
+
+Fornitori supportati:
+- OpenAI (ChatGPT), predefinito: chiave nelle impostazioni o variabile OPENAI_API_KEY;
+- Claude (Anthropic): chiave nelle impostazioni, variabile ANTHROPIC_API_KEY o
+  profilo `ant auth login`.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from typing import Any
+
+from sicurcantiere.valutazioni.base import Campo, Metodo
+
+OPENAI, ANTHROPIC = "openai", "anthropic"
+FORNITORE_PREDEFINITO = OPENAI
+
+
+@dataclass(frozen=True)
+class Fornitore:
+    nome: str
+    modello_predefinito: str
+    modelli: tuple[tuple[str, str], ...]
+
+
+FORNITORI: dict[str, Fornitore] = {
+    OPENAI: Fornitore("OpenAI (ChatGPT)", "gpt-5.5", (
+        ("gpt-5.5", "GPT-5.5"),
+        ("gpt-5.4-mini", "GPT-5.4 mini (più rapido ed economico)"),
+    )),
+    ANTHROPIC: Fornitore("Claude (Anthropic)", "claude-opus-5-5", (
+        ("claude-opus-5-5", "Claude Opus 5.5"),
+        ("claude-sonnet-5-5", "Claude Sonnet 5.5 (più rapido ed economico)"),
+        ("claude-haiku-5-5", "Claude Haiku 5.5 (il più economico)"),
+    )),
+}
+# Claude: fallback lato server in caso di rifiuto da parte dei classificatori di sicurezza.
+BETA_FALLBACK = "server-side-fallback-2026-07-01"
+MAX_TOKEN = 16000
+
+SISTEMA = (
+    "Sei l'assistente di SicurCantiere, un programma per coordinatori della sicurezza e tecnici "
+    "che redigono PSC, POS, PiMUS e valutazioni dei rischi nei cantieri italiani secondo il "
+    "D.Lgs. 81/2008 e le norme tecniche (UNI ISO 11228-1, UNI ISO 11228-3, ecc.).\n"
+    "Rispondi sempre in italiano, con linguaggio tecnico ma chiaro, adatto a un documento di "
+    "sicurezza. Quando i dati forniti non bastano, scegli valori realistici e prudenti per un "
+    "cantiere edile e dichiara ogni ipotesi in modo esplicito: le tue proposte saranno verificate "
+    "da un professionista prima dell'uso. Non citare articoli di legge di cui non sei certo."
+)
+
+
+class ErroreAI(Exception):
+    """Errore comprensibile all'utente durante una richiesta all'assistente."""
+
+
+@dataclass(frozen=True)
+class Compilazione:
+    titolo: str
+    mansione: str
+    dati: dict[str, Any]
+    ipotesi: list[str]
+
+
+def _schema_campo(campo: Campo) -> dict[str, Any]:
+    if campo.tipo == "numero":
+        return {"type": "number", "description": f"{campo.etichetta} ({campo.suffisso.strip() or 'valore'})"}
+    if campo.tipo == "scelta":
+        return {"type": "string", "enum": [v for v, _ in campo.scelte], "description": campo.etichetta}
+    return {"type": "string", "description": campo.etichetta}
+
+
+def _oggetto(proprieta: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "object", "properties": proprieta, "required": list(proprieta),
+            "additionalProperties": False}
+
+
+def schema_metodo(metodo: Metodo) -> dict[str, Any]:
+    proprieta: dict[str, Any] = {
+        "titolo": {"type": "string", "description": "Titolo breve della valutazione"},
+        "mansione": {"type": "string", "description": "Mansione o gruppo omogeneo di lavoratori"},
+    }
+    proprieta.update({c.chiave: _schema_campo(c) for c in metodo.campi})
+    if metodo.colonne_compiti:
+        proprieta["compiti"] = {
+            "type": "array",
+            "items": _oggetto({c.chiave: _schema_campo(c) for c in metodo.colonne_compiti}),
+        }
+    proprieta["ipotesi"] = {"type": "array", "items": {"type": "string"},
+                            "description": "Ipotesi e stime fatte per i dati mancanti"}
+    return _oggetto(proprieta)
+
+
+def _descrivi_campi(campi: tuple[Campo, ...]) -> str:
+    righe = []
+    for c in campi:
+        riga = f"- {c.chiave}: {c.etichetta}"
+        if c.suffisso.strip():
+            riga += f" [{c.suffisso.strip()}]"
+        if c.scelte:
+            riga += "; valori ammessi: " + ", ".join(f"{v} = {e}" for v, e in c.scelte)
+        if c.aiuto:
+            riga += f". {c.aiuto}"
+        righe.append(riga)
+    return "\n".join(righe)
+
+
+class AssistenteAI:
+    def __init__(self, fornitore: str = FORNITORE_PREDEFINITO, client: Any = None,
+                 api_key: str | None = None, modello: str | None = None):
+        if fornitore not in FORNITORI:
+            fornitore = FORNITORE_PREDEFINITO
+        self.fornitore = fornitore
+        self._client = client
+        self.api_key = api_key or None
+        self.modello = modello or FORNITORI[fornitore].modello_predefinito
+
+    @property
+    def client(self) -> Any:
+        if self._client is None:
+            if self.fornitore == OPENAI:
+                import openai
+
+                self._client = openai.OpenAI(api_key=self.api_key) if self.api_key else openai.OpenAI()
+            else:
+                import anthropic
+
+                self._client = anthropic.Anthropic(api_key=self.api_key) if self.api_key else anthropic.Anthropic()
+        return self._client
+
+    def _richiesta(self, testo: str, schema: dict[str, Any]) -> dict[str, Any]:
+        if self.fornitore == OPENAI:
+            testo_risposta = self._richiesta_openai(testo, schema)
+        else:
+            testo_risposta = self._richiesta_anthropic(testo, schema)
+        try:
+            dati = json.loads(testo_risposta)
+        except json.JSONDecodeError as e:
+            raise ErroreAI("Risposta dell'assistente non leggibile.") from e
+        if not isinstance(dati, dict):
+            raise ErroreAI("Risposta dell'assistente non leggibile.")
+        return dati
+
+    def _richiesta_openai(self, testo: str, schema: dict[str, Any]) -> str:
+        import openai
+
+        try:
+            risposta = self.client.chat.completions.create(
+                model=self.modello,
+                max_completion_tokens=MAX_TOKEN,
+                messages=[{"role": "system", "content": SISTEMA}, {"role": "user", "content": testo}],
+                response_format={"type": "json_schema",
+                                 "json_schema": {"name": "risposta", "schema": schema, "strict": True}},
+            )
+        except openai.AuthenticationError as e:
+            raise ErroreAI("Chiave API OpenAI non valida o mancante: controllare Strumenti > "
+                           "Impostazioni assistente AI.") from e
+        except openai.PermissionDeniedError as e:
+            raise ErroreAI("La chiave API non ha i permessi per questo modello.") from e
+        except openai.NotFoundError as e:
+            raise ErroreAI(f"Modello «{self.modello}» non disponibile per questa chiave: "
+                           "sceglierne un altro nelle impostazioni.") from e
+        except openai.RateLimitError as e:
+            raise ErroreAI("Limite di richieste o credito esaurito sull'account OpenAI: "
+                           "riprovare più tardi o controllare il piano.") from e
+        except openai.APIConnectionError as e:
+            raise ErroreAI("Impossibile contattare il servizio: controllare la connessione a internet.") from e
+        except openai.APIStatusError as e:
+            raise ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}") from e
+        except openai.OpenAIError as e:
+            # Es. nessuna chiave configurata.
+            raise ErroreAI(f"Assistente AI non configurato: {e}") from e
+
+        scelta = risposta.choices[0]
+        if scelta.message.refusal:
+            raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
+        if scelta.finish_reason == "length":
+            raise ErroreAI("La risposta è stata troncata: provare con una descrizione più breve.")
+        return scelta.message.content or ""
+
+    def _richiesta_anthropic(self, testo: str, schema: dict[str, Any]) -> str:
+        import anthropic
+
+        try:
+            risposta = self.client.beta.messages.create(
+                model=self.modello,
+                max_tokens=MAX_TOKEN,
+                betas=[BETA_FALLBACK],
+                fallbacks="default",
+                system=SISTEMA,
+                messages=[{"role": "user", "content": testo}],
+                output_config={"effort": "medium", "format": {"type": "json_schema", "schema": schema}},
+            )
+        except anthropic.AuthenticationError as e:
+            raise ErroreAI("Chiave API Anthropic non valida o mancante: controllare Strumenti > "
+                           "Impostazioni assistente AI.") from e
+        except anthropic.PermissionDeniedError as e:
+            raise ErroreAI("La chiave API non ha i permessi per questo modello.") from e
+        except anthropic.RateLimitError as e:
+            raise ErroreAI("Troppe richieste in poco tempo: riprovare tra qualche istante.") from e
+        except anthropic.APIConnectionError as e:
+            raise ErroreAI("Impossibile contattare il servizio: controllare la connessione a internet.") from e
+        except anthropic.APIStatusError as e:
+            raise ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}") from e
+        except anthropic.AnthropicError as e:
+            raise ErroreAI(f"Assistente AI non configurato: {e}") from e
+
+        if risposta.stop_reason == "refusal":
+            raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
+        if risposta.stop_reason == "max_tokens":
+            raise ErroreAI("La risposta è stata troncata: provare con una descrizione più breve.")
+        return next((b.text for b in risposta.content if b.type == "text"), "")
+
+    # --- funzioni offerte al programma ---
+
+    def compila_valutazione(self, metodo: Metodo, descrizione: str) -> Compilazione:
+        testo = (
+            f"Metodo di valutazione: {metodo.nome} ({metodo.norma}).\n{metodo.descrizione}\n\n"
+            f"Parametri generali da compilare:\n{_descrivi_campi(metodo.campi)}\n"
+        )
+        if metodo.colonne_compiti:
+            testo += (
+                "\nElenco dei compiti: per ciascun compito distinto compilare:\n"
+                f"{_descrivi_campi(metodo.colonne_compiti)}\n"
+            )
+        testo += (
+            "\nRicava i parametri dalla descrizione dell'attività riportata sotto. Usa le unità "
+            "indicate. Per ogni valore stimato o non dichiarato aggiungi una voce in 'ipotesi'.\n\n"
+            f"<descrizione>\n{descrizione.strip()}\n</descrizione>"
+        )
+        risposta = self._richiesta(testo, schema_metodo(metodo))
+        ipotesi = [str(i) for i in risposta.pop("ipotesi", []) or []]
+        titolo = str(risposta.pop("titolo", "") or "")
+        mansione = str(risposta.pop("mansione", "") or "")
+        return Compilazione(titolo, mansione, metodo.normalizza(risposta), ipotesi)
+
+    def suggerisci_rischi(self, lavorazione: str, attrezzature: list[str],
+                          esistenti: list[str]) -> list[dict[str, Any]]:
+        livello = {"type": "integer", "enum": [1, 2, 3, 4]}
+        schema = _oggetto({"rischi": {"type": "array", "items": _oggetto({
+            "descrizione": {"type": "string"},
+            "probabilita": {**livello, "description": "Probabilità P da 1 (improbabile) a 4 (molto probabile)"},
+            "danno": {**livello, "description": "Danno D da 1 (lieve) a 4 (gravissimo)"},
+            "misure": {"type": "string", "description": "Misure di prevenzione e protezione"},
+            "dpi": {"type": "string", "description": "DPI separati da virgola"},
+        })}})
+        testo = (
+            "Individua i rischi della seguente lavorazione di cantiere che non sono già presenti "
+            "nell'elenco esistente. Per ciascuno indica probabilità e danno (matrice 4x4), misure "
+            "di prevenzione e protezione concrete e i DPI.\n\n"
+            f"<lavorazione>{lavorazione.strip()}</lavorazione>\n"
+            f"<attrezzature>{', '.join(attrezzature) or 'non indicate'}</attrezzature>\n"
+            f"<rischi_esistenti>{'; '.join(esistenti) or 'nessuno'}</rischi_esistenti>"
+        )
+        rischi = self._richiesta(testo, schema).get("rischi") or []
+        validi = []
+        for r in rischi:
+            if not isinstance(r, dict) or not str(r.get("descrizione", "")).strip():
+                continue
+            validi.append({
+                "descrizione": str(r["descrizione"]).strip(),
+                "probabilita": min(max(int(r.get("probabilita", 2)), 1), 4),
+                "danno": min(max(int(r.get("danno", 2)), 1), 4),
+                "misure": str(r.get("misure", "")).strip(),
+                "dpi": str(r.get("dpi", "")).strip(),
+            })
+        return validi
+
+    def scrivi_sezione(self, sezione: str, contesto: str, testo_attuale: str = "") -> str:
+        schema = _oggetto({"testo": {"type": "string", "description": "Testo della sezione, in paragrafi"}})
+        richiesta = (
+            f"Scrivi la sezione «{sezione}» di un documento di sicurezza per il cantiere descritto. "
+            "Usa paragrafi brevi, senza titoli né elenchi puntati in markdown, adatti a un documento "
+            "Word. Dove mancano dati specifici, scrivi tra parentesi quadre cosa va completato, "
+            "per esempio [indicare il numero di telefono].\n\n"
+            f"<cantiere>\n{contesto.strip()}\n</cantiere>"
+        )
+        if testo_attuale.strip():
+            richiesta += f"\n\n<testo_attuale>\n{testo_attuale.strip()}\n</testo_attuale>\n" \
+                         "Migliora e completa il testo attuale mantenendone le informazioni."
+        return str(self._richiesta(richiesta, schema).get("testo", "")).strip()

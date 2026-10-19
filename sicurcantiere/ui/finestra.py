@@ -30,8 +30,10 @@ from sicurcantiere import __version__, controlli
 from sicurcantiere.db import ESTENSIONE, ErroreProgetto, Progetto, anteprima
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui import tema
-from sicurcantiere.ui.icone import icona
-from sicurcantiere.ui.pagine import PAGINE, Pagina, PaginaDocumenti, primario
+from sicurcantiere.ui.icone import icona, icona_applicazione
+from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI
+from sicurcantiere.ui.pagine import Pagina, PaginaDocumenti, primario
+from sicurcantiere.ui.sezioni import PAGINE
 
 FILTRO = f"Progetti SicurCantiere (*{ESTENSIONE})"
 MAX_RECENTI = 8
@@ -219,6 +221,7 @@ class FinestraPrincipale(QMainWindow):
         self.azione_tema.setCheckable(True)
         self.azione_tema.setChecked(self.scuro)
         self.azione_info = self._azione("&Informazioni", self._informazioni)
+        self.azione_ai = self._azione("Impostazioni assistente &AI...", lambda: DialogoImpostazioniAI(self).exec())
         self.azioni_progetto = [self.azione_salva_con_nome, self.azione_chiudi,
                                 self.azione_psc, self.azione_controlli]
 
@@ -237,6 +240,8 @@ class FinestraPrincipale(QMainWindow):
         strumenti = self.menuBar().addMenu("&Strumenti")
         strumenti.addAction(self.azione_psc)
         strumenti.addAction(self.azione_controlli)
+        strumenti.addSeparator()
+        strumenti.addAction(self.azione_ai)
 
         vista = self.menuBar().addMenu("&Visualizza")
         vista.addAction(self.azione_tema)
@@ -282,10 +287,10 @@ class FinestraPrincipale(QMainWindow):
             (self.azione_nuovo, "nuovo"), (self.azione_apri, "apri"),
             (self.azione_salva_con_nome, "salva"), (self.azione_psc, "psc"),
             (self.azione_controlli, "controlli"), (self.azione_tema, "tema"),
-            (self.azione_info, "info"),
+            (self.azione_info, "info"), (self.azione_ai, "ai"),
         ):
             azione.setIcon(icona(nome, c))
-        self.setWindowIcon(icona("cantiere", tema.CHIARO.accento, 64))
+        self.setWindowIcon(icona_applicazione())
         for r in range(self.navigazione.count()):
             item = self.navigazione.item(r)
             item.setIcon(icona(item.data(Qt.ItemDataRole.UserRole), self.colori.primario_testo))

@@ -38,7 +38,10 @@ SicurCantiere le realizza.
 | Archivi utente (responsabili ricorrenti) | - | da fare |
 | Esportazione dei costi in xlsx | - | da fare |
 | DUVRI, PSS, PEE, piano scavi, demolizioni, amianto | - | da fare |
-| Valutazioni specifiche (rumore, vibrazioni, MMC, chimico, ...) | - | da fare |
+| Valutazioni specifiche con metodi normati | `valutazioni/`: NIOSH semplice e composto, OCRA; misure dai fattori peggiori | v0.3 |
+| PiMUS ponteggi (modulo separato nel prodotto commerciale) | `pimus.py`, `documenti/pimus.py` | v0.3 |
+| Assistente AI (chatbot per la redazione) | `ai.py`: compilazione parametri, rischi, testi; OpenAI o Claude | v0.3 |
+| Valutazioni traino/spinta, trasporto, rumore, vibrazioni | - | da fare |
 | Modulistica per CSE e imprese (verbali, consegna DPI) | - | da fare |
 | Layout di cantiere e modello 3D/BIM | - | fuori obiettivo per ora |
 

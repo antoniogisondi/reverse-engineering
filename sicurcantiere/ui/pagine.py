@@ -45,6 +45,8 @@ from sicurcantiere.documenti.pos import SEZIONI_POS, chiave_testo, genera_pos
 from sicurcantiere.documenti.psc import genera_psc
 from sicurcantiere.relazione import SEZIONI
 from sicurcantiere.repository import Repository
+from sicurcantiere.ui.icone import icona
+from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.gantt import ZOOM, ZOOM_PREDEFINITO, Gantt, colore_livello
 from sicurcantiere.ui.riepilogo import Riepilogo
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
@@ -79,14 +81,36 @@ def _riquadro(titolo: str, widget: QWidget) -> QGroupBox:
     return g
 
 
+def contesto_cantiere(repo: Repository) -> str:
+    """Riepilogo testuale del progetto da passare all'assistente AI."""
+    c = repo.cantiere()
+    imprese = {i["id"]: i["ragione_sociale"] for i in repo.elenco("imprese")}
+    righe = [
+        f"Opera: {c['nome']}", f"Natura: {c['natura_opera']}",
+        f"Indirizzo: {c['indirizzo']} {c['comune']} {c['provincia']}".strip(),
+        f"Importo lavori: {c['importo_lavori']:.0f} euro",
+        f"Descrizione: {c['descrizione']}",
+        "Soggetti: " + "; ".join(f"{s['ruolo']}: {s['nome']}" for s in repo.elenco("soggetti")),
+        "Imprese: " + "; ".join(f"{i['ragione_sociale']} ({i['tipo']})" for i in repo.elenco("imprese")),
+        "Fasi di lavoro:",
+    ]
+    for f in repo.elenco("fasi"):
+        righe.append(f"- {f['codice']} {f['descrizione']}, impresa {imprese.get(f['impresa_id'], 'da definire')}, "
+                     f"dal {f['data_inizio'] or '?'} al {f['data_fine'] or '?'}, zona {f['zona'] or '-'}")
+    return "\n".join(righe)
+
+
 class TestiLiberi(QWidget):
     """Editor di più sezioni di testo, salvate con un breve ritardo."""
 
     def __init__(self, repo: Repository, sezioni: list[tuple[str, str]],
-                 chiave: Callable[[str], str] = lambda s: s, altezza: int = 120):
+                 chiave: Callable[[str], str] = lambda s: s, altezza: int = 120,
+                 contesto_ai: Callable[[], str] | None = None):
         super().__init__()
         self.repo = repo
         self.chiave = chiave
+        self.contesto_ai = contesto_ai
+        self.titoli = dict(sezioni)
         self.editor: dict[str, QPlainTextEdit] = {}
         self._in_sospeso: dict[str, str] = {}
         self._timer = QTimer(self, singleShot=True, interval=700)
@@ -97,8 +121,31 @@ class TestiLiberi(QWidget):
             editor = QPlainTextEdit()
             editor.setMinimumHeight(altezza)
             editor.textChanged.connect(lambda s=sezione: self._modificato(s))
-            layout.addWidget(_riquadro(titolo, editor))
+            riquadro = _riquadro(titolo, editor)
+            if contesto_ai is not None:
+                bozza = QPushButton(icona("ai", "#E8792B"), "Bozza con l'assistente AI")
+                bozza.setToolTip("Scrive o migliora il testo della sezione partendo dai dati del progetto")
+                bozza.clicked.connect(lambda _=False, s=sezione: self._bozza_ai(s))
+                riquadro.layout().addWidget(bozza, alignment=Qt.AlignmentFlag.AlignRight)
+            layout.addWidget(riquadro)
             self.editor[sezione] = editor
+
+    def _bozza_ai(self, sezione: str) -> None:
+        assert self.contesto_ai is not None
+        titolo = self.titoli[sezione]
+        contesto = self.contesto_ai()
+        attuale = self.editor[sezione].toPlainText()
+        esegui_ai(self, f"L'assistente sta scrivendo «{titolo}»...",
+                  lambda ai: ai.scrivi_sezione(titolo, contesto, attuale),
+                  lambda testo: self.imposta_testo(sezione, testo))
+
+    def imposta_testo(self, sezione: str, testo: str) -> None:
+        """Sostituisce il testo di una sezione (annullabile con Ctrl+Z) e lo salva."""
+        editor = self.editor[sezione]
+        cursore = editor.textCursor()
+        cursore.select(cursore.SelectionType.Document)
+        cursore.insertText(testo)
+        self.salva_in_sospeso()
 
     def _modificato(self, sezione: str) -> None:
         self._in_sospeso[self.chiave(sezione)] = self.editor[sezione].toPlainText()
@@ -446,6 +493,9 @@ class PaginaFasi(Pagina):
             Colonna("dpi", "DPI", "testo_lungo"),
         ])
         self.rischi.modificata.connect(self._aggiorna_gantt)
+        suggerisci = QPushButton(icona("ai", "#E8792B"), "Suggerisci rischi con l'AI")
+        suggerisci.clicked.connect(self._suggerisci_rischi)
+        self.rischi.pulsanti.insertWidget(2, suggerisci)
 
         self.attrezzature = TabellaCrud(repo, "attrezzature", [
             Colonna("tipo", "Tipo", "scelta", scelte=lambda: [(t, t) for t in TIPI_ATTREZZATURA],
@@ -537,6 +587,53 @@ class PaginaFasi(Pagina):
             return
         self.repo.aggiungi_attrezzatura(fase, self.scelta_archivio.currentText())
         self.attrezzature.ricarica()
+        self.rischi.ricarica()
+        self._aggiorna_gantt()
+
+    def _suggerisci_rischi(self) -> None:
+        fase_id = self.fasi.id_selezionato()
+        if fase_id is None:
+            return
+        fase = self.repo.leggi("fasi", fase_id)
+        lavorazione = f"{fase['codice']} {fase['descrizione']}".strip()
+        if not lavorazione:
+            QMessageBox.information(self, "Assistente AI", "Indicare prima la descrizione della lavorazione.")
+            return
+        attrezzature = [a["nome"] for a in self.repo.elenco("attrezzature", fase_id=fase_id)]
+        esistenti = [r["descrizione"] for r in self.repo.elenco("rischi", fase_id=fase_id)]
+        esegui_ai(self, "L'assistente sta analizzando la lavorazione...",
+                  lambda ai: ai.suggerisci_rischi(lavorazione, attrezzature, esistenti),
+                  lambda proposte: self._scegli_rischi(fase_id, proposte))
+
+    def _scegli_rischi(self, fase_id: int, proposte: list[dict]) -> None:
+        if not proposte:
+            QMessageBox.information(self, "Assistente AI", "Nessun rischio aggiuntivo individuato.")
+            return
+        dialogo = QDialog(self)
+        dialogo.setWindowTitle("Rischi suggeriti dall'assistente AI")
+        dialogo.resize(760, 460)
+        elenco = QListWidget()
+        for r in proposte:
+            livello = analisi.livello_rischio(r["probabilita"], r["danno"])
+            item = QListWidgetItem(f"{r['descrizione']}  -  P{r['probabilita']} x D{r['danno']} = {livello} "
+                                   f"{analisi.classe_rischio(livello)}\n    Misure: {r['misure']}")
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked)
+            elenco.addItem(item)
+        nota = QLabel("Selezionare i rischi da aggiungere alla fase. Valori e misure restano modificabili.")
+        nota.setWordWrap(True)
+        pulsanti = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        pulsanti.accepted.connect(dialogo.accept)
+        pulsanti.rejected.connect(dialogo.reject)
+        layout = QVBoxLayout(dialogo)
+        layout.addWidget(nota)
+        layout.addWidget(elenco)
+        layout.addWidget(pulsanti)
+        if dialogo.exec() != QDialog.DialogCode.Accepted or not self.repo.leggi("fasi", fase_id):
+            return
+        for i, r in enumerate(proposte):
+            if elenco.item(i).checkState() == Qt.CheckState.Checked:
+                self.repo.inserisci("rischi", fase_id=fase_id, **r)
         self.rischi.ricarica()
         self._aggiorna_gantt()
 
@@ -670,7 +767,7 @@ class PaginaRelazione(Pagina):
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
-        self.testi = TestiLiberi(repo, SEZIONI)
+        self.testi = TestiLiberi(repo, SEZIONI, contesto_ai=lambda: contesto_cantiere(repo))
         scorrimento = QScrollArea()
         scorrimento.setWidgetResizable(True)
         scorrimento.setWidget(self.testi)
@@ -767,6 +864,8 @@ class PaginaDocumenti(Pagina):
     def _documenti(self) -> list[tuple[str, str]]:
         return [("PSC", "PSC"), ("FASCICOLO", "Fascicolo dell'opera")] + [
             (f"POS:{i['id']}", f"POS - {i['ragione_sociale']}") for i in self.repo.elenco("imprese")
+        ] + [
+            (f"PIMUS:{p['id']}", f"PiMUS - {p['nome']}") for p in self.repo.elenco("ponteggi")
         ]
 
     def _controlla(self) -> list[controlli.Segnalazione]:
@@ -828,15 +927,3 @@ class PaginaDocumenti(Pagina):
         self.revisioni.ricarica()
         self._controlla()
 
-
-PAGINE: list[type[Pagina]] = [
-    PaginaDatiGenerali,
-    PaginaSoggetti,
-    PaginaImprese,
-    PaginaFasi,
-    PaginaInterferenze,
-    PaginaCosti,
-    PaginaRelazione,
-    PaginaFascicolo,
-    PaginaDocumenti,
-]

@@ -131,7 +131,7 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
 def test_icone_e_tema(app):
     from sicurcantiere.ui import tema
     from sicurcantiere.ui.icone import NOMI, icona
-    from sicurcantiere.ui.pagine import PAGINE
+    from sicurcantiere.ui.sezioni import PAGINE
 
     for nome in NOMI:
         assert not icona(nome, "#000000").pixmap(24, 24).toImage().isNull()
@@ -238,4 +238,53 @@ def test_benvenuto_con_recenti(app, tmp_path):
     assert "Cantiere Rossi" in testi and "Lecce" in testi
     schede[0].click()
     assert f.progetto is not None and f.progetto.percorso.name == "recente.scs"
+    f.close()
+
+
+def test_pagine_valutazioni_e_ponteggi(app, tmp_path):
+    from sicurcantiere.ai import Compilazione
+    from sicurcantiere.ui.ponteggi import PaginaPonteggi
+    from sicurcantiere.ui.valutazioni import PaginaValutazioni
+    from sicurcantiere.valutazioni import METODI
+
+    p = Progetto(tmp_path / "v.scs", crea=True)
+    p.chiudi()
+    f = FinestraPrincipale()
+    f.apri_file(tmp_path / "v.scs")
+    repo = f.pagine[0].repo
+
+    pv = _pagina(f, PaginaValutazioni)
+    f.navigazione.setCurrentRow(f.pagine.index(pv))
+    pv.tabella.aggiungi()
+    v = repo.elenco("valutazioni")[0]["id"]
+    pv.tabella.seleziona(v)
+    assert pv.editor.metodo.chiave == "niosh"
+    pv.editor.campi["peso"].setValue(30)
+    assert "Indice" in pv.esito.indice.text()
+    pv.salva_in_sospeso()
+    assert repo.dati_valutazione(v)["peso"] == 30
+    # Risultato dell'assistente applicato all'editor e salvato.
+    dati = {**METODI["niosh"].dati_predefiniti(), "peso": 12}
+    pv._applica_ai(v, METODI["niosh"], Compilazione("Casseforme", "Carpentiere", dati, ["Ipotesi 1"]))
+    riga = repo.leggi("valutazioni", v)
+    assert riga["titolo"] == "Casseforme" and repo.dati_valutazione(v)["ipotesi_ai"] == ["Ipotesi 1"]
+    # Cambio di metodo: l'editor mostra la tabella dei compiti.
+    pv.tabella.salva_cella(0, 1, "ocra")
+    assert pv.editor.metodo.chiave == "ocra" and pv.editor.tabella.rowCount() >= 1
+    pv.editor._aggiungi_compito()
+    pv.salva_in_sospeso()
+    assert len(repo.dati_valutazione(v)["compiti"]) == 2
+
+    pp = _pagina(f, PaginaPonteggi)
+    f.navigazione.setCurrentRow(f.pagine.index(pp))
+    pp.tabella.aggiungi()
+    pid = repo.elenco("ponteggi")[0]["id"]
+    pp.tabella.seleziona(pid)
+    assert pp.avvisi.isVisible() or pp.avvisi.text()
+    pp._testi_base()
+    pp._carica_verifiche()
+    assert len(repo.elenco("verifiche_ponteggio", ponteggio_id=pid)) > 10
+    from sicurcantiere import pimus
+
+    assert repo.testo(pimus.chiave_testo(pid, "uso")).startswith("È vietato")
     f.close()

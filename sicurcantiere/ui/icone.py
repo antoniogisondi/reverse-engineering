@@ -10,7 +10,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from PySide6.QtCore import QByteArray, QRectF, Qt
-from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 _FORME: dict[str, str] = {
@@ -35,6 +35,14 @@ _FORME: dict[str, str] = {
     # stampa
     "documenti": '<path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/>'
                  '<path d="M7 14h10v7H7z"/>',
+    # persona che solleva una cassa
+    "valutazioni": '<circle cx="9" cy="4.5" r="2"/><path d="M9 7v6l-3 7M9 13l3 7M9 9l4 2"/>'
+                   '<rect x="13" y="9" width="7" height="6" rx="1"/>',
+    # ponteggio: montanti, traversi e diagonali
+    "ponteggi": '<path d="M5 3v18M12 3v18M19 3v18M5 8h14M5 14h14M5 20h14M5 8l7 6M12 8l7 6"/>',
+    # stelline dell'assistente AI
+    "ai": '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/>'
+          '<path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/>',
     "nuovo": '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M12.5 11v6M9.5 14h6"/>',
     "apri": '<path d="M3 19V5h6l2 2h8v3"/><path d="M3 19l3-9h16l-3 9z"/>',
     "salva": '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/>',
@@ -66,3 +74,26 @@ def icona(nome: str, colore: str = "#1F3A5F", lato: int = 48) -> QIcon:
     renderer.render(p, QRectF(0, 0, lato, lato))
     p.end()
     return QIcon(pixmap)
+
+
+def immagine_applicazione(lato: int = 256) -> QPixmap:
+    """Icona del programma: gru bianca su quadrato arancio arrotondato."""
+    pixmap = QPixmap(lato, lato)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pixmap)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor("#E8792B"))
+    p.drawRoundedRect(QRectF(0, 0, lato, lato), lato * 0.22, lato * 0.22)
+    margine = lato * 0.16
+    renderer = QSvgRenderer(QByteArray(svg("cantiere", "#FFFFFF")))
+    renderer.render(p, QRectF(margine, margine, lato - 2 * margine, lato - 2 * margine))
+    p.end()
+    return pixmap
+
+
+def icona_applicazione() -> QIcon:
+    icona_app = QIcon()
+    for lato in (16, 24, 32, 48, 64, 128, 256):
+        icona_app.addPixmap(immagine_applicazione(lato))
+    return icona_app

@@ -16,7 +16,9 @@ from sicurcantiere.documenti.comune import (
     tabella_voci,
     testo_o_segnaposto,
 )
+from sicurcantiere.documenti.valutazione import aggiungi_valutazione, valutazioni_impresa
 from sicurcantiere.repository import Repository
+from sicurcantiere.valutazioni import METODI
 
 # Sezioni a testo libero del POS, salvate per impresa.
 SEZIONI_POS: list[tuple[str, str]] = [
@@ -142,6 +144,18 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         doc.add_heading(f"{numero}. {dict(SEZIONI_POS)[chiave]}", 1)
         testo_o_segnaposto(doc, sezioni[chiave])
         numero += 1
+
+    valutazioni = valutazioni_impresa(repo, impresa_id)
+    if valutazioni:
+        doc.add_heading(f"{numero}. Valutazioni dei rischi specifici", 1)
+        numero += 1
+        tabella(doc, ["Valutazione", "Metodo", "Indice", "Classe"], [
+            [v["titolo"] or METODI[v["metodo"]].nome, METODI[v["metodo"]].norma,
+             (e := METODI[v["metodo"]].esegui(repo.dati_valutazione(v["id"]))).indice_testo, e.classe]
+            for v in valutazioni if v["metodo"] in METODI
+        ])
+        for v in valutazioni:
+            aggiungi_valutazione(doc, repo, v, livello=2)
 
     doc.add_heading(f"{numero}. Dispositivi di protezione individuale forniti", 1)
     numero += 1

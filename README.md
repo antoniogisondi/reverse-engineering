@@ -32,6 +32,18 @@ archivi o contenuti di software commerciali.
   e barra di stato con ultimo salvataggio e riepilogo dei controlli sempre visibili
 - **Pagina iniziale** con le schede dei cantieri recenti; **riepilogo a riquadri** del cantiere
   (importo, durata, uomini-giorno, picco di lavoratori, interferenze, obblighi, controlli)
+- **Valutazioni dei rischi specifici con metodi normati** (non semplici checklist):
+  - sollevamento manuale, compito semplice e composto: **NIOSH** (UNI ISO 11228-1), con peso limite
+    raccomandato, indice di sollevamento (LI / CLI) e tutti i fattori;
+  - movimenti ripetitivi degli arti superiori: **indice OCRA** (UNI ISO 11228-3), più compiti per arto;
+  - risultato in tempo reale con classe colorata e **misure suggerite in base ai fattori più penalizzanti**;
+  - relazione Word per ogni valutazione e inclusione automatica nel POS dell'impresa
+- **Assistente AI** (OpenAI/ChatGPT predefinito, Claude in alternativa):
+  - compila i parametri NIOSH/OCRA dalla descrizione dell'attività, dichiarando le ipotesi fatte;
+  - suggerisce rischi, misure e DPI di una fase di lavoro;
+  - scrive bozze delle sezioni della relazione del PSC e del PiMUS a partire dai dati del cantiere
+- **PiMUS** (art. 136, Allegato XXII): dati del ponteggio, testi base per tutte le sezioni,
+  verifiche prima del montaggio e durante l'uso, avviso automatico quando serve il progetto (art. 133)
 - **Gantt interattivo**: colori per impresa con legenda, interferenze tratteggiate in rosso,
   scala giorni/settimane/mesi, linea di oggi, barre trascinabili per spostare le fasi o
   cambiarne la durata
@@ -41,7 +53,15 @@ software del settore e realizzate da zero: vedi [docs/analisi-funzionale.md](doc
 
 Ogni cantiere è un singolo file `.scs` (database SQLite), per esempio
 `Scuola via Roma.scs`: l'estensione viene aggiunta automaticamente. I documenti
-generati (PSC, POS, fascicolo, notifica) sono file Word `.docx` separati.
+generati (PSC, POS, PiMUS, fascicolo, notifica, relazioni di valutazione) sono file Word `.docx` separati.
+
+## Assistente AI
+
+Menu **Strumenti > Impostazioni assistente AI**: scegliere il fornitore (OpenAI è il
+predefinito), incollare la chiave API e, se si vuole, cambiare modello. Senza chiave nelle
+impostazioni si usa la variabile d'ambiente `OPENAI_API_KEY` (o `ANTHROPIC_API_KEY` per Claude).
+L'assistente propone valori e testi: vanno sempre verificati, e le ipotesi fatte vengono
+mostrate e riportate nella relazione.
 
 ## Stabilità
 
@@ -69,10 +89,12 @@ python -m sicurcantiere
 python -m pytest
 ```
 
-## Eseguibile per Windows
+## Eseguibile e installatore per Windows
 
-Da Windows lanciare `scripts\build_windows.bat`: esegue i test e crea
-`dist\SicurCantiere\SicurCantiere.exe` (cartella da copiare così com'è).
+Da Windows lanciare `scripts\build_windows.bat`: esegue i test, genera l'icona e crea
+`dist\SicurCantiere\SicurCantiere.exe`. Se è installato [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+crea anche l'installatore `dist\SicurCantiere-<versione>-setup.exe`, che aggiunge il programma
+al menu Start e associa i file `.scs`: con un doppio clic su un cantiere si apre SicurCantiere.
 
 ## Struttura
 
@@ -83,6 +105,9 @@ Da Windows lanciare `scripts\build_windows.bat`: esegue i test e crea
 | `sicurcantiere/analisi.py` | Rischi, Gantt analitico, interferenze, affollamento, obblighi |
 | `sicurcantiere/archivio.py` | Archivio di lavorazioni, macchine e attrezzi |
 | `sicurcantiere/controlli.py` | Controlli di completezza |
+| `sicurcantiere/valutazioni/` | Metodi NIOSH e OCRA (tabelle dei fattori in un unico punto) |
+| `sicurcantiere/pimus.py` | Contenuti e controlli del PiMUS |
+| `sicurcantiere/ai.py` | Assistente AI (OpenAI e Claude) |
 | `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
 | `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); tema in `tema.py`, icone SVG in `icone.py` |
 
@@ -90,7 +115,7 @@ Da Windows lanciare `scripts\build_windows.bat`: esegue i test e crea
 
 - Archivio delle lavorazioni modificabile dall'utente e archivi dei responsabili ricorrenti
 - DUVRI, PSS, piano di emergenza
-- Valutazioni specifiche (rumore, vibrazioni, movimentazione carichi)
+- Altre valutazioni specifiche: traino e spinta, trasporto (ISO 11228-2), rumore, vibrazioni
 - Esportazione dei costi in Excel
 - Modulistica (verbali di coordinamento, consegna DPI)
 - Importazione di prezzari regionali per i costi della sicurezza

@@ -326,3 +326,44 @@ def test_anteprima(tmp_path):
     (tmp_path / "rotto.scs").write_bytes(b"x" * 200)
     assert anteprima(tmp_path / "rotto.scs") is None
     assert anteprima(tmp_path / "manca.scs") is None
+
+
+def test_valutazione_e_pos(repo, tmp_path):
+    from sicurcantiere.documenti.pos import genera_pos
+    from sicurcantiere.documenti.valutazione import genera_valutazione
+
+    a = _cantiere_completo(repo)
+    fase = repo.elenco("fasi")[0]["id"]
+    v = repo.inserisci("valutazioni", metodo="niosh", titolo="Sacchi di cemento", fase_id=fase,
+                       mansione="Manovale")
+    repo.salva_dati_valutazione(v, {"peso": 25, "h": 45, "v": 10, "d": 90, "a": 45, "frequenza": 2,
+                                    "durata": "lunga", "presa": "scarsa", "lavoratori": "M18-45",
+                                    "descrizione": "Carico sacchi in betoniera",
+                                    "ipotesi_ai": ["Sacchi presi da terra"]})
+    testo = _testo_docx(genera_valutazione(repo, v, tmp_path / "v.docx"))
+    assert "Sacchi di cemento" in testo and "UNI ISO 11228-1" in testo
+    assert "Carico sacchi in betoniera" in testo and "Sacchi presi da terra" in testo
+    assert "Rischio elevato" in testo
+    pos = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "Valutazioni dei rischi specifici" in pos and "Sacchi di cemento" in pos
+
+
+def test_pimus(repo, tmp_path):
+    from sicurcantiere import pimus
+    from sicurcantiere.documenti.pimus import genera_pimus
+
+    a = _cantiere_completo(repo)
+    p = repo.inserisci("ponteggi", nome="Facciata nord", impresa_id=a, altezza=24, preposto="Luca Bianchi",
+                       autorizzazione="n. 123 del 2020")
+    avvisi = pimus.avvisi(repo.leggi("ponteggi", p))
+    assert any("Progetto del ponteggio obbligatorio" in m for m in avvisi)
+    assert not any("preposto" in m for m in avvisi)
+    repo.salva_testo(pimus.chiave_testo(p, "uso"), "Vietato rimuovere i parapetti.")
+    for momento, voce in pimus.VERIFICHE[:2]:
+        repo.inserisci("verifiche_ponteggio", ponteggio_id=p, momento=momento, voce=voce, esito="Conforme")
+    testo = _testo_docx(genera_pimus(repo, p, tmp_path / "pimus.docx"))
+    assert "PiMUS" in testo and "Facciata nord" in testo and "Luca Bianchi" in testo
+    assert "Vietato rimuovere i parapetti." in testo
+    assert "Conforme" in testo and "art. 133" in testo
+    basso = repo.inserisci("ponteggi", nome="Basso", altezza=8, conforme_schemi=1)
+    assert not any("Progetto" in m for m in pimus.avvisi(repo.leggi("ponteggi", basso)))
