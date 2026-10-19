@@ -156,6 +156,7 @@ class TabellaCrud(QWidget):
         self._righe: list[dict[str, Any]] = []
 
         self.vista = QTableWidget(0, len(colonne))
+        self.vista.setAlternatingRowColors(True)
         self.vista.setHorizontalHeaderLabels([c.titolo for c in colonne])
         self.vista.setItemDelegate(_Delegato(self))
         self.vista.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)

@@ -118,3 +118,32 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     assert r.leggi("imprese", a)["datore_lavoro"] == "Mario Bianchi"
     assert r.testo(chiave_testo(a, "rumore")) == "Sotto 80 dB(A)"
     p.chiudi()
+
+
+def test_icone_e_tema(app):
+    from sicurcantiere.ui import tema
+    from sicurcantiere.ui.icone import NOMI, icona
+    from sicurcantiere.ui.pagine import PAGINE
+
+    for nome in NOMI:
+        assert not icona(nome, "#000000").pixmap(24, 24).toImage().isNull()
+    assert {p.icona for p in PAGINE} <= set(NOMI)
+    for scuro in (True, False):
+        c = tema.applica(app, scuro)
+        assert app.palette().window().color().name().lower() == c.sfondo.lower()
+        assert "QListWidget#navigazione" in app.styleSheet()
+
+
+def test_campi_numerici_visibili(app):
+    # Regressione: con il foglio di stile, il testo dei campi numerici non deve sparire.
+    from sicurcantiere.ui import tema
+
+    tema.applica(app)
+    s = QtWidgets.QDoubleSpinBox()
+    s.setRange(0, 1e10)
+    s.setValue(480000)
+    s.resize(300, 30)
+    s.show()
+    app.processEvents()
+    assert s.lineEdit().width() > 200
+    s.close()

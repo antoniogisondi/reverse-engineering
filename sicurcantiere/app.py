@@ -8,7 +8,7 @@ import traceback
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import QLocale, QStandardPaths
+from PySide6.QtCore import QLocale, QSettings, QStandardPaths
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from sicurcantiere import __version__
@@ -46,7 +46,10 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName("SicurCantiere")
     app.setApplicationVersion(__version__)
     QLocale.setDefault(QLocale(QLocale.Language.Italian, QLocale.Country.Italy))
-    app.setStyle("Fusion")
+
+    from sicurcantiere.ui import tema
+
+    tema.applica(app, QSettings().value("tema_scuro", False, type=bool))
 
     file_log = _configura_log()
     sys.excepthook = _gestore_eccezioni(file_log)

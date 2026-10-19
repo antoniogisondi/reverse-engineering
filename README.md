@@ -28,6 +28,8 @@ archivi o contenuti di software commerciali.
 - **Documenti Word**: PSC, POS per impresa, fascicolo dell'opera, notifica preliminare,
   con tabella delle **revisioni** nel frontespizio
 - **Controlli di completezza** prima della stampa (errori e avvisi)
+- **Interfaccia** con tema chiaro e scuro, barra laterale con icone, barra degli strumenti
+  e barra di stato con ultimo salvataggio e riepilogo dei controlli sempre visibili
 
 Le funzioni da implementare sono state individuate dalla documentazione pubblica dei
 software del settore e realizzate da zero: vedi [docs/analisi-funzionale.md](docs/analisi-funzionale.md).
@@ -75,7 +77,7 @@ Da Windows lanciare `scripts\build_windows.bat`: esegue i test e crea
 | `sicurcantiere/archivio.py` | Archivio di lavorazioni, macchine e attrezzi |
 | `sicurcantiere/controlli.py` | Controlli di completezza |
 | `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
-| `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt) |
+| `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); tema in `tema.py`, icone SVG in `icone.py` |
 
 ## Prossimi passi
 

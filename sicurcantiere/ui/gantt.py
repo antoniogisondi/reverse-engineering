@@ -20,8 +20,7 @@ PIXEL_GIORNO = 6
 COLORE_BARRA = QColor("#4F81BD")
 COLORE_INTERFERENZA = QColor("#C0504D")
 COLORE_AFFOLLAMENTO = QColor("#8064A2")
-COLORE_GRIGLIA = QColor("#D0D0D0")
-COLORE_FINE_SETTIMANA = QColor(0, 0, 0, 18)
+COLORE_FINE_SETTIMANA = QColor(128, 128, 128, 30)
 # Colori per classe di rischio: basso, medio, alto, molto alto.
 COLORI_PERICOLOSITA = [(9, QColor("#C0392B")), (6, QColor("#E67E22")), (3, QColor("#F1C40F")),
                        (1, QColor("#27AE60"))]
@@ -94,7 +93,7 @@ class Gantt(QWidget):
             if giorno.weekday() >= 5:
                 p.fillRect(QRectF(x, ALTEZZA_INTESTAZIONE, PIXEL_GIORNO, altezza), COLORE_FINE_SETTIMANA)
             if giorno.weekday() == 0:
-                p.setPen(QPen(COLORE_GRIGLIA))
+                p.setPen(QPen(self.palette().mid().color()))
                 p.drawLine(x, ALTEZZA_INTESTAZIONE - 6, x, altezza)
                 p.setPen(testo)
                 p.drawText(QRectF(x + 2, 4, 7 * PIXEL_GIORNO, 18),
@@ -104,7 +103,7 @@ class Gantt(QWidget):
         # Righe delle fasi
         for r, f in enumerate(self.fasi):
             y = ALTEZZA_INTESTAZIONE + r * ALTEZZA_RIGA
-            p.setPen(QPen(COLORE_GRIGLIA))
+            p.setPen(QPen(self.palette().mid().color()))
             p.drawLine(0, y, self.width(), y)
             p.setPen(testo)
             etichetta = f"{f['codice']} {f['descrizione']}".strip()
@@ -141,7 +140,7 @@ class Gantt(QWidget):
                 p.drawRect(QRectF(x, yb - h, PIXEL_GIORNO, h))
 
     def _etichetta_grafico(self, p: QPainter, testo: QColor, y: float, etichetta: str) -> None:
-        p.setPen(QPen(COLORE_GRIGLIA))
+        p.setPen(QPen(self.palette().mid().color()))
         p.drawLine(0, int(y), self.width(), int(y))
         p.drawLine(LARGHEZZA_ETICHETTE, int(y + ALTEZZA_GRAFICO), self.width(), int(y + ALTEZZA_GRAFICO))
         p.setPen(testo)

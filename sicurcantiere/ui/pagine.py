@@ -62,11 +62,14 @@ TIPI_ATTREZZATURA = ["Macchina", "Attrezzo", "Opera provvisionale"]
 
 def _titolo(testo: str) -> QLabel:
     etichetta = QLabel(testo)
-    font = etichetta.font()
-    font.setPointSizeF(font.pointSizeF() * 1.4)
-    font.setBold(True)
-    etichetta.setFont(font)
+    etichetta.setObjectName("titoloPagina")
     return etichetta
+
+
+def primario(pulsante: QPushButton) -> QPushButton:
+    """Evidenzia il pulsante con il colore di accento del tema."""
+    pulsante.setProperty("primario", True)
+    return pulsante
 
 
 def _riquadro(titolo: str, widget: QWidget) -> QGroupBox:
@@ -152,6 +155,7 @@ class ModuloRecord(QWidget):
 class Pagina(QWidget):
     titolo = ""
     voce = ""  # nome breve nella barra di navigazione
+    icona = "cantiere"  # nome in ui/icone.py
 
     def __init__(self, repo: Repository):
         super().__init__()
@@ -169,6 +173,7 @@ class Pagina(QWidget):
 class PaginaDatiGenerali(Pagina):
     titolo = "Dati generali del cantiere"
     voce = "Dati generali"
+    icona = "cantiere"
     CAMPI = [
         ("nome", "Denominazione dell'opera"),
         ("natura_opera", "Natura dell'opera"),
@@ -252,6 +257,7 @@ class PaginaDatiGenerali(Pagina):
 class PaginaSoggetti(Pagina):
     titolo = "Soggetti con compiti di sicurezza"
     voce = "Soggetti"
+    icona = "soggetti"
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -273,6 +279,7 @@ class PaginaSoggetti(Pagina):
 class PaginaImprese(Pagina):
     titolo = "Imprese, lavoratori e dati per il POS"
     voce = "Imprese e lavoratori"
+    icona = "imprese"
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -401,6 +408,7 @@ class DialogoArchivio(QDialog):
 class PaginaFasi(Pagina):
     titolo = "Fasi di lavoro e cronoprogramma (Gantt analitico)"
     voce = "Fasi e cronoprogramma"
+    icona = "fasi"
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -410,14 +418,14 @@ class PaginaFasi(Pagina):
             Colonna("impresa_id", "Impresa", "scelta", scelte=self._imprese, larghezza=170),
             Colonna("zona", "Zona", larghezza=90),
             Colonna("importo", "Importo €", "decimale", larghezza=100),
-            Colonna("incidenza_manodopera", "Manodopera %", "decimale", massimo=100, larghezza=95),
+            Colonna("incidenza_manodopera", "Manodopera %", "decimale", massimo=100, larghezza=115),
             Colonna("lavoratori", "Squadra", "intero", minimo=0, massimo=999, larghezza=65),
             Colonna("data_inizio", "Inizio", "data", larghezza=95),
             Colonna("data_fine", "Fine", "data", larghezza=95),
             Colonna("uomini_giorno", "Uomini-giorno", "calcolata",
                     calcola=lambda f: str(analisi.uomini_giorno([f]) or "")),
         ], valida=_valida_fase)
-        archivio = QPushButton("Importa da archivio...")
+        archivio = primario(QPushButton("Importa da archivio..."))
         archivio.clicked.connect(self._importa)
         calcola = QPushButton("Calcola durata")
         calcola.setToolTip("Data di fine da importo, incidenza della manodopera, squadra e costo uomo-giorno.")
@@ -535,6 +543,7 @@ class PaginaFasi(Pagina):
 class PaginaInterferenze(Pagina):
     titolo = "Interferenze e prescrizioni di coordinamento"
     voce = "Interferenze"
+    icona = "interferenze"
     COLONNE = ["Fase", "Fase interferente", "Zona", "Periodo", "Gravità", "Prescrizioni del coordinatore"]
 
     def __init__(self, repo: Repository):
@@ -547,6 +556,7 @@ class PaginaInterferenze(Pagina):
         nota.setWordWrap(True)
         self.layout_.addWidget(nota)
         self.vista = QTableWidget(0, len(self.COLONNE))
+        self.vista.setAlternatingRowColors(True)
         self.vista.setHorizontalHeaderLabels(self.COLONNE)
         self.vista.verticalHeader().setVisible(False)
         self.vista.setWordWrap(True)
@@ -596,6 +606,7 @@ class PaginaInterferenze(Pagina):
 class PaginaCosti(Pagina):
     titolo = "Stima dei costi della sicurezza"
     voce = "Costi della sicurezza"
+    icona = "costi"
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -630,6 +641,7 @@ class PaginaCosti(Pagina):
 class PaginaRelazione(Pagina):
     titolo = "Relazione del PSC"
     voce = "Relazione del PSC"
+    icona = "relazione"
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -649,6 +661,7 @@ class PaginaRelazione(Pagina):
 class PaginaFascicolo(Pagina):
     titolo = "Fascicolo dell'opera"
     voce = "Fascicolo dell'opera"
+    icona = "fascicolo"
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -681,6 +694,7 @@ class PaginaFascicolo(Pagina):
 class PaginaDocumenti(Pagina):
     titolo = "Documenti, revisioni e controlli"
     voce = "Documenti e controlli"
+    icona = "documenti"
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -692,6 +706,8 @@ class PaginaDocumenti(Pagina):
             ("Notifica preliminare", self._notifica),
         ):
             b = QPushButton(testo)
+            if azione == self._psc:
+                primario(b)
             b.clicked.connect(azione)
             layout.addWidget(b)
         riga_pos = QHBoxLayout()
