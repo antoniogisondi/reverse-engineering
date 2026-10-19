@@ -100,9 +100,7 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
 
     imprese = _pagina(f, PaginaImprese)
     f.navigazione.setCurrentRow(f.pagine.index(imprese))
-    imprese.tabella.seleziona(a)
-    imprese.figure.campi["datore_lavoro"].setText("Mario Bianchi")
-    imprese.testi_pos.editor["rumore"].setPlainText("Sotto 80 dB(A)")
+    assert not imprese.schede.isVisibleTo(imprese)  # nel PSC niente dati del POS
 
     costi = _pagina(f, PaginaCosti)
     f.navigazione.setCurrentRow(f.pagine.index(costi))
@@ -114,7 +112,8 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))
     assert doc.controlli.count() > 0
-    assert doc.impresa_pos.count() == 2
+    assert doc.documenti == ("psc", "fascicolo", "notifica")
+    assert not any(type(pg).__name__ in ("PaginaValutazioni", "PaginaPonteggi") for pg in f.pagine)
 
     f.navigazione.setCurrentRow(0)
     f.pagine[0].campi["nome"].setText("Scuola")
@@ -123,19 +122,17 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     p = Progetto(tmp_path / "c.scs")
     r = Repository(p)
     assert r.cantiere()["nome"] == "Scuola"
-    assert r.leggi("imprese", a)["datore_lavoro"] == "Mario Bianchi"
-    assert r.testo(chiave_testo(a, "rumore")) == "Sotto 80 dB(A)"
     p.chiudi()
 
 
 def test_icone_e_tema(app):
     from sicurcantiere.ui import tema
     from sicurcantiere.ui.icone import NOMI, icona
-    from sicurcantiere.ui.sezioni import PAGINE
+    from sicurcantiere.ui.edizioni import EDIZIONI
 
     for nome in NOMI:
         assert not icona(nome, "#000000").pixmap(24, 24).toImage().isNull()
-    assert {p.icona for p in PAGINE} <= set(NOMI)
+    assert {p.icona for e in EDIZIONI.values() for p in e.pagine} <= set(NOMI)
     for scuro in (True, False):
         c = tema.applica(app, scuro)
         assert app.palette().window().color().name().lower() == c.sfondo.lower()
@@ -241,17 +238,30 @@ def test_benvenuto_con_recenti(app, tmp_path):
     f.close()
 
 
-def test_pagine_valutazioni_e_ponteggi(app, tmp_path):
+def test_programma_pos(app, tmp_path):
     from sicurcantiere.ai import Compilazione
-    from sicurcantiere.ui.ponteggi import PaginaPonteggi
+    from sicurcantiere.ui.edizioni import POS
     from sicurcantiere.ui.valutazioni import PaginaValutazioni
     from sicurcantiere.valutazioni import METODI
 
-    p = Progetto(tmp_path / "v.scs", crea=True)
+    p = Progetto(tmp_path / "v.spo", crea=True)
     p.chiudi()
-    f = FinestraPrincipale()
-    f.apri_file(tmp_path / "v.scs")
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "v.spo")
+    assert f.windowTitle() == "v.spo - SicurCantiere POS"
+    assert [type(pg).__name__ for pg in f.pagine] == [
+        "PaginaCantierePOS", "PaginaSoggettiPOS", "PaginaImpresePOS", "PaginaFasiPOS",
+        "PaginaValutazioni", "PaginaDocumentiPOS"]
     repo = f.pagine[0].repo
+    assert f.pagine[0].riepilogo is not None and "lavoratori" in f.pagine[0].riepilogo.tessere
+
+    a = repo.inserisci("imprese", ragione_sociale="Alfa")
+    imprese = _pagina(f, PaginaImprese)
+    f.navigazione.setCurrentRow(f.pagine.index(imprese))
+    imprese.tabella.seleziona(a)
+    assert imprese.schede.count() == 3
+    imprese.figure.campi["datore_lavoro"].setText("Mario Bianchi")
+    imprese.testi_pos.editor["rumore"].setPlainText("Sotto 80 dB(A)")
 
     pv = _pagina(f, PaginaValutazioni)
     f.navigazione.setCurrentRow(f.pagine.index(pv))
@@ -275,16 +285,51 @@ def test_pagine_valutazioni_e_ponteggi(app, tmp_path):
     pv.salva_in_sospeso()
     assert len(repo.dati_valutazione(v)["compiti"]) == 2
 
+    doc = _pagina(f, PaginaDocumenti)
+    f.navigazione.setCurrentRow(f.pagine.index(doc))
+    assert doc.documenti == ("pos", "dpi") and doc.impresa.count() == 1
+    messaggi = [doc.controlli.item(i).text() for i in range(doc.controlli.count())]
+    assert any("medico competente" in m for m in messaggi)
+    assert "error" in f.stato_controlli.text()
+    f.close()
+    p = Progetto(tmp_path / "v.spo")
+    r = Repository(p)
+    assert r.leggi("imprese", a)["datore_lavoro"] == "Mario Bianchi"
+    assert r.testo(chiave_testo(a, "rumore")) == "Sotto 80 dB(A)"
+    p.chiudi()
+
+
+def test_programma_pimus(app, tmp_path):
+    from sicurcantiere import pimus
+    from sicurcantiere.ui.edizioni import PIMUS
+    from sicurcantiere.ui.ponteggi import PaginaPonteggi
+
+    p = Progetto(tmp_path / "p.spm", crea=True)
+    p.chiudi()
+    f = FinestraPrincipale(PIMUS)
+    f.apri_file(tmp_path / "p.spm")
+    repo = f.pagine[0].repo
+    assert f.pagine[0].riepilogo is None
     pp = _pagina(f, PaginaPonteggi)
     f.navigazione.setCurrentRow(f.pagine.index(pp))
     pp.tabella.aggiungi()
     pid = repo.elenco("ponteggi")[0]["id"]
     pp.tabella.seleziona(pid)
-    assert pp.avvisi.isVisible() or pp.avvisi.text()
+    assert pp.avvisi.text()
     pp._testi_base()
     pp._carica_verifiche()
     assert len(repo.elenco("verifiche_ponteggio", ponteggio_id=pid)) > 10
-    from sicurcantiere import pimus
-
     assert repo.testo(pimus.chiave_testo(pid, "uso")).startswith("È vietato")
+    assert f._pagina_principale() is pp
+    f.close()
+
+
+def test_nuovo_file_con_estensione_del_programma(app, tmp_path, monkeypatch):
+    from sicurcantiere.ui.edizioni import POS
+
+    f = FinestraPrincipale(POS)
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName",
+                        lambda *a, **k: (str(tmp_path / "Cliente X"), ""))
+    f.nuovo()
+    assert f.progetto.percorso.name == "Cliente X.spo"
     f.close()

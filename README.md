@@ -1,8 +1,17 @@
 # SicurCantiere
 
-Applicazione desktop per la sicurezza nei cantieri temporanei o mobili
-(Titolo IV del D.Lgs. 81/2008): Piano di Sicurezza e Coordinamento,
-cronoprogramma con verifica delle interferenze, stima dei costi della sicurezza.
+Famiglia di programmi desktop per la sicurezza nei cantieri temporanei o mobili
+(Titolo IV del D.Lgs. 81/2008):
+
+| Programma | Per chi | Documenti | File |
+| --- | --- | --- | --- |
+| **SicurCantiere POS** | Impresa esecutrice | POS, valutazioni dei rischi specifici (NIOSH, OCRA), verbali di consegna DPI | `.spo` |
+| **SicurCantiere PSC** | Coordinatore (CSP/CSE) | PSC, fascicolo dell'opera, notifica preliminare | `.scs` |
+| **SicurCantiere PiMUS** | Impresa che monta i ponteggi | PiMUS con verifiche | `.spm` |
+
+I programmi condividono archivi, motore dei documenti e assistente AI. I file hanno la
+stessa struttura interna, quindi ogni programma può aprire anche quelli degli altri
+(per esempio il POS può partire dal file del PSC ricevuto dal coordinatore).
 
 È un progetto scritto da zero a partire dalla normativa. Non contiene codice,
 archivi o contenuti di software commerciali.
@@ -51,8 +60,8 @@ archivi o contenuti di software commerciali.
 Le funzioni da implementare sono state individuate dalla documentazione pubblica dei
 software del settore e realizzate da zero: vedi [docs/analisi-funzionale.md](docs/analisi-funzionale.md).
 
-Ogni cantiere è un singolo file `.scs` (database SQLite), per esempio
-`Scuola via Roma.scs`: l'estensione viene aggiunta automaticamente. I documenti
+Ogni cantiere è un singolo file (database SQLite) con l'estensione del programma, per esempio
+`Cliente X.spo` nel programma POS: l'estensione viene aggiunta automaticamente. I documenti
 generati (PSC, POS, PiMUS, fascicolo, notifica, relazioni di valutazione) sono file Word `.docx` separati.
 
 ## Assistente AI
@@ -70,7 +79,7 @@ mostrate e riportate nella relazione.
 - Schema del file versionato con migrazioni: i progetti vecchi si aggiornano
   da soli; quelli creati con versioni più recenti vengono rifiutati invece di essere danneggiati.
 - Gli errori imprevisti vengono registrati nel log e mostrati senza chiudere il programma
-  (Windows: `%APPDATA%\SicurCantiere\SicurCantiere\sicurcantiere.log`).
+  (Windows: `%APPDATA%\SicurCantiere\<nome del programma>\sicurcantiere.log`).
 
 ## Avvio da sorgente
 
@@ -80,7 +89,7 @@ Serve Python 3.10 o successivo.
 python -m venv .venv
 # Windows: .venv\Scripts\activate    Linux/macOS: source .venv/bin/activate
 pip install -e ".[dev]"
-python -m sicurcantiere
+python -m sicurcantiere pos     # oppure psc, pimus
 ```
 
 ## Test
@@ -91,10 +100,11 @@ python -m pytest
 
 ## Eseguibile e installatore per Windows
 
-Da Windows lanciare `scripts\build_windows.bat`: esegue i test, genera l'icona e crea
-`dist\SicurCantiere\SicurCantiere.exe`. Se è installato [Inno Setup 6](https://jrsoftware.org/isinfo.php)
-crea anche l'installatore `dist\SicurCantiere-<versione>-setup.exe`, che aggiunge il programma
-al menu Start e associa i file `.scs`: con un doppio clic su un cantiere si apre SicurCantiere.
+Da Windows lanciare `scripts\build_windows.bat`: esegue i test, genera le icone e crea i tre
+eseguibili in `dist\`. Se è installato [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+crea anche l'installatore `dist\SicurCantiere-<versione>-setup.exe`, che permette di scegliere
+quali programmi installare e associa le estensioni: con un doppio clic su un file `.spo` si apre
+il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 
 ## Struttura
 
@@ -109,7 +119,8 @@ al menu Start e associa i file `.scs`: con un doppio clic su un cantiere si apre
 | `sicurcantiere/pimus.py` | Contenuti e controlli del PiMUS |
 | `sicurcantiere/ai.py` | Assistente AI (OpenAI e Claude) |
 | `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
-| `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); tema in `tema.py`, icone SVG in `icone.py` |
+| `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); programmi e pagine in `edizioni.py`, tema in `tema.py`, icone in `icone.py` |
+| `sicurcantiere/documenti/moduli.py` | Modulistica dell'impresa (verbale di consegna DPI) |
 
 ## Prossimi passi
 

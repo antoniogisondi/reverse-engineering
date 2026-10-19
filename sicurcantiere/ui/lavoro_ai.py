@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from PySide6.QtCore import QObject, QRunnable, QSettings, Qt, QThreadPool, Signal
+from PySide6.QtCore import QCoreApplication, QObject, QRunnable, QSettings, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -24,6 +24,11 @@ CHIAVE_FORNITORE = "ai/fornitore"
 VARIABILI_AMBIENTE = {OPENAI: "OPENAI_API_KEY", ANTHROPIC: "ANTHROPIC_API_KEY"}
 
 
+def impostazioni_comuni() -> QSettings:
+    """Impostazioni condivise da tutti i programmi SicurCantiere (la chiave si inserisce una volta)."""
+    return QSettings(QCoreApplication.organizationName() or "SicurCantiere", "Comune")
+
+
 def _chiave_api(fornitore: str) -> str:
     return f"ai/{fornitore}/chiave"
 
@@ -33,7 +38,7 @@ def _chiave_modello(fornitore: str) -> str:
 
 
 def assistente() -> AssistenteAI:
-    impostazioni = QSettings()
+    impostazioni = impostazioni_comuni()
     fornitore = impostazioni.value(CHIAVE_FORNITORE, FORNITORE_PREDEFINITO, type=str)
     if fornitore not in FORNITORI:
         fornitore = FORNITORE_PREDEFINITO
@@ -49,7 +54,7 @@ class DialogoImpostazioniAI(QDialog):
         super().__init__(genitore)
         self.setWindowTitle("Impostazioni dell'assistente AI")
         self.setMinimumWidth(560)
-        self.impostazioni = QSettings()
+        self.impostazioni = impostazioni_comuni()
         self.fornitore = QComboBox()
         for chiave, f in FORNITORI.items():
             self.fornitore.addItem(f.nome, chiave)

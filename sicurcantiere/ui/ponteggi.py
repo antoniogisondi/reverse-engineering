@@ -169,6 +169,9 @@ class PaginaPonteggi(Pagina):
                 == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 
+    def genera_principale(self) -> None:
+        self._genera()
+
     def salva_in_sospeso(self) -> None:
         self.dati.salva_in_sospeso()
         self.testi.salva_in_sospeso()

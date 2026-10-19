@@ -76,14 +76,14 @@ def icona(nome: str, colore: str = "#1F3A5F", lato: int = 48) -> QIcon:
     return QIcon(pixmap)
 
 
-def immagine_applicazione(lato: int = 256) -> QPixmap:
-    """Icona del programma: gru bianca su quadrato arancio arrotondato."""
+def immagine_applicazione(lato: int = 256, colore: str = "#E8792B") -> QPixmap:
+    """Icona del programma: gru bianca su quadrato colorato arrotondato."""
     pixmap = QPixmap(lato, lato)
     pixmap.fill(Qt.GlobalColor.transparent)
     p = QPainter(pixmap)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(QColor("#E8792B"))
+    p.setBrush(QColor(colore))
     p.drawRoundedRect(QRectF(0, 0, lato, lato), lato * 0.22, lato * 0.22)
     margine = lato * 0.16
     renderer = QSvgRenderer(QByteArray(svg("cantiere", "#FFFFFF")))
@@ -92,8 +92,8 @@ def immagine_applicazione(lato: int = 256) -> QPixmap:
     return pixmap
 
 
-def icona_applicazione() -> QIcon:
+def icona_applicazione(colore: str = "#E8792B") -> QIcon:
     icona_app = QIcon()
     for lato in (16, 24, 32, 48, 64, 128, 256):
-        icona_app.addPixmap(immagine_applicazione(lato))
+        icona_app.addPixmap(immagine_applicazione(lato, colore))
     return icona_app

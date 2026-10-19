@@ -1,23 +1,20 @@
-; Installatore Windows di SicurCantiere (Inno Setup 6: https://jrsoftware.org/isinfo.php)
+; Installatore Windows della famiglia SicurCantiere (Inno Setup 6: https://jrsoftware.org/isinfo.php)
 ; Compilare dopo PyInstaller: iscc installer\sicurcantiere.iss
-; Crea il collegamento nel menu Start e associa i file .scs al programma,
-; così un doppio clic su un cantiere lo apre direttamente.
+; L'utente sceglie quali programmi installare; ogni programma apre con un
+; doppio clic i propri file: .scs (PSC), .spo (POS), .spm (PiMUS).
 
-#define Nome "SicurCantiere"
-#define Versione "0.3.0"
-#define Eseguibile "SicurCantiere.exe"
+#define Versione "0.4.0"
 
 [Setup]
 AppId={{6B1F2C3E-5A7D-4E8B-9C0D-53C1CA171E20}
-AppName={#Nome}
+AppName=SicurCantiere
 AppVersion={#Versione}
-AppPublisher={#Nome}
-DefaultDirName={autopf}\{#Nome}
-DefaultGroupName={#Nome}
+AppPublisher=SicurCantiere
+DefaultDirName={autopf}\SicurCantiere
+DefaultGroupName=SicurCantiere
 OutputDir=..\dist
 OutputBaseFilename=SicurCantiere-{#Versione}-setup
-SetupIconFile=..\assets\sicurcantiere.ico
-UninstallDisplayIcon={app}\{#Eseguibile}
+SetupIconFile=..\assets\sicurcantiere-pos.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -28,23 +25,48 @@ ArchitecturesInstallIn64BitMode=x64compatible
 [Languages]
 Name: "italiano"; MessagesFile: "compiler:Languages\Italian.isl"
 
+[Types]
+Name: "completa"; Description: "Tutti i programmi"
+Name: "personalizzata"; Description: "Scelta dei programmi"; Flags: iscustom
+
+[Components]
+Name: "pos"; Description: "SicurCantiere POS - piano operativo di sicurezza"; Types: completa personalizzata
+Name: "psc"; Description: "SicurCantiere PSC - piano di sicurezza e coordinamento"; Types: completa
+Name: "pimus"; Description: "SicurCantiere PiMUS - ponteggi"; Types: completa
+
 [Tasks]
-Name: "desktopicon"; Description: "Crea un'icona sul desktop"; GroupDescription: "Icone aggiuntive:"
-Name: "associa"; Description: "Apri i file .scs con {#Nome}"; GroupDescription: "Associazione file:"
+Name: "desktopicon"; Description: "Crea le icone sul desktop"; GroupDescription: "Icone aggiuntive:"
+Name: "associa"; Description: "Apri i file dei cantieri con doppio clic"; GroupDescription: "Associazione file:"
 
 [Files]
-Source: "..\dist\SicurCantiere\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\SicurCantiere PSC\*"; DestDir: "{app}\PSC"; Components: psc; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\SicurCantiere POS\*"; DestDir: "{app}\POS"; Components: pos; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\SicurCantiere PiMUS\*"; DestDir: "{app}\PiMUS"; Components: pimus; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#Nome}"; Filename: "{app}\{#Eseguibile}"
-Name: "{autodesktop}\{#Nome}"; Filename: "{app}\{#Eseguibile}"; Tasks: desktopicon
+Name: "{group}\SicurCantiere PSC"; Filename: "{app}\PSC\SicurCantiere PSC.exe"; Components: psc
+Name: "{group}\SicurCantiere POS"; Filename: "{app}\POS\SicurCantiere POS.exe"; Components: pos
+Name: "{group}\SicurCantiere PiMUS"; Filename: "{app}\PiMUS\SicurCantiere PiMUS.exe"; Components: pimus
+Name: "{autodesktop}\SicurCantiere PSC"; Filename: "{app}\PSC\SicurCantiere PSC.exe"; Components: psc; Tasks: desktopicon
+Name: "{autodesktop}\SicurCantiere POS"; Filename: "{app}\POS\SicurCantiere POS.exe"; Components: pos; Tasks: desktopicon
+Name: "{autodesktop}\SicurCantiere PiMUS"; Filename: "{app}\PiMUS\SicurCantiere PiMUS.exe"; Components: pimus; Tasks: desktopicon
 
 [Registry]
-; Associazione dell'estensione .scs (per l'utente o per tutti, secondo la modalità di installazione).
-Root: HKA; Subkey: "Software\Classes\.scs"; ValueType: string; ValueName: ""; ValueData: "SicurCantiere.Progetto"; Flags: uninsdeletevalue; Tasks: associa
-Root: HKA; Subkey: "Software\Classes\SicurCantiere.Progetto"; ValueType: string; ValueName: ""; ValueData: "Cantiere SicurCantiere"; Flags: uninsdeletekey; Tasks: associa
-Root: HKA; Subkey: "Software\Classes\SicurCantiere.Progetto\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#Eseguibile},0"; Tasks: associa
-Root: HKA; Subkey: "Software\Classes\SicurCantiere.Progetto\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#Eseguibile}"" ""%1"""; Tasks: associa
+; .scs -> PSC
+Root: HKA; Subkey: "Software\Classes\.scs"; ValueType: string; ValueName: ""; ValueData: "SicurCantiere.PSC"; Flags: uninsdeletevalue; Components: psc; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PSC"; ValueType: string; ValueName: ""; ValueData: "Cantiere PSC"; Flags: uninsdeletekey; Components: psc; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PSC\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\PSC\SicurCantiere PSC.exe,0"; Components: psc; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PSC\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\PSC\SicurCantiere PSC.exe"" ""%1"""; Components: psc; Tasks: associa
+; .spo -> POS
+Root: HKA; Subkey: "Software\Classes\.spo"; ValueType: string; ValueName: ""; ValueData: "SicurCantiere.POS"; Flags: uninsdeletevalue; Components: pos; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.POS"; ValueType: string; ValueName: ""; ValueData: "Cantiere POS"; Flags: uninsdeletekey; Components: pos; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.POS\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\POS\SicurCantiere POS.exe,0"; Components: pos; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.POS\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\POS\SicurCantiere POS.exe"" ""%1"""; Components: pos; Tasks: associa
+; .spm -> PiMUS
+Root: HKA; Subkey: "Software\Classes\.spm"; ValueType: string; ValueName: ""; ValueData: "SicurCantiere.PiMUS"; Flags: uninsdeletevalue; Components: pimus; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS"; ValueType: string; ValueName: ""; ValueData: "Ponteggi PiMUS"; Flags: uninsdeletekey; Components: pimus; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\PiMUS\SicurCantiere PiMUS.exe,0"; Components: pimus; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\PiMUS\SicurCantiere PiMUS.exe"" ""%1"""; Components: pimus; Tasks: associa
 
 [Run]
-Filename: "{app}\{#Eseguibile}"; Description: "Avvia {#Nome}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\POS\SicurCantiere POS.exe"; Description: "Avvia SicurCantiere POS"; Components: pos; Flags: nowait postinstall skipifsilent

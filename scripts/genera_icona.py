@@ -1,4 +1,4 @@
-"""Genera assets/sicurcantiere.ico e .png dall'icona vettoriale del programma.
+"""Genera le icone (.ico e .png) dei programmi SicurCantiere in assets/.
 
 Uso: python scripts/genera_icona.py
 """
@@ -18,13 +18,17 @@ from sicurcantiere.ui.icone import immagine_applicazione  # noqa: E402
 
 def main() -> None:
     app = QApplication([])  # noqa: F841 - necessario per QPixmap
+    from sicurcantiere.ui.edizioni import EDIZIONI
+
     cartella = RADICE / "assets"
     cartella.mkdir(exist_ok=True)
-    immagine = immagine_applicazione(256)
-    if not immagine.save(str(cartella / "sicurcantiere.png"), "PNG"):
-        raise SystemExit("Impossibile salvare il PNG")
-    if not immagine.save(str(cartella / "sicurcantiere.ico"), "ICO"):
-        raise SystemExit("Formato ICO non disponibile in questa installazione di Qt")
+    for chiave, edizione in EDIZIONI.items():
+        immagine = immagine_applicazione(256, edizione.colore)
+        base = cartella / f"sicurcantiere-{chiave}"
+        if not immagine.save(str(base.with_suffix(".png")), "PNG"):
+            raise SystemExit("Impossibile salvare il PNG")
+        if not immagine.save(str(base.with_suffix(".ico")), "ICO"):
+            raise SystemExit("Formato ICO non disponibile in questa installazione di Qt")
     print(f"Icone salvate in {cartella}")
 
 

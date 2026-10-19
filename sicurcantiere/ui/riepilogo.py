@@ -70,6 +70,54 @@ def calcola(repo: Repository) -> list[Voce]:
     ]
 
 
+def calcola_pos(repo: Repository) -> list[Voce]:
+    """Riquadri dal punto di vista dell'impresa che redige il POS."""
+    from datetime import date
+
+    from sicurcantiere.valutazioni import METODI
+    from sicurcantiere.valutazioni.base import GIALLO as V_GIALLO
+    from sicurcantiere.valutazioni.base import VERDE as V_VERDE
+
+    imprese = [i for i in repo.elenco("imprese") if i["tipo"] != "Lavoratore autonomo"]
+    lavoratori = repo.elenco("lavoratori")
+    fasi = repo.elenco("fasi")
+    rischi = repo.elenco("rischi")
+    oggi = date.today().isoformat()
+    scadute = [l for l in lavoratori if l["idoneita_scadenza"] and l["idoneita_scadenza"] < oggi]
+    alti = [r for r in rischi if analisi.livello_rischio(r["probabilita"], r["danno"]) >= 9]
+    esiti = []
+    for v in repo.elenco("valutazioni"):
+        if v["metodo"] in METODI:
+            esiti.append(METODI[v["metodo"]].esegui(repo.dati_valutazione(v["id"])))
+    critiche = [e for e in esiti if e.colore not in (V_VERDE, V_GIALLO)]
+    periodo = analisi.periodo_lavori(fasi)
+    segnalazioni = controlli.controlla_pos(repo)
+    errori = sum(1 for s in segnalazioni if s.livello == controlli.ERRORE)
+    avvisi = len(segnalazioni) - errori
+    return [
+        Voce("imprese", "Imprese", str(len(imprese)),
+             ", ".join(i["ragione_sociale"] for i in imprese)[:80] or "Inserire l'impresa",
+             NEUTRO if imprese else ERRORE),
+        Voce("lavoratori", "Lavoratori", str(len(lavoratori)),
+             f"{len(scadute)} con idoneità scaduta" if scadute else "Idoneità in corso di validità",
+             ERRORE if scadute else OK if lavoratori else ATTENZIONE),
+        Voce("durata", "Periodo dei lavori",
+             f"{analisi.giorni_lavorativi(*periodo)} gg lavorativi" if periodo else "-",
+             f"{data_it(periodo[0])} - {data_it(periodo[1])}" if periodo else "Date delle lavorazioni mancanti"),
+        Voce("fasi", "Lavorazioni", str(len(fasi)), f"{len(rischi)} rischi valutati"),
+        Voce("rischi", "Rischi alti e molto alti", str(len(alti)), "livello P x D da 9 a 16",
+             ATTENZIONE if alti else OK),
+        Voce("valutazioni", "Valutazioni specifiche", str(len(esiti)),
+             f"{len(critiche)} con rischio presente" if critiche else "Nessun rischio oltre la soglia",
+             ERRORE if critiche else OK),
+        Voce("controlli", "Controlli", "Nessun problema" if not segnalazioni else
+             (f"{errori} errori" if errori != 1 else "1 errore") if errori else
+             (f"{avvisi} avvisi" if avvisi != 1 else "1 avviso"),
+             f"{avvisi} avvisi" if errori else "Pagina Documenti e controlli",
+             ERRORE if errori else ATTENZIONE if avvisi else OK),
+    ]
+
+
 class Tessera(QFrame):
     def __init__(self) -> None:
         super().__init__()
@@ -102,15 +150,16 @@ class Tessera(QFrame):
 class Riepilogo(QWidget):
     COLONNE = 3
 
-    def __init__(self) -> None:
+    def __init__(self, funzione=calcola) -> None:
         super().__init__()
+        self.funzione = funzione
         self.griglia = QGridLayout(self)
         self.griglia.setContentsMargins(0, 0, 0, 0)
         self.griglia.setSpacing(10)
         self.tessere: dict[str, Tessera] = {}
 
     def aggiorna(self, repo: Repository) -> None:
-        for n, voce in enumerate(calcola(repo)):
+        for n, voce in enumerate(self.funzione(repo)):
             tessera = self.tessere.get(voce.chiave)
             if tessera is None:
                 tessera = self.tessere[voce.chiave] = Tessera()

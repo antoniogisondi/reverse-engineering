@@ -82,3 +82,72 @@ def controlla(repo: Repository) -> list[Segnalazione]:
     if not repo.elenco("costi"):
         avviso("Costi", "Stima dei costi della sicurezza vuota.")
     return s
+
+
+def controlla_pos(repo: Repository) -> list[Segnalazione]:
+    """Controlli per il POS: dati dell'impresa, lavoratori, rischi e valutazioni."""
+    from datetime import date
+
+    from sicurcantiere.documenti.pos import SEZIONI_POS, chiave_testo
+    from sicurcantiere.valutazioni import METODI
+    from sicurcantiere.valutazioni.base import ROSSO, VIOLA
+
+    s: list[Segnalazione] = []
+    c = repo.cantiere()
+    if not c["nome"].strip():
+        s.append(Segnalazione(ERRORE, "Cantiere", "Manca la denominazione dell'opera."))
+    if not (c["indirizzo"].strip() and c["comune"].strip()):
+        s.append(Segnalazione(ERRORE, "Cantiere", "Manca l'indirizzo completo del cantiere."))
+
+    imprese = [i for i in repo.elenco("imprese") if i["tipo"] != "Lavoratore autonomo"]
+    if not imprese:
+        s.append(Segnalazione(ERRORE, "Impresa", "Inserire l'impresa che redige il POS."))
+    oggi = date.today().isoformat()
+    for i in imprese:
+        nome = i["ragione_sociale"] or f"Impresa n. {i['id']}"
+        for campo, etichetta in (("datore_lavoro", "il datore di lavoro"), ("rspp", "l'RSPP"),
+                                 ("medico_competente", "il medico competente"), ("rls", "l'RLS o RLST"),
+                                 ("addetti_emergenze", "gli addetti alle emergenze")):
+            if not i[campo].strip():
+                s.append(Segnalazione(ERRORE, "Impresa", f"{nome}: indicare {etichetta}."))
+        lavoratori = repo.elenco("lavoratori", impresa_id=i["id"])
+        if not lavoratori:
+            s.append(Segnalazione(ERRORE, "Lavoratori", f"{nome}: nessun lavoratore indicato."))
+        for l in lavoratori:
+            chi = l["nome"] or f"Lavoratore n. {l['id']}"
+            if not l["formazione"].strip():
+                s.append(Segnalazione(AVVISO, "Lavoratori", f"{chi}: formazione non indicata."))
+            if not l["idoneita_scadenza"]:
+                s.append(Segnalazione(AVVISO, "Lavoratori", f"{chi}: scadenza dell'idoneità sanitaria non indicata."))
+            elif l["idoneita_scadenza"] < oggi:
+                s.append(Segnalazione(ERRORE, "Lavoratori", f"{chi}: idoneità sanitaria scaduta."))
+        fasi = repo.elenco("fasi", impresa_id=i["id"])
+        if not fasi:
+            s.append(Segnalazione(ERRORE, "Lavorazioni", f"{nome}: nessuna lavorazione assegnata."))
+        for f in fasi:
+            rischi = repo.elenco("rischi", fase_id=f["id"])
+            etichetta = f"{f['codice']} {f['descrizione']}".strip() or f"Fase n. {f['id']}"
+            if not rischi:
+                s.append(Segnalazione(AVVISO, "Lavorazioni", f"{etichetta}: nessun rischio valutato."))
+            for r in rischi:
+                if not r["misure"].strip():
+                    s.append(Segnalazione(AVVISO, "Rischi", f"{etichetta}: rischio \"{r['descrizione']}\" "
+                                                          "senza misure di prevenzione."))
+        for chiave, titolo in SEZIONI_POS:
+            if chiave in ("attivita", "rumore") and not repo.testo(chiave_testo(i["id"], chiave)).strip():
+                s.append(Segnalazione(AVVISO, "Testi del POS", f"{nome}: sezione «{titolo}» da compilare."))
+
+    for v in repo.elenco("valutazioni"):
+        metodo = METODI.get(v["metodo"])
+        if metodo is None:
+            continue
+        esito = metodo.esegui(repo.dati_valutazione(v["id"]))
+        if esito.colore in (ROSSO, VIOLA):
+            s.append(Segnalazione(AVVISO, "Valutazioni",
+                                  f"«{v['titolo'] or metodo.nome}»: {esito.classe.lower()}, "
+                                  "attuare le misure indicate e la sorveglianza sanitaria."))
+        if v["fase_id"] is None and v["impresa_id"] is None:
+            s.append(Segnalazione(AVVISO, "Valutazioni",
+                                  f"«{v['titolo'] or metodo.nome}»: non collegata a una fase né a un'impresa, "
+                                  "non comparirà nel POS."))
+    return s

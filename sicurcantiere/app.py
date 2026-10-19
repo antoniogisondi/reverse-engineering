@@ -39,25 +39,39 @@ def _gestore_eccezioni(file_log: Path):
     return gestisci
 
 
-def main(argv: list[str] | None = None) -> int:
-    argv = sys.argv if argv is None else argv
+def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
+    """Avvia un programma della famiglia: psc (predefinito), pos o pimus.
+
+    Da riga di comando: python -m sicurcantiere [psc|pos|pimus] [file]
+    """
+    argv = list(sys.argv if argv is None else argv)
+    if edizione is None:
+        if len(argv) > 1 and argv[1].lower() in ("psc", "pos", "pimus"):
+            edizione = argv.pop(1).lower()
+        else:
+            edizione = "psc"
     app = QApplication(argv)
     app.setOrganizationName("SicurCantiere")
-    app.setApplicationName("SicurCantiere")
     app.setApplicationVersion(__version__)
     QLocale.setDefault(QLocale(QLocale.Language.Italian, QLocale.Country.Italy))
 
     from sicurcantiere.ui import tema
 
+    from sicurcantiere.ui.edizioni import EDIZIONI
+
+    scelta = EDIZIONI[edizione]
+    # Nome distinto per programma: file recenti e finestre restano separati.
+    app.setApplicationName(scelta.nome)
+    app.setApplicationDisplayName(scelta.nome)
     tema.applica(app, QSettings().value("tema_scuro", False, type=bool))
 
     file_log = _configura_log()
     sys.excepthook = _gestore_eccezioni(file_log)
-    log.info("Avvio SicurCantiere %s", __version__)
+    log.info("Avvio %s %s", scelta.nome, __version__)
 
     from sicurcantiere.ui.finestra import FinestraPrincipale
 
-    finestra = FinestraPrincipale()
+    finestra = FinestraPrincipale(scelta)
     finestra.show()
     if len(argv) > 1:
         finestra.apri_file(argv[1])
@@ -67,3 +81,15 @@ def main(argv: list[str] | None = None) -> int:
     finestra.deleteLater()
     app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     return codice
+
+
+def main_psc() -> int:
+    return main(edizione="psc")
+
+
+def main_pos() -> int:
+    return main(edizione="pos")
+
+
+def main_pimus() -> int:
+    return main(edizione="pimus")

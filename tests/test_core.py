@@ -367,3 +367,18 @@ def test_pimus(repo, tmp_path):
     assert "Conforme" in testo and "art. 133" in testo
     basso = repo.inserisci("ponteggi", nome="Basso", altezza=8, conforme_schemi=1)
     assert not any("Progetto" in m for m in pimus.avvisi(repo.leggi("ponteggi", basso)))
+
+
+def test_controlli_pos_e_consegna_dpi(repo, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.documenti.moduli import genera_consegna_dpi
+
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert "Inserire l'impresa che redige il POS." in messaggi
+    a = _cantiere_completo(repo)
+    repo.aggiorna("lavoratori", repo.elenco("lavoratori")[0]["id"], idoneita_scadenza="2000-01-01")
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert any("idoneità sanitaria scaduta" in m for m in messaggi)
+    assert any("medico competente" in m for m in messaggi)
+    testo = _testo_docx(genera_consegna_dpi(repo, a, tmp_path / "dpi.docx"))
+    assert "VERBALE DI CONSEGNA" in testo and "Giuseppe Neri" in testo and "Casco" in testo

@@ -27,15 +27,14 @@ from PySide6.QtWidgets import (
 )
 
 from sicurcantiere import __version__, controlli
-from sicurcantiere.db import ESTENSIONE, ErroreProgetto, Progetto, anteprima
+from sicurcantiere.db import ErroreProgetto, Progetto, anteprima
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui import tema
+from sicurcantiere.ui.edizioni import ESTENSIONI, PSC, Edizione
 from sicurcantiere.ui.icone import icona, icona_applicazione
 from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI
-from sicurcantiere.ui.pagine import Pagina, PaginaDocumenti, primario
-from sicurcantiere.ui.sezioni import PAGINE
+from sicurcantiere.ui.pagine import Pagina, primario
 
-FILTRO = f"Progetti SicurCantiere (*{ESTENSIONE})"
 MAX_RECENTI = 8
 INTERVALLO_STATO_MS = 3000
 
@@ -87,17 +86,18 @@ class Benvenuto(QWidget):
 
     def __init__(self, finestra: FinestraPrincipale, colore_icona: str, recenti: list[str]):
         super().__init__()
+        edizione = finestra.edizione
         layout = QVBoxLayout(self)
         layout.addStretch(1)
         logo = QLabel()
-        logo.setPixmap(icona("cantiere", colore_icona, 96).pixmap(96, 96))
+        logo.setPixmap(icona_applicazione(edizione.colore).pixmap(96, 96))
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(logo)
-        titolo = QLabel("SicurCantiere")
+        titolo = QLabel(edizione.nome)
         titolo.setObjectName("titoloPagina")
         titolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(titolo)
-        sottotitolo = QLabel("Sicurezza nei cantieri temporanei o mobili - D.Lgs. 81/2008")
+        sottotitolo = QLabel(f"{edizione.sottotitolo} - D.Lgs. 81/2008")
         sottotitolo.setObjectName("sottotitolo")
         sottotitolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(sottotitolo)
@@ -143,8 +143,13 @@ class Benvenuto(QWidget):
 
 
 class FinestraPrincipale(QMainWindow):
-    def __init__(self):
+    def __init__(self, edizione: Edizione = PSC):
         super().__init__()
+        self.edizione = edizione
+        self.filtro = (
+            f"{edizione.descrizione_file} (*{edizione.estensione});;"
+            f"Tutti i cantieri SicurCantiere ({' '.join('*' + e for e in ESTENSIONI)})"
+        )
         self.impostazioni = QSettings()
         self.progetto: Progetto | None = None
         self.pagine: list[Pagina] = []
@@ -156,8 +161,10 @@ class FinestraPrincipale(QMainWindow):
         self.navigazione = QListWidget()
         self.navigazione.setObjectName("navigazione")
         self.navigazione.setIconSize(QSize(20, 20))
+        self.navigazione.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.navigazione.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.navigazione.currentRowChanged.connect(self._mostra_pagina)
-        marchio = QLabel("SicurCantiere")
+        marchio = QLabel(self.edizione.nome)
         marchio.setObjectName("marchio")
         laterale = QFrame()
         laterale.setFixedWidth(220)
@@ -213,8 +220,7 @@ class FinestraPrincipale(QMainWindow):
             "Salva &con nome...", self.salva_con_nome, QKeySequence.StandardKey.SaveAs,
             "Salva una copia del cantiere con un altro nome")
         self.azione_chiudi = self._azione("C&hiudi cantiere", self._chiudi_progetto)
-        self.azione_psc = self._azione("Genera &PSC", self._genera_psc, "Ctrl+P",
-                                       "Genera il Piano di Sicurezza e Coordinamento")
+        self.azione_psc = self._azione(self.edizione.azione_principale, self._genera_principale, "Ctrl+P")
         self.azione_controlli = self._azione("&Controlli", self._vai_ai_controlli, "F7",
                                              "Mostra i controlli di completezza")
         self.azione_tema = self._azione("Tema &scuro", self._cambia_tema)
@@ -290,7 +296,7 @@ class FinestraPrincipale(QMainWindow):
             (self.azione_info, "info"), (self.azione_ai, "ai"),
         ):
             azione.setIcon(icona(nome, c))
-        self.setWindowIcon(icona_applicazione())
+        self.setWindowIcon(icona_applicazione(self.edizione.colore))
         for r in range(self.navigazione.count()):
             item = self.navigazione.item(r)
             item.setIcon(icona(item.data(Qt.ItemDataRole.UserRole), self.colori.primario_testo))
@@ -329,9 +335,8 @@ class FinestraPrincipale(QMainWindow):
     def _informazioni(self) -> None:
         QMessageBox.about(
             self, "Informazioni",
-            f"<b>SicurCantiere {__version__}</b><br>"
-            "Piani di sicurezza e coordinamento, cronoprogramma e costi della sicurezza "
-            "secondo il D.Lgs. 81/2008.<br><br>"
+            f"<b>{self.edizione.nome} {__version__}</b><br>"
+            f"{self.edizione.sottotitolo}, secondo il D.Lgs. 81/2008.<br><br>"
             "I contenuti generati vanno sempre verificati dal coordinatore.",
         )
 
@@ -343,20 +348,20 @@ class FinestraPrincipale(QMainWindow):
 
     def nuovo(self) -> None:
         percorso, _ = QFileDialog.getSaveFileName(
-            self, "Nuovo cantiere", str(Path(self._cartella_iniziale()) / f"Cantiere{ESTENSIONE}"), FILTRO
+            self, "Nuovo cantiere", str(Path(self._cartella_iniziale()) / f"Cantiere{self.edizione.estensione}"), self.filtro
         )
         if not percorso:
             return
         percorso = Path(percorso)
-        if percorso.suffix.lower() != ESTENSIONE:
-            percorso = percorso.with_suffix(ESTENSIONE)
+        if percorso.suffix.lower() not in ESTENSIONI:
+            percorso = percorso.with_suffix(self.edizione.estensione)
         if self.progetto and percorso.resolve() == self.progetto.percorso.resolve():
             QMessageBox.warning(self, "Nuovo cantiere", "Il file è già aperto: scegliere un altro nome.")
             return
         self._carica(Progetto(percorso, crea=True))
 
     def apri(self) -> None:
-        percorso, _ = QFileDialog.getOpenFileName(self, "Apri cantiere", self._cartella_iniziale(), FILTRO)
+        percorso, _ = QFileDialog.getOpenFileName(self, "Apri cantiere", self._cartella_iniziale(), self.filtro)
         if percorso:
             self.apri_file(percorso)
 
@@ -373,13 +378,13 @@ class FinestraPrincipale(QMainWindow):
             return
         self._salva_in_sospeso()
         percorso, _ = QFileDialog.getSaveFileName(
-            self, "Salva con nome", str(self.progetto.percorso), FILTRO
+            self, "Salva con nome", str(self.progetto.percorso.with_suffix(self.edizione.estensione)), self.filtro
         )
         if not percorso:
             return
         percorso = Path(percorso)
-        if percorso.suffix.lower() != ESTENSIONE:
-            percorso = percorso.with_suffix(ESTENSIONE)
+        if percorso.suffix.lower() not in ESTENSIONI:
+            percorso = percorso.with_suffix(self.edizione.estensione)
         if percorso.resolve() == self.progetto.percorso.resolve():
             return  # Il progetto è già salvato automaticamente.
         try:
@@ -403,7 +408,7 @@ class FinestraPrincipale(QMainWindow):
         benvenuto = self.contenitore.widget(0)
         self.contenitore.removeWidget(benvenuto)
         benvenuto.deleteLater()
-        for classe in PAGINE:
+        for classe in self.edizione.pagine:
             pagina = classe(repo)
             self.pagine.append(pagina)
             self.contenitore.addWidget(pagina)
@@ -416,7 +421,7 @@ class FinestraPrincipale(QMainWindow):
         for a in self.azioni_progetto:
             a.setEnabled(True)
         self._aggiungi_recente(progetto.percorso)
-        self.setWindowTitle(f"{progetto.percorso.name} - SicurCantiere")
+        self.setWindowTitle(f"{progetto.percorso.name} - {self.edizione.nome}")
         self.stato_file.setText(str(progetto.percorso))
         self.stato_salvataggio.setText("Salvataggio automatico attivo")
         self._timer_stato.start()
@@ -443,7 +448,7 @@ class FinestraPrincipale(QMainWindow):
         self.navigazione.setEnabled(False)
         for a in self.azioni_progetto:
             a.setEnabled(False)
-        self.setWindowTitle("SicurCantiere")
+        self.setWindowTitle(self.edizione.nome)
         self.stato_file.setText("Nessun cantiere aperto")
         self.stato_salvataggio.setText("")
         self.stato_controlli.setText("")
@@ -457,19 +462,21 @@ class FinestraPrincipale(QMainWindow):
         self.pagine[indice].aggiorna()
         self._aggiorna_stato()
 
-    def _pagina_documenti(self) -> PaginaDocumenti | None:
-        return next((p for p in self.pagine if isinstance(p, PaginaDocumenti)), None)
+    def _pagina_principale(self) -> Pagina | None:
+        """Pagina che genera il documento principale e mostra i controlli."""
+        return next((p for p in self.pagine if type(p).genera_principale is not Pagina.genera_principale), None)
 
     def _vai_ai_controlli(self) -> None:
-        pagina = self._pagina_documenti()
+        pagina = self._pagina_principale()
         if pagina is not None:
             self.navigazione.setCurrentRow(self.pagine.index(pagina))
 
-    def _genera_psc(self) -> None:
-        pagina = self._pagina_documenti()
+    def _genera_principale(self) -> None:
+        pagina = self._pagina_principale()
         if pagina is not None:
             self._salva_in_sospeso()
-            pagina._psc()
+            self.navigazione.setCurrentRow(self.pagine.index(pagina))
+            pagina.genera_principale()
 
     def _aggiorna_stato(self) -> None:
         """Aggiorna l'ora dell'ultimo salvataggio e il riepilogo dei controlli."""
@@ -479,7 +486,7 @@ class FinestraPrincipale(QMainWindow):
         if modifiche != self._modifiche_viste:
             self._modifiche_viste = modifiche
             self.stato_salvataggio.setText(f"Salvato alle {datetime.now():%H:%M:%S}")
-        elenco = controlli.controlla(self.pagine[0].repo) if self.pagine else []
+        elenco = self.edizione.controlla(self.pagine[0].repo) if self.pagine else []
         errori = sum(1 for s in elenco if s.livello == controlli.ERRORE)
         avvisi = len(elenco) - errori
         testo_avvisi = f"{avvisi} avviso" if avvisi == 1 else f"{avvisi} avvisi"

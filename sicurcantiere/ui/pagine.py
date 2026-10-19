@@ -40,6 +40,7 @@ from sicurcantiere import analisi, controlli
 from sicurcantiere.archivio import ATTREZZATURE, per_categoria
 from sicurcantiere.documenti.comune import euro
 from sicurcantiere.documenti.fascicolo import genera_fascicolo
+from sicurcantiere.documenti.moduli import genera_consegna_dpi
 from sicurcantiere.documenti.notifica import genera_notifica
 from sicurcantiere.documenti.pos import SEZIONI_POS, chiave_testo, genera_pos
 from sicurcantiere.documenti.psc import genera_psc
@@ -49,6 +50,7 @@ from sicurcantiere.ui.icone import icona
 from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.gantt import ZOOM, ZOOM_PREDEFINITO, Gantt, colore_livello
 from sicurcantiere.ui.riepilogo import Riepilogo
+from sicurcantiere.ui.riepilogo import calcola as calcola_riepilogo
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
 
 RUOLI = [
@@ -217,11 +219,16 @@ class Pagina(QWidget):
     def salva_in_sospeso(self) -> None:
         """Salva le modifiche non ancora scritte (cambio pagina, chiusura)."""
 
+    def genera_principale(self) -> None:
+        """Genera il documento principale del programma (pulsante nella barra degli strumenti)."""
+        raise NotImplementedError
+
 
 class PaginaDatiGenerali(Pagina):
     titolo = "Dati generali del cantiere"
     voce = "Dati generali"
     icona = "cantiere"
+    funzione_riepilogo = staticmethod(calcola_riepilogo)
     CAMPI = [
         ("nome", "Denominazione dell'opera"),
         ("natura_opera", "Natura dell'opera"),
@@ -233,8 +240,9 @@ class PaginaDatiGenerali(Pagina):
     def __init__(self, repo: Repository):
         super().__init__(repo)
         self._caricata = False
-        self.riepilogo = Riepilogo()
-        self.layout_.addWidget(self.riepilogo)
+        self.riepilogo = Riepilogo(self.funzione_riepilogo) if self.funzione_riepilogo else None
+        if self.riepilogo is not None:
+            self.layout_.addWidget(self.riepilogo)
         self.layout_.addSpacing(8)
         modulo = QFormLayout()
         self.campi: dict[str, QLineEdit] = {}
@@ -271,7 +279,8 @@ class PaginaDatiGenerali(Pagina):
 
     def _salva_numero(self, campo: str, valore: float) -> None:
         self.repo.aggiorna_cantiere(**{campo: valore})
-        self.riepilogo.aggiorna(self.repo)
+        if self.riepilogo is not None:
+            self.riepilogo.aggiorna(self.repo)
 
     def _salva_descrizione(self) -> None:
         self.repo.aggiorna_cantiere(descrizione=self.descrizione.toPlainText())
@@ -299,7 +308,8 @@ class PaginaDatiGenerali(Pagina):
         self.descrizione.blockSignals(True)
         self.descrizione.setPlainText(c["descrizione"])
         self.descrizione.blockSignals(False)
-        self.riepilogo.aggiorna(self.repo)
+        if self.riepilogo is not None:
+            self.riepilogo.aggiorna(self.repo)
 
 
 class PaginaSoggetti(Pagina):
@@ -328,6 +338,8 @@ class PaginaImprese(Pagina):
     titolo = "Imprese, lavoratori e dati per il POS"
     voce = "Imprese e lavoratori"
     icona = "imprese"
+    # Schede di dettaglio mostrate dal programma: figure, lavoratori, pos.
+    schede_visibili: tuple[str, ...] = ("figure", "lavoratori", "pos")
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -358,16 +370,26 @@ class PaginaImprese(Pagina):
             Colonna("formazione", "Formazione e addestramento", "testo_lungo"),
             Colonna("idoneita_scadenza", "Idoneità sanitaria fino al", "data", larghezza=160),
         ])
-        self.testi_pos = TestiLiberi(repo, SEZIONI_POS, altezza=80)
+        self.testi_pos = TestiLiberi(repo, SEZIONI_POS, altezza=80, contesto_ai=self._contesto_ai)
         scorrimento = QScrollArea()
         scorrimento.setWidgetResizable(True)
         scorrimento.setWidget(self.testi_pos)
 
         self.schede = QTabWidget()
-        self.schede.addTab(self.figure, "Figure della sicurezza")
-        self.schede.addTab(self.lavoratori, "Lavoratori")
-        self.schede.addTab(scorrimento, "Testi del POS")
+        if "figure" in self.schede_visibili:
+            self.schede.addTab(self.figure, "Figure della sicurezza")
+        if "lavoratori" in self.schede_visibili:
+            self.schede.addTab(self.lavoratori, "Lavoratori")
+        if "pos" in self.schede_visibili:
+            self.schede.addTab(scorrimento, "Testi del POS")
         self.schede.setEnabled(False)
+        self.schede.setVisible(bool(self.schede_visibili))
+        # Le schede non mostrate restano figlie della pagina: senza un genitore
+        # Qt le distruggerebbe mentre la pagina le usa ancora.
+        for w in (self.figure, self.lavoratori, scorrimento):
+            if w.parent() is None:
+                w.setParent(self)
+                w.hide()
 
         divisore = QSplitter(Qt.Orientation.Vertical)
         divisore.addWidget(self.tabella)
@@ -375,6 +397,21 @@ class PaginaImprese(Pagina):
         divisore.setSizes([250, 450])
         self.layout_.addWidget(divisore)
         self.tabella.selezione_cambiata.connect(self._impresa_selezionata)
+
+    def _contesto_ai(self) -> str:
+        id_ = self.tabella.id_selezionato()
+        impresa = self.repo.leggi("imprese", id_) if id_ is not None else None
+        if impresa is None:
+            return contesto_cantiere(self.repo)
+        fasi = self.repo.elenco("fasi", impresa_id=id_)
+        lavoratori = self.repo.elenco("lavoratori", impresa_id=id_)
+        righe = [
+            f"Impresa che redige il POS: {impresa['ragione_sociale']} ({impresa['tipo']})",
+            f"Orario di lavoro: {impresa['orario_lavoro'] or 'non indicato'}",
+            "Lavorazioni dell'impresa: " + "; ".join(f"{f['codice']} {f['descrizione']}" for f in fasi),
+            "Lavoratori: " + "; ".join(f"{l['nome']} ({l['mansione']})" for l in lavoratori),
+        ]
+        return contesto_cantiere(self.repo) + "\n\n" + "\n".join(righe)
 
     def _impresa_selezionata(self, id_: int | None) -> None:
         self.schede.setEnabled(id_ is not None)
@@ -814,31 +851,46 @@ class PaginaFascicolo(Pagina):
 
 
 class PaginaDocumenti(Pagina):
+    """Generazione dei documenti, revisioni e controlli.
+
+    Le sottoclassi dei singoli programmi scelgono quali documenti offrire
+    (`documenti`) e quali controlli eseguire (`controlla`).
+    """
+
     titolo = "Documenti, revisioni e controlli"
     voce = "Documenti e controlli"
     icona = "documenti"
+    # psc, fascicolo, notifica: documenti del cantiere; pos, dpi: documenti per impresa
+    documenti: tuple[str, ...] = ("psc", "fascicolo", "notifica", "pos")
+    principale = "psc"
+    controlla = staticmethod(controlli.controlla)
+
+    NOMI = {
+        "psc": "Piano di Sicurezza e Coordinamento (PSC)",
+        "fascicolo": "Fascicolo dell'opera",
+        "notifica": "Notifica preliminare",
+        "pos": "Piano Operativo di Sicurezza (POS)",
+        "dpi": "Verbali di consegna dei DPI",
+    }
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
         griglia = QGroupBox("Genera documento (.docx)")
         layout = QVBoxLayout(griglia)
-        for testo, azione in (
-            ("Piano di Sicurezza e Coordinamento (PSC)", self._psc),
-            ("Fascicolo dell'opera", self._fascicolo),
-            ("Notifica preliminare", self._notifica),
-        ):
-            b = QPushButton(testo)
-            if azione == self._psc:
+        self.impresa = QComboBox()
+        per_impresa = [d for d in self.documenti if d in ("pos", "dpi")]
+        if per_impresa:
+            riga = QHBoxLayout()
+            riga.addWidget(QLabel("Impresa:"))
+            riga.addWidget(self.impresa, 1)
+            layout.addLayout(riga)
+        for chiave in self.documenti:
+            b = QPushButton(self.NOMI[chiave])
+            if chiave == self.principale:
                 primario(b)
-            b.clicked.connect(azione)
+            b.clicked.connect(lambda _=False, k=chiave: self.genera(k))
             layout.addWidget(b)
-        riga_pos = QHBoxLayout()
-        self.impresa_pos = QComboBox()
-        b = QPushButton("Piano Operativo di Sicurezza (POS) per l'impresa:")
-        b.clicked.connect(self._pos)
-        riga_pos.addWidget(b)
-        riga_pos.addWidget(self.impresa_pos, 1)
-        layout.addLayout(riga_pos)
+        layout.addStretch()
 
         self.controlli = QListWidget()
         verifica = QPushButton("Esegui i controlli")
@@ -862,15 +914,18 @@ class PaginaDocumenti(Pagina):
         self.layout_.addWidget(riquadro_controlli, 1)
 
     def _documenti(self) -> list[tuple[str, str]]:
-        return [("PSC", "PSC"), ("FASCICOLO", "Fascicolo dell'opera")] + [
-            (f"POS:{i['id']}", f"POS - {i['ragione_sociale']}") for i in self.repo.elenco("imprese")
-        ] + [
-            (f"PIMUS:{p['id']}", f"PiMUS - {p['nome']}") for p in self.repo.elenco("ponteggi")
-        ]
+        voci = []
+        if "psc" in self.documenti:
+            voci.append(("PSC", "PSC"))
+        if "fascicolo" in self.documenti:
+            voci.append(("FASCICOLO", "Fascicolo dell'opera"))
+        if "pos" in self.documenti:
+            voci += [(f"POS:{i['id']}", f"POS - {i['ragione_sociale']}") for i in self.repo.elenco("imprese")]
+        return voci
 
     def _controlla(self) -> list[controlli.Segnalazione]:
         self.controlli.clear()
-        elenco = controlli.controlla(self.repo)
+        elenco = self.controlla(self.repo)
         if not elenco:
             self.controlli.addItem("Nessun problema rilevato.")
         for s in elenco:
@@ -879,14 +934,14 @@ class PaginaDocumenti(Pagina):
             self.controlli.addItem(item)
         return elenco
 
-    def _genera(self, nome: str, funzione: Callable[[str], Any]) -> None:
+    def _salva_docx(self, nome: str, funzione: Callable[[str], Any]) -> None:
         errori = [s for s in self._controlla() if s.livello == controlli.ERRORE]
         if errori:
             risposta = QMessageBox.question(
                 self, "Controlli", f"Ci sono {len(errori)} errori nei dati (vedi elenco).\nGenerare comunque?")
             if risposta != QMessageBox.StandardButton.Yes:
                 return
-        predefinito = self.repo.progetto.percorso.with_name(f"{nome}.docx")
+        predefinito = self.repo.progetto.percorso.with_name(f"{nome}.docx".replace("/", "-"))
         percorso, _ = QFileDialog.getSaveFileName(self, "Salva documento", str(predefinito),
                                                   "Documento Word (*.docx)")
         if not percorso:
@@ -900,30 +955,33 @@ class PaginaDocumenti(Pagina):
         if risposta == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 
-    def _nome_cantiere(self) -> str:
-        return self.repo.cantiere()["nome"] or "Cantiere"
-
-    def _psc(self) -> None:
-        self._genera(f"PSC - {self._nome_cantiere()}", lambda p: genera_psc(self.repo, p))
-
-    def _fascicolo(self) -> None:
-        self._genera(f"Fascicolo - {self._nome_cantiere()}", lambda p: genera_fascicolo(self.repo, p))
-
-    def _notifica(self) -> None:
-        self._genera(f"Notifica preliminare - {self._nome_cantiere()}", lambda p: genera_notifica(self.repo, p))
-
-    def _pos(self) -> None:
-        impresa = self.impresa_pos.currentData()
-        if impresa is None:
-            QMessageBox.information(self, "POS", "Inserire prima un'impresa.")
+    def genera(self, chiave: str | None = None) -> None:
+        chiave = chiave or self.principale
+        cantiere = self.repo.cantiere()["nome"] or "Cantiere"
+        if chiave in ("pos", "dpi"):
+            impresa = self.impresa.currentData()
+            if impresa is None:
+                QMessageBox.information(self, "Documenti", "Inserire prima l'impresa.")
+                return
+            nome = self.impresa.currentText()
+            if chiave == "pos":
+                self._salva_docx(f"POS - {nome} - {cantiere}", lambda p: genera_pos(self.repo, impresa, p))
+            else:
+                self._salva_docx(f"Consegna DPI - {nome}", lambda p: genera_consegna_dpi(self.repo, impresa, p))
             return
-        self._genera(f"POS - {self.impresa_pos.currentText()}", lambda p: genera_pos(self.repo, impresa, p))
+        funzioni = {"psc": genera_psc, "fascicolo": genera_fascicolo, "notifica": genera_notifica}
+        nomi = {"psc": "PSC", "fascicolo": "Fascicolo", "notifica": "Notifica preliminare"}
+        self._salva_docx(f"{nomi[chiave]} - {cantiere}", lambda p: funzioni[chiave](self.repo, p))
+
+    def genera_principale(self) -> None:
+        self.genera()
 
     def aggiorna(self) -> None:
-        self.impresa_pos.clear()
+        corrente = self.impresa.currentData()
+        self.impresa.clear()
         for i in self.repo.elenco("imprese"):
             if i["tipo"] != "Lavoratore autonomo":
-                self.impresa_pos.addItem(i["ragione_sociale"] or f"Impresa {i['id']}", i["id"])
+                self.impresa.addItem(i["ragione_sociale"] or f"Impresa {i['id']}", i["id"])
+        self.impresa.setCurrentIndex(max(self.impresa.findData(corrente), 0))
         self.revisioni.ricarica()
         self._controlla()
-
