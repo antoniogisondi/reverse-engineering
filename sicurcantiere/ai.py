@@ -285,3 +285,25 @@ class AssistenteAI:
             richiesta += f"\n\n<testo_attuale>\n{testo_attuale.strip()}\n</testo_attuale>\n" \
                          "Migliora e completa il testo attuale mantenendone le informazioni."
         return str(self._richiesta(richiesta, schema).get("testo", "")).strip()
+
+    def estrai_sds(self, testo_scheda: str) -> dict[str, Any]:
+        """Dati principali di una scheda di dati di sicurezza, dal suo testo."""
+        campi = {
+            "nome": "Nome commerciale del prodotto (sezione 1)",
+            "produttore": "Fornitore o produttore (sezione 1)",
+            "codici_h": "Indicazioni di pericolo H ed EUH della miscela (sezione 2), separate da virgola, solo i codici",
+            "avvertenza": "Avvertenza della sezione 2: Pericolo, Attenzione o vuoto",
+            "data_revisione": "Data di revisione della scheda in formato AAAA-MM-GG, vuoto se assente",
+            "stato_fisico": "Stato fisico (sezione 9): liquido, solido, polvere, pasta, gas, aerosol",
+            "dpi": "DPI raccomandati nella sezione 8 (occhi, mani, pelle, vie respiratorie), in breve",
+            "misure": "Principali misure di manipolazione sicura (sezione 7), in breve",
+            "conservazione": "Condizioni di stoccaggio (sezione 7), in breve",
+        }
+        schema = _oggetto({k: {"type": "string", "description": v} for k, v in campi.items()})
+        richiesta = (
+            "Estrai i dati seguenti dalla scheda di dati di sicurezza riportata sotto. Riporta i "
+            "valori come scritti nella scheda, senza inventare: se un dato manca lascia il campo vuoto.\n\n"
+            f"<scheda>\n{testo_scheda.strip()}\n</scheda>"
+        )
+        risposta = self._richiesta(richiesta, schema)
+        return {k: str(risposta.get(k, "") or "").strip() for k in campi}

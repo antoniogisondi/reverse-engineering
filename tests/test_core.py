@@ -382,3 +382,27 @@ def test_controlli_pos_e_consegna_dpi(repo, tmp_path):
     assert any("medico competente" in m for m in messaggi)
     testo = _testo_docx(genera_consegna_dpi(repo, a, tmp_path / "dpi.docx"))
     assert "VERBALE DI CONSEGNA" in testo and "Giuseppe Neri" in testo and "Casco" in testo
+
+
+def test_sostanze_nel_pos_e_elenco(repo, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.documenti.pos import genera_pos
+    from sicurcantiere.documenti.sostanze import genera_elenco_sostanze, sostanze_impresa
+
+    a = _cantiere_completo(repo)
+    fase = repo.elenco("fasi")[0]["id"]
+    repo.inserisci("sostanze", fase_id=fase, nome="Cemento Portland", codici_h="H315, H317, H318, H335",
+                   avvertenza="Pericolo", data_sds="2024-03-15", dpi="Guanti nitrile, occhiali a tenuta")
+    repo.inserisci("sostanze", impresa_id=a, nome="Disarmante", codici_h="H350")
+    repo.inserisci("sostanze", nome="Orfano")
+    assert [s["nome"] for s in sostanze_impresa(repo, a)] == ["Cemento Portland", "Disarmante"]
+    pos = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "Sostanze e miscele pericolose" in pos and "Cemento Portland" in pos
+    assert "GHS05 Corrosivo" in pos and "Provoca gravi lesioni oculari" in pos
+    assert "Guanti nitrile" in pos
+    elenco = _testo_docx(genera_elenco_sostanze(repo, a, tmp_path / "sostanze.docx"))
+    assert "Cancerogeno o mutageno" in elenco
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert any("Disarmante: cancerogeno" in m for m in messaggi)
+    assert any("Disarmante: data della scheda" in m for m in messaggi)
+    assert any("Orfano: non collegata" in m for m in messaggi)

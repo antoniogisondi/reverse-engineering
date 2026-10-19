@@ -16,6 +16,7 @@ from sicurcantiere.documenti.comune import (
     tabella_voci,
     testo_o_segnaposto,
 )
+from sicurcantiere.documenti.sostanze import aggiungi_sostanze, sostanze_impresa
 from sicurcantiere.documenti.valutazione import aggiungi_valutazione, valutazioni_impresa
 from sicurcantiere.repository import Repository
 from sicurcantiere.valutazioni import METODI
@@ -23,7 +24,7 @@ from sicurcantiere.valutazioni import METODI
 # Sezioni a testo libero del POS, salvate per impresa.
 SEZIONI_POS: list[tuple[str, str]] = [
     ("attivita", "Attività svolte in cantiere, modalità organizzative e turni di lavoro"),
-    ("sostanze", "Sostanze e miscele pericolose utilizzate"),
+    ("sostanze", "Sostanze pericolose: note integrative all'elenco"),
     ("rumore", "Esito della valutazione del rumore"),
     ("integrative", "Misure preventive e protettive integrative rispetto al PSC"),
     ("procedure", "Procedure complementari e di dettaglio richieste dal PSC"),
@@ -121,10 +122,15 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     else:
         testo_o_segnaposto(doc, "")
 
-    for chiave in ("sostanze", "rumore"):
-        doc.add_heading(f"{numero}. {dict(SEZIONI_POS)[chiave]}", 1)
-        testo_o_segnaposto(doc, sezioni[chiave])
-        numero += 1
+    doc.add_heading(f"{numero}. Sostanze e miscele pericolose e relative schede di sicurezza", 1)
+    numero += 1
+    aggiungi_sostanze(doc, repo, sostanze_impresa(repo, impresa_id))
+    if sezioni["sostanze"].strip():
+        testo_o_segnaposto(doc, sezioni["sostanze"])
+
+    doc.add_heading(f"{numero}. {dict(SEZIONI_POS)['rumore']}", 1)
+    testo_o_segnaposto(doc, sezioni["rumore"])
+    numero += 1
 
     doc.add_heading(f"{numero}. Valutazione dei rischi e misure di prevenzione", 1)
     numero += 1

@@ -120,3 +120,12 @@ def test_errore_chiave_openai_mancante(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(ErroreAI, match="non configurato|non valida"):
         AssistenteAI().scrivi_sezione("x", "y")
+
+
+def test_estrai_sds():
+    client = ClientOpenAIFinto({"nome": "Cemento", "produttore": "Alfa spa", "codici_h": "H315, H318",
+                                "avvertenza": "Pericolo", "data_revisione": "2024-03-15", "stato_fisico": "polvere",
+                                "dpi": "Guanti", "misure": "Evitare polveri", "conservazione": "Luogo asciutto"})
+    dati = AssistenteAI(client=client).estrai_sds("SEZIONE 1 ... SEZIONE 16")
+    assert dati["produttore"] == "Alfa spa" and dati["codici_h"] == "H315, H318"
+    assert "SEZIONE 1" in client.richieste[0]["messages"][1]["content"]

@@ -137,6 +137,23 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
             if chiave in ("attivita", "rumore") and not repo.testo(chiave_testo(i["id"], chiave)).strip():
                 s.append(Segnalazione(AVVISO, "Testi del POS", f"{nome}: sezione «{titolo}» da compilare."))
 
+    from sicurcantiere import sostanze as classificazione
+
+    for so in repo.elenco("sostanze"):
+        nome = so["nome"] or f"Sostanza n. {so['id']}"
+        codici = classificazione.codici_h(so["codici_h"])
+        if not codici:
+            s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: indicazioni di pericolo (frasi H) non inserite."))
+        if not so["data_sds"]:
+            s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: data della scheda di sicurezza non indicata."))
+        if so["impresa_id"] is None and so["fase_id"] is None:
+            s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: non collegata a un'impresa né a una lavorazione, "
+                                                       "non comparirà nel POS."))
+        for categoria in classificazione.categorie(codici):
+            if categoria.grave:
+                s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: {categoria.nome.lower()}, "
+                                                           "valutare la sostituzione e le misure specifiche."))
+
     for v in repo.elenco("valutazioni"):
         metodo = METODI.get(v["metodo"])
         if metodo is None:

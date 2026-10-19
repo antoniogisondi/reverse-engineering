@@ -199,6 +199,26 @@ MIGRAZIONI: list[str] = [
         note TEXT NOT NULL DEFAULT ''
     );
     """,
+    # v0.5: sostanze e miscele pericolose (POS, Allegato XV punto 3.2.1 lett. e).
+    """
+    CREATE TABLE sostanze (
+        id INTEGER PRIMARY KEY,
+        impresa_id INTEGER REFERENCES imprese(id) ON DELETE SET NULL,
+        fase_id INTEGER REFERENCES fasi(id) ON DELETE SET NULL,
+        nome TEXT NOT NULL DEFAULT '',
+        produttore TEXT NOT NULL DEFAULT '',
+        codici_h TEXT NOT NULL DEFAULT '',
+        avvertenza TEXT NOT NULL DEFAULT '',
+        stato_fisico TEXT NOT NULL DEFAULT '',
+        quantita TEXT NOT NULL DEFAULT '',
+        data_sds TEXT,
+        file_sds TEXT NOT NULL DEFAULT '',
+        uso TEXT NOT NULL DEFAULT '',
+        dpi TEXT NOT NULL DEFAULT '',
+        misure TEXT NOT NULL DEFAULT '',
+        conservazione TEXT NOT NULL DEFAULT ''
+    );
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

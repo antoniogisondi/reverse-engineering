@@ -32,6 +32,7 @@ from sicurcantiere.ui.pagine import (
 )
 from sicurcantiere.ui.ponteggi import PaginaPonteggi
 from sicurcantiere.ui.riepilogo import calcola_pos
+from sicurcantiere.ui.sostanze import PaginaSostanze
 from sicurcantiere.ui.valutazioni import PaginaValutazioni
 
 
@@ -87,7 +88,7 @@ class PaginaFasiPOS(PaginaFasi):
 class PaginaDocumentiPOS(PaginaDocumenti):
     titolo = "POS, modulistica e controlli"
     voce = "POS e controlli"
-    documenti = ("pos", "dpi")
+    documenti = ("pos", "sostanze", "dpi")
     principale = "pos"
     controlla = staticmethod(controlli.controlla_pos)
 
@@ -131,10 +132,10 @@ PSC = Edizione(
 
 POS = Edizione(
     chiave="pos", nome="SicurCantiere POS",
-    sottotitolo="Piano operativo di sicurezza, valutazioni dei rischi specifici, DPI",
+    sottotitolo="Piano operativo di sicurezza, valutazioni dei rischi specifici, sostanze pericolose, DPI",
     estensione=".spo", descrizione_file="Cantiere POS", colore="#2E86C1",
     pagine=(PaginaCantierePOS, PaginaSoggettiPOS, PaginaImpresePOS, PaginaFasiPOS, PaginaValutazioni,
-            PaginaDocumentiPOS),
+            PaginaSostanze, PaginaDocumentiPOS),
     azione_principale="Genera POS", controlla=controlli.controlla_pos,
 )
 

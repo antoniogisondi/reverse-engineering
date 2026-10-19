@@ -251,7 +251,7 @@ def test_programma_pos(app, tmp_path):
     assert f.windowTitle() == "v.spo - SicurCantiere POS"
     assert [type(pg).__name__ for pg in f.pagine] == [
         "PaginaCantierePOS", "PaginaSoggettiPOS", "PaginaImpresePOS", "PaginaFasiPOS",
-        "PaginaValutazioni", "PaginaDocumentiPOS"]
+        "PaginaValutazioni", "PaginaSostanze", "PaginaDocumentiPOS"]
     repo = f.pagine[0].repo
     assert f.pagine[0].riepilogo is not None and "lavoratori" in f.pagine[0].riepilogo.tessere
 
@@ -287,7 +287,7 @@ def test_programma_pos(app, tmp_path):
 
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))
-    assert doc.documenti == ("pos", "dpi") and doc.impresa.count() == 1
+    assert doc.documenti == ("pos", "sostanze", "dpi") and doc.impresa.count() == 1
     messaggi = [doc.controlli.item(i).text() for i in range(doc.controlli.count())]
     assert any("medico competente" in m for m in messaggi)
     assert "error" in f.stato_controlli.text()
@@ -332,4 +332,39 @@ def test_nuovo_file_con_estensione_del_programma(app, tmp_path, monkeypatch):
                         lambda *a, **k: (str(tmp_path / "Cliente X"), ""))
     f.nuovo()
     assert f.progetto.percorso.name == "Cliente X.spo"
+    f.close()
+
+
+def test_pagina_sostanze(app, tmp_path, monkeypatch):
+    from sicurcantiere.ui import sostanze as ui_sostanze
+    from sicurcantiere.ui.edizioni import POS
+    from sicurcantiere.ui.sostanze import PaginaSostanze
+    from tests.test_sostanze import _pdf
+
+    scheda = tmp_path / "Cemento.pdf"
+    _pdf(scheda, ["Nome commerciale: Cemento CEM II", "Avvertenza: Pericolo",
+                  "H315 H317 H318 H335", "Data di revisione: 01/02/2024"])
+    p = Progetto(tmp_path / "s.spo", crea=True)
+    p.chiudi()
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "s.spo")
+    repo = f.pagine[0].repo
+    a = repo.inserisci("imprese", ragione_sociale="Alfa")
+    pagina = _pagina(f, PaginaSostanze)
+    f.navigazione.setCurrentRow(f.pagine.index(pagina))
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(scheda), ""))
+    chiamate = []
+    monkeypatch.setattr(ui_sostanze, "esegui_ai", lambda *a: chiamate.append(a))
+    pagina._importa_pdf()
+    s = repo.elenco("sostanze")[0]
+    assert s["nome"] == "Cemento CEM II" and s["impresa_id"] == a
+    assert s["codici_h"] == "H315, H317, H318, H335" and s["data_sds"] == "2024-02-01"
+    assert "Corrosivo" in pagina.classificazione.testo.text()
+    assert len(chiamate) == 1  # l'utente ha accettato il completamento con l'AI
+    pagina._applica_ai(s["id"], {"produttore": "Beta spa", "codici_h": "H315, H319", "dpi": "Guanti",
+                                 "nome": "Altro nome", "data_revisione": "2020-01-01"})
+    s = repo.leggi("sostanze", s["id"])
+    assert s["produttore"] == "Beta spa" and s["dpi"] == "Guanti"
+    assert s["nome"] == "Cemento CEM II" and s["data_sds"] == "2024-02-01"  # dati del PDF mantenuti
+    assert s["codici_h"] == "H315, H317, H318, H335, H319"
     f.close()

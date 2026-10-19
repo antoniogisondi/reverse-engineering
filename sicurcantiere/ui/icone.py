@@ -38,6 +38,9 @@ _FORME: dict[str, str] = {
     # persona che solleva una cassa
     "valutazioni": '<circle cx="9" cy="4.5" r="2"/><path d="M9 7v6l-3 7M9 13l3 7M9 9l4 2"/>'
                    '<rect x="13" y="9" width="7" height="6" rx="1"/>',
+    # beuta da laboratorio
+    "sostanze": '<path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/>'
+                '<path d="M7 15h10"/>',
     # ponteggio: montanti, traversi e diagonali
     "ponteggi": '<path d="M5 3v18M12 3v18M19 3v18M5 8h14M5 14h14M5 20h14M5 8l7 6M12 8l7 6"/>',
     # stelline dell'assistente AI

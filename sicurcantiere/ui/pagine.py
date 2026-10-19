@@ -41,6 +41,7 @@ from sicurcantiere.archivio import ATTREZZATURE, per_categoria
 from sicurcantiere.documenti.comune import euro
 from sicurcantiere.documenti.fascicolo import genera_fascicolo
 from sicurcantiere.documenti.moduli import genera_consegna_dpi
+from sicurcantiere.documenti.sostanze import genera_elenco_sostanze
 from sicurcantiere.documenti.notifica import genera_notifica
 from sicurcantiere.documenti.pos import SEZIONI_POS, chiave_testo, genera_pos
 from sicurcantiere.documenti.psc import genera_psc
@@ -170,7 +171,12 @@ class TestiLiberi(QWidget):
 
 
 class ModuloRecord(QWidget):
-    """Modulo con campi di testo collegati a un record di una tabella."""
+    """Modulo con campi di testo collegati a un record di una tabella.
+
+    Si salvano solo i campi modificati nel modulo, così un aggiornamento del
+    record fatto altrove (per esempio dall'assistente AI) non viene
+    sovrascritto con i valori vecchi rimasti nei campi.
+    """
 
     def __init__(self, repo: Repository, tabella: str, campi: list[tuple[str, str]]):
         super().__init__()
@@ -178,27 +184,33 @@ class ModuloRecord(QWidget):
         self.tabella = tabella
         self.id_: int | None = None
         self.campi: dict[str, QLineEdit] = {}
+        self._modificati: set[str] = set()
         modulo = QFormLayout(self)
         for campo, etichetta in campi:
             e = QLineEdit()
+            e.textChanged.connect(lambda _testo, c=campo: self._modificati.add(c))
             e.editingFinished.connect(lambda c=campo: self._salva(c))
             modulo.addRow(etichetta, e)
             self.campi[campo] = e
 
     def _salva(self, campo: str) -> None:
-        if self.id_ is not None:
+        if self.id_ is not None and campo in self._modificati:
             self.repo.aggiorna(self.tabella, self.id_, **{campo: self.campi[campo].text()})
+            self._modificati.discard(campo)
 
     def salva_in_sospeso(self) -> None:
-        if self.id_ is not None and self.repo.leggi(self.tabella, self.id_):
-            self.repo.aggiorna(self.tabella, self.id_, **{c: e.text() for c, e in self.campi.items()})
+        if self.id_ is not None and self._modificati and self.repo.leggi(self.tabella, self.id_):
+            self.repo.aggiorna(self.tabella, self.id_, **{c: self.campi[c].text() for c in self._modificati})
+        self._modificati.clear()
 
     def carica(self, id_: int | None) -> None:
         self.salva_in_sospeso()
         self.id_ = id_
         record = self.repo.leggi(self.tabella, id_) if id_ is not None else None
         for campo, e in self.campi.items():
+            e.blockSignals(True)
             e.setText(record[campo] if record else "")
+            e.blockSignals(False)
         self.setEnabled(record is not None)
 
 
@@ -871,6 +883,7 @@ class PaginaDocumenti(Pagina):
         "notifica": "Notifica preliminare",
         "pos": "Piano Operativo di Sicurezza (POS)",
         "dpi": "Verbali di consegna dei DPI",
+        "sostanze": "Elenco delle sostanze pericolose",
     }
 
     def __init__(self, repo: Repository):
@@ -878,7 +891,7 @@ class PaginaDocumenti(Pagina):
         griglia = QGroupBox("Genera documento (.docx)")
         layout = QVBoxLayout(griglia)
         self.impresa = QComboBox()
-        per_impresa = [d for d in self.documenti if d in ("pos", "dpi")]
+        per_impresa = [d for d in self.documenti if d in ("pos", "dpi", "sostanze")]
         if per_impresa:
             riga = QHBoxLayout()
             riga.addWidget(QLabel("Impresa:"))
@@ -958,7 +971,7 @@ class PaginaDocumenti(Pagina):
     def genera(self, chiave: str | None = None) -> None:
         chiave = chiave or self.principale
         cantiere = self.repo.cantiere()["nome"] or "Cantiere"
-        if chiave in ("pos", "dpi"):
+        if chiave in ("pos", "dpi", "sostanze"):
             impresa = self.impresa.currentData()
             if impresa is None:
                 QMessageBox.information(self, "Documenti", "Inserire prima l'impresa.")
@@ -966,6 +979,9 @@ class PaginaDocumenti(Pagina):
             nome = self.impresa.currentText()
             if chiave == "pos":
                 self._salva_docx(f"POS - {nome} - {cantiere}", lambda p: genera_pos(self.repo, impresa, p))
+            elif chiave == "sostanze":
+                self._salva_docx(f"Sostanze pericolose - {nome}",
+                                 lambda p: genera_elenco_sostanze(self.repo, impresa, p))
             else:
                 self._salva_docx(f"Consegna DPI - {nome}", lambda p: genera_consegna_dpi(self.repo, impresa, p))
             return

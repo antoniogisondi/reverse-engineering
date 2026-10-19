@@ -5,7 +5,7 @@ Famiglia di programmi desktop per la sicurezza nei cantieri temporanei o mobili
 
 | Programma | Per chi | Documenti | File |
 | --- | --- | --- | --- |
-| **SicurCantiere POS** | Impresa esecutrice | POS, valutazioni dei rischi specifici (NIOSH, OCRA), verbali di consegna DPI | `.spo` |
+| **SicurCantiere POS** | Impresa esecutrice | POS, valutazioni dei rischi specifici (NIOSH, OCRA), sostanze pericolose, verbali di consegna DPI | `.spo` |
 | **SicurCantiere PSC** | Coordinatore (CSP/CSE) | PSC, fascicolo dell'opera, notifica preliminare | `.scs` |
 | **SicurCantiere PiMUS** | Impresa che monta i ponteggi | PiMUS con verifiche | `.spm` |
 
@@ -51,6 +51,11 @@ archivi o contenuti di software commerciali.
   - compila i parametri NIOSH/OCRA dalla descrizione dell'attività, dichiarando le ipotesi fatte;
   - suggerisce rischi, misure e DPI di una fase di lavoro;
   - scrive bozze delle sezioni della relazione del PSC e del PiMUS a partire dai dati del cantiere
+- **Sostanze e miscele pericolose** (POS, Allegato XV 3.2.1 lett. e): importazione dalla scheda
+  di sicurezza in PDF (frasi H, avvertenza, data di revisione; l'assistente AI completa produttore,
+  DPI, misure e conservazione), pittogrammi ricavati dalle frasi H con le precedenze del CLP,
+  categorie di pericolo (cancerogeni/mutageni, tossici per la riproduzione, sensibilizzanti,
+  corrosivi, infiammabili...) con le misure; capitolo nel POS ed elenco stampabile
 - **PiMUS** (art. 136, Allegato XXII): dati del ponteggio, testi base per tutte le sezioni,
   verifiche prima del montaggio e durante l'uso, avviso automatico quando serve il progetto (art. 133)
 - **Gantt interattivo**: colori per impresa con legenda, interferenze tratteggiate in rosso,
@@ -117,6 +122,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 | `sicurcantiere/controlli.py` | Controlli di completezza |
 | `sicurcantiere/valutazioni/` | Metodi NIOSH e OCRA (tabelle dei fattori in un unico punto) |
 | `sicurcantiere/pimus.py` | Contenuti e controlli del PiMUS |
+| `sicurcantiere/sostanze.py`, `sds.py` | Classificazione dalle frasi H e lettura delle schede di sicurezza |
 | `sicurcantiere/ai.py` | Assistente AI (OpenAI e Claude) |
 | `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
 | `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); programmi e pagine in `edizioni.py`, tema in `tema.py`, icone in `icone.py` |
