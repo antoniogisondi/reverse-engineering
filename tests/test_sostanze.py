@@ -1,10 +1,6 @@
-import os
-
 import pytest
 
 from sicurcantiere import sds, sostanze
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
 def test_codici_h():
@@ -39,16 +35,34 @@ def test_categorie():
 
 
 def _pdf(percorso, righe):
-    from PySide6.QtGui import QPageSize, QPainter, QPdfWriter
-    from PySide6.QtWidgets import QApplication
+    """Scrive un PDF di testo minimale (font standard Helvetica).
 
-    QApplication.instance() or QApplication([])
-    writer = QPdfWriter(str(percorso))
-    writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
-    p = QPainter(writer)
-    for n, riga in enumerate(righe):
-        p.drawText(200, 300 + n * 300, riga)
-    p.end()
+    Non usa Qt: in modalità offscreen su Windows Qt non trova i caratteri e
+    produrrebbe pagine vuote, mentre qui il PDF è lo stesso su ogni sistema.
+    """
+    def testo_pdf(riga):
+        return riga.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+    flusso = "BT /F1 11 Tf 14 TL 50 800 Td " + " ".join(f"({testo_pdf(r)}) Tj T*" for r in righe) + " ET"
+    contenuto = flusso.encode("cp1252")
+    oggetti = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length " + str(len(contenuto)).encode() + b" >>\nstream\n" + contenuto + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    ]
+    dati = bytearray(b"%PDF-1.4\n")
+    posizioni = []
+    for n, oggetto in enumerate(oggetti, start=1):
+        posizioni.append(len(dati))
+        dati += f"{n} 0 obj\n".encode() + oggetto + b"\nendobj\n"
+    xref = len(dati)
+    dati += f"xref\n0 {len(oggetti) + 1}\n0000000000 65535 f \n".encode()
+    dati += b"".join(f"{p:010d} 00000 n \n".encode() for p in posizioni)
+    dati += f"trailer\n<< /Size {len(oggetti) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    percorso.write_bytes(bytes(dati))
 
 
 def test_lettura_sds_pdf(tmp_path):
