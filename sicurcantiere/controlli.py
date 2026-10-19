@@ -133,9 +133,16 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
                 if not r["misure"].strip():
                     s.append(Segnalazione(AVVISO, "Rischi", f"{etichetta}: rischio \"{r['descrizione']}\" "
                                                           "senza misure di prevenzione."))
+        from sicurcantiere.documenti.valutazione import valutazioni_impresa
+
+        con_rumore = any(v["metodo"] == "rumore" for v in valutazioni_impresa(repo, i["id"]))
         for chiave, titolo in SEZIONI_POS:
+            if chiave == "rumore" and con_rumore:
+                continue  # l'esito viene dalla valutazione del rumore
             if chiave in ("attivita", "rumore") and not repo.testo(chiave_testo(i["id"], chiave)).strip():
-                s.append(Segnalazione(AVVISO, "Testi del POS", f"{nome}: sezione «{titolo}» da compilare."))
+                s.append(Segnalazione(AVVISO, "Testi del POS", f"{nome}: valutazione del rumore assente e "
+                                      f"sezione «{titolo}» da compilare." if chiave == "rumore" else
+                                      f"{nome}: sezione «{titolo}» da compilare."))
 
     from sicurcantiere import sostanze as classificazione
 

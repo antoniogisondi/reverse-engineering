@@ -406,3 +406,25 @@ def test_sostanze_nel_pos_e_elenco(repo, tmp_path):
     assert any("Disarmante: cancerogeno" in m for m in messaggi)
     assert any("Disarmante: data della scheda" in m for m in messaggi)
     assert any("Orfano: non collegata" in m for m in messaggi)
+
+
+def test_rumore_e_vibrazioni_nel_pos(repo, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.documenti.pos import genera_pos
+
+    a = _cantiere_completo(repo)
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert any("valutazione del rumore assente" in m for m in messaggi)
+    r = repo.inserisci("valutazioni", metodo="rumore", impresa_id=a, titolo="Rumore muratori", mansione="Muratore")
+    repo.salva_dati_valutazione(r, {"snr": 0, "compiti": [{"nome": "Betoniera", "laeq": 88, "picco": 120,
+                                                            "durata": 240}]})
+    v = repo.inserisci("valutazioni", metodo="vibrazioni", impresa_id=a, titolo="Vibrazioni demolizioni",
+                       mansione="Manovale")
+    repo.salva_dati_valutazione(v, {"sistema": "hav", "compiti": [{"nome": "Demolitore", "accelerazione": 8,
+                                                                    "durata": 120}]})
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert not any("valutazione del rumore assente" in m for m in messaggi)
+    testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "Esito della valutazione del rumore" in testo and "85,0 dB(A)" in testo
+    assert "Esito della valutazione delle vibrazioni" in testo and "4,00 m/s²" in testo
+    assert "Tra il valore inferiore e il valore superiore di azione" in testo  # 84,99 dB(A)

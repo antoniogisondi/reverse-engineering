@@ -128,9 +128,24 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     if sezioni["sostanze"].strip():
         testo_o_segnaposto(doc, sezioni["sostanze"])
 
-    doc.add_heading(f"{numero}. {dict(SEZIONI_POS)['rumore']}", 1)
-    testo_o_segnaposto(doc, sezioni["rumore"])
-    numero += 1
+    valutazioni = valutazioni_impresa(repo, impresa_id)
+    for metodo, titolo in (("rumore", dict(SEZIONI_POS)["rumore"]),
+                           ("vibrazioni", "Esito della valutazione delle vibrazioni")):
+        elenco = [v for v in valutazioni if v["metodo"] == metodo]
+        if metodo == "vibrazioni" and not elenco:
+            continue
+        doc.add_heading(f"{numero}. {titolo}", 1)
+        numero += 1
+        if elenco:
+            tabella(doc, ["Mansione / gruppo omogeneo", "Esposizione", "Esito"], [
+                [v["mansione"] or v["titolo"],
+                 (e := METODI[metodo].esegui(repo.dati_valutazione(v["id"]))).indice_testo, e.classe]
+                for v in elenco
+            ])
+            doc.add_paragraph("Il dettaglio dei calcoli e delle misure è riportato nel capitolo delle "
+                              "valutazioni dei rischi specifici.").runs[0].italic = True
+        if metodo == "rumore" and (sezioni["rumore"].strip() or not elenco):
+            testo_o_segnaposto(doc, sezioni["rumore"])
 
     doc.add_heading(f"{numero}. Valutazione dei rischi e misure di prevenzione", 1)
     numero += 1

@@ -38,6 +38,20 @@ from sicurcantiere.ui.pagine import Pagina, _riquadro, primario
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
 from sicurcantiere.valutazioni import COLORI, METODI, Campo, Esito, Metodo
 
+# Esempi di descrizione mostrati nel campo vuoto, per metodo.
+ESEMPI = {
+    "niosh": "«Il manovale carica in betoniera sacchi di cemento da 25 kg presi da un bancale a terra, "
+             "circa 2 sacchi al minuto per 3 ore al giorno, ruotando il busto».",
+    "niosh_composto": "«Il magazziniere scarica sacchi da 25 kg dal camion (1 al minuto) e sposta casse "
+                      "da 12 kg sugli scaffali (3 al minuto), per 4 ore».",
+    "ocra": "«Il ferraiolo lega i ferri con la tenaglia per circa 5 ore, con movimenti rapidi del polso "
+            "destro e pause di 10 minuti ogni 2 ore».",
+    "rumore": "«Il muratore usa il martello demolitore per 1 ora e mezza, la smerigliatrice per 45 minuti, "
+              "poi carica le macerie per 4 ore; usa inserti auricolari».",
+    "vibrazioni": "«Il manovale usa il martello demolitore elettrico per circa 1 ora al giorno e la "
+                  "smerigliatrice per mezz'ora».",
+}
+
 # Chiavi aggiuntive salvate insieme ai parametri del metodo.
 DESCRIZIONE = "descrizione"
 IPOTESI = "ipotesi_ai"
@@ -107,7 +121,7 @@ class EditorParametri(QWidget):
         self.tabella = QTableWidget()
         self.tabella.verticalHeader().setVisible(False)
         self.tabella.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tabella.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.tabella.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.pulsanti_compiti = QHBoxLayout()
         aggiungi = QPushButton("Aggiungi compito")
         rimuovi = QPushButton("Rimuovi compito")
@@ -140,8 +154,18 @@ class EditorParametri(QWidget):
         self.tabella.setHorizontalHeaderLabels(
             [c.etichetta + (f" ({c.suffisso.strip()})" if c.suffisso.strip() else "") for c in metodo.colonne_compiti]
         )
+        for c, campo in enumerate(metodo.colonne_compiti):
+            # Testo descrittivo largo, numeri e scelte quanto basta per l'intestazione.
+            larghezza = 210 if campo.tipo == "testo" else 230 if campo.tipo == "scelta" else 120
+            self.tabella.setColumnWidth(c, max(larghezza, self.tabella.horizontalHeader().sectionSizeHint(c)))
         for compito in dati.get("compiti", []):
             self._riga_compito(compito)
+        self._adatta_altezza()
+
+    def _adatta_altezza(self) -> None:
+        """Mostra tutte le righe dei compiti (fino a 8) senza barra di scorrimento interna."""
+        righe = min(max(self.tabella.rowCount(), 2), 8)
+        self.tabella.setMinimumHeight(self.tabella.horizontalHeader().sizeHint().height() + righe * 34 + 24)
 
     def _riga_compito(self, compito: dict[str, Any]) -> None:
         assert self.metodo is not None
@@ -159,6 +183,7 @@ class EditorParametri(QWidget):
         if self.metodo is None:
             return
         self._riga_compito(self.metodo.compito_predefinito())
+        self._adatta_altezza()
         self.modificato.emit()
 
     def _rimuovi_compito(self) -> None:
@@ -167,6 +192,7 @@ class EditorParametri(QWidget):
             r = self.tabella.rowCount() - 1
         if r >= 0:
             self.tabella.removeRow(r)
+            self._adatta_altezza()
             self.modificato.emit()
 
     def dati(self) -> dict[str, Any]:
@@ -230,11 +256,11 @@ class PaginaValutazioni(Pagina):
         super().__init__(repo)
         self.id_: int | None = None
         self.tabella = TabellaCrud(repo, "valutazioni", [
-            Colonna("titolo", "Valutazione", larghezza=240),
-            Colonna("metodo", "Metodo", "scelta", larghezza=330,
+            Colonna("titolo", "Valutazione", larghezza=220),
+            Colonna("metodo", "Metodo", "scelta", larghezza=290,
                     scelte=lambda: [(k, m.nome) for k, m in METODI.items()]),
-            Colonna("mansione", "Mansione / gruppo omogeneo", larghezza=200),
-            Colonna("fase_id", "Fase", "scelta", larghezza=200, scelte=self._fasi),
+            Colonna("mansione", "Mansione / gruppo omogeneo", larghezza=180),
+            Colonna("fase_id", "Fase", "scelta", larghezza=170, scelte=self._fasi),
             Colonna("data", "Data", "data", larghezza=95),
             Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga),
         ], valori_nuovo=lambda: {"metodo": "niosh", "data": date.today().isoformat()})
@@ -325,7 +351,7 @@ class PaginaValutazioni(Pagina):
             esito = metodo.esegui(json.loads(riga["dati"] or "{}"))
         except ValueError:
             return ""
-        return f"{esito.indice_testo} - {esito.classe}"
+        return f"{esito.indice_testo} - {esito.classe.split(' (')[0]}"
 
     def _seleziona(self, id_: int | None) -> None:
         self.salva_in_sospeso()
@@ -336,6 +362,9 @@ class PaginaValutazioni(Pagina):
         riga = self.repo.leggi("valutazioni", id_)
         dati = self.repo.dati_valutazione(id_)
         metodo = METODI.get(riga["metodo"], METODI["niosh"])
+        self.descrizione.setPlaceholderText(
+            "Descrivi l'attività come la vedresti in cantiere: attrezzature, pesi, tempi, pause, posture. "
+            f"Per esempio: {ESEMPI.get(metodo.chiave, '')}")
         self.editor.blockSignals(True)
         self.editor.imposta(metodo, dati)
         self.editor.blockSignals(False)

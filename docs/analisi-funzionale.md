@@ -42,7 +42,8 @@ SicurCantiere le realizza.
 | PiMUS ponteggi (modulo separato nel prodotto commerciale) | `pimus.py`, `documenti/pimus.py` | v0.3 |
 | Assistente AI (chatbot per la redazione) | `ai.py`: compilazione parametri, rischi, testi; OpenAI o Claude | v0.3 |
 | Sostanze pericolose e schede di sicurezza | `sostanze.py`, `sds.py`: classificazione dalle frasi H, lettura SDS in PDF | v0.5 |
-| Valutazioni traino/spinta, trasporto, rumore, vibrazioni | - | da fare |
+| Valutazioni rumore e vibrazioni | `valutazioni/rumore.py`, `valutazioni/vibrazioni.py` | v0.6 |
+| Valutazioni traino/spinta, trasporto, rischio chimico | - | da fare |
 | Modulistica per CSE e imprese (verbali, consegna DPI) | - | da fare |
 | Layout di cantiere e modello 3D/BIM | - | fuori obiettivo per ora |
 

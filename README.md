@@ -5,7 +5,7 @@ Famiglia di programmi desktop per la sicurezza nei cantieri temporanei o mobili
 
 | Programma | Per chi | Documenti | File |
 | --- | --- | --- | --- |
-| **SicurCantiere POS** | Impresa esecutrice | POS, valutazioni dei rischi specifici (NIOSH, OCRA), sostanze pericolose, verbali di consegna DPI | `.spo` |
+| **SicurCantiere POS** | Impresa esecutrice | POS, valutazioni dei rischi specifici (NIOSH, OCRA, rumore, vibrazioni), sostanze pericolose, verbali di consegna DPI | `.spo` |
 | **SicurCantiere PSC** | Coordinatore (CSP/CSE) | PSC, fascicolo dell'opera, notifica preliminare | `.scs` |
 | **SicurCantiere PiMUS** | Impresa che monta i ponteggi | PiMUS con verifiche | `.spm` |
 
@@ -45,6 +45,10 @@ archivi o contenuti di software commerciali.
   - sollevamento manuale, compito semplice e composto: **NIOSH** (UNI ISO 11228-1), con peso limite
     raccomandato, indice di sollevamento (LI / CLI) e tutti i fattori;
   - movimenti ripetitivi degli arti superiori: **indice OCRA** (UNI ISO 11228-3), più compiti per arto;
+  - **rumore** (Titolo VIII Capo II): LEX,8h dalle attività del turno, picco, confronto con i valori
+    di azione e limite dell'art. 189, attenuazione dei protettori (metodo SNR della UNI EN 458);
+  - **vibrazioni** mano-braccio e corpo intero (Titolo VIII Capo III): A(8), valori d'azione e
+    limite dell'art. 201, minuti di utilizzo che portano al valore d'azione per ogni attrezzatura;
   - risultato in tempo reale con classe colorata e **misure suggerite in base ai fattori più penalizzanti**;
   - relazione Word per ogni valutazione e inclusione automatica nel POS dell'impresa
 - **Assistente AI** (OpenAI/ChatGPT predefinito, Claude in alternativa):
@@ -120,7 +124,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 | `sicurcantiere/analisi.py` | Rischi, Gantt analitico, interferenze, affollamento, obblighi |
 | `sicurcantiere/archivio.py` | Archivio di lavorazioni, macchine e attrezzi |
 | `sicurcantiere/controlli.py` | Controlli di completezza |
-| `sicurcantiere/valutazioni/` | Metodi NIOSH e OCRA (tabelle dei fattori in un unico punto) |
+| `sicurcantiere/valutazioni/` | Metodi NIOSH, OCRA, rumore e vibrazioni (tabelle e soglie in un unico punto per metodo) |
 | `sicurcantiere/pimus.py` | Contenuti e controlli del PiMUS |
 | `sicurcantiere/sostanze.py`, `sds.py` | Classificazione dalle frasi H e lettura delle schede di sicurezza |
 | `sicurcantiere/ai.py` | Assistente AI (OpenAI e Claude) |
@@ -132,7 +136,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 
 - Archivio delle lavorazioni modificabile dall'utente e archivi dei responsabili ricorrenti
 - DUVRI, PSS, piano di emergenza
-- Altre valutazioni specifiche: traino e spinta, trasporto (ISO 11228-2), rumore, vibrazioni
+- Altre valutazioni specifiche: traino e spinta, trasporto (ISO 11228-2), rischio chimico
 - Esportazione dei costi in Excel
 - Modulistica (verbali di coordinamento, consegna DPI)
 - Importazione di prezzari regionali per i costi della sicurezza

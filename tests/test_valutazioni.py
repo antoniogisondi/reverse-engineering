@@ -89,3 +89,50 @@ def test_normalizza_dati_sporchi():
     assert dati["peso"] == 10 and dati["h"] == 0 and dati["presa"] == "discreta"
     for metodo in METODI.values():
         assert metodo.esegui(metodo.dati_predefiniti()).classe
+
+
+def test_rumore():
+    from sicurcantiere.valutazioni import rumore
+
+    # 4 ore a 90 dB(A) -> LEX = 90 + 10 log(0,5) = 86,99
+    assert rumore.lex([{"laeq": 90, "durata": 240}]) == pytest.approx(86.99, abs=0.01)
+    # due attività da 85 dB(A) per 4 ore ciascuna -> 85 dB(A)
+    assert rumore.lex([{"laeq": 85, "durata": 240}, {"laeq": 85, "durata": 240}]) == pytest.approx(85.0)
+    assert rumore.classe(79.9, 130)[1] == VERDE
+    assert rumore.classe(80.5, 130)[1] == GIALLO
+    assert rumore.classe(79, 136)[1] == GIALLO  # conta anche il picco
+    assert rumore.classe(86, 130)[1] == ROSSO
+    assert rumore.classe(88, 130)[1] == VIOLA
+
+    dati = {"snr": 0, "compiti": [
+        {"nome": "Taglio con smerigliatrice", "laeq": 100, "durata": 60, "picco": 125},
+        {"nome": "Lavori manuali", "laeq": 78, "durata": 360, "picco": 110},
+    ]}
+    esito = METODI["rumore"].esegui(dati)
+    atteso = 10 * math.log10(60 / 480 * 10 ** 10 + 360 / 480 * 10 ** 7.8)
+    assert esito.indice == pytest.approx(atteso)
+    assert esito.colore == VIOLA  # oltre 87 dB(A) senza DPI
+    assert "smerigliatrice" in esito.misure[0]
+    # Con DPI SNR 25 (attenuazione 18 dB) il valore limite è rispettato: resta il rosso per gli obblighi.
+    protetto = METODI["rumore"].esegui({**dati, "snr": 25})
+    assert protetto.colore == ROSSO and "limite rispettato" in protetto.classe
+    assert any("65 e 80" in n for n in protetto.note)
+
+
+def test_vibrazioni():
+    from sicurcantiere.valutazioni import vibrazioni
+
+    # 8 m/s^2 per 2 ore -> A(8) = 8 * radice(0,25) = 4
+    esito = METODI["vibrazioni"].esegui({"sistema": "hav", "compiti": [
+        {"nome": "Martello demolitore", "accelerazione": 8, "durata": 120}]})
+    assert esito.indice == pytest.approx(4.0) and esito.colore == ROSSO
+    assert esito.righe_compiti[0][-1] == "47"  # 480 x (2,5/8)^2 = 46,9 minuti al valore d'azione
+    assert any("impugnature antivibranti" in m for m in esito.misure)
+    oltre = METODI["vibrazioni"].esegui({"sistema": "hav", "compiti": [
+        {"nome": "Demolitore", "accelerazione": 22, "durata": 60}]})
+    assert oltre.colore == VIOLA and oltre.note  # anche oltre il limite su periodi brevi
+    wbv = METODI["vibrazioni"].esegui({"sistema": "wbv", "compiti": [
+        {"nome": "Escavatore", "accelerazione": 0.6, "durata": 360}]})
+    assert wbv.indice == pytest.approx(0.6 * math.sqrt(0.75))
+    assert wbv.colore == ROSSO and any("Sedili" in m for m in wbv.misure)
+    assert vibrazioni.classe(0.3, "wbv")[1] == VERDE
