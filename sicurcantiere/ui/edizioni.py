@@ -14,7 +14,20 @@ anche i file degli altri (per esempio il POS può partire dal file del PSC).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
+
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from sicurcantiere import controlli, pimus
 from sicurcantiere.repository import Repository
@@ -68,6 +81,64 @@ class PaginaCantierePOS(PaginaDatiGenerali):
     titolo = "Cantiere"
     voce = "Cantiere"
     funzione_riepilogo = staticmethod(calcola_pos)
+
+    def __init__(self, repo: Repository):
+        super().__init__(repo)
+        self.foto = FotoCantiere(repo)
+        self.layout_.addWidget(self.foto)
+
+    def aggiorna(self) -> None:
+        super().aggiorna()
+        self.foto.aggiorna()
+
+
+class FotoCantiere(QGroupBox):
+    """Foto del cantiere riportate nel POS (capitolo «Lavoro»)."""
+
+    def __init__(self, repo: Repository):
+        super().__init__("Foto del cantiere (nel POS)")
+        self.repo = repo
+        self.elenco = QListWidget()
+        self.elenco.setIconSize(QSize(96, 72))
+        self.elenco.setMaximumHeight(110)
+        self.elenco.setFlow(QListWidget.LeftToRight)
+        self.elenco.setToolTip("Le foto restano nella loro cartella: il file del cantiere ne conserva il percorso.")
+        aggiungi = QPushButton("Aggiungi foto...")
+        aggiungi.clicked.connect(self._aggiungi)
+        rimuovi = QPushButton("Rimuovi")
+        rimuovi.clicked.connect(self._rimuovi)
+        pulsanti = QHBoxLayout()
+        pulsanti.addWidget(aggiungi)
+        pulsanti.addWidget(rimuovi)
+        pulsanti.addStretch()
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.elenco)
+        layout.addLayout(pulsanti)
+
+    def percorsi(self) -> list[str]:
+        return [r for r in self.repo.testo("foto_cantiere").splitlines() if r.strip()]
+
+    def aggiorna(self) -> None:
+        self.elenco.clear()
+        for percorso in self.percorsi():
+            voce = QListWidgetItem(QIcon(percorso), Path(percorso).name)
+            voce.setToolTip(percorso if Path(percorso).is_file() else f"{percorso}\n(file non trovato)")
+            self.elenco.addItem(voce)
+
+    def _aggiungi(self) -> None:
+        file, _ = QFileDialog.getOpenFileNames(self, "Foto del cantiere", "", "Immagini (*.png *.jpg *.jpeg *.bmp)")
+        if file:
+            self.repo.salva_testo("foto_cantiere", "\n".join(dict.fromkeys(self.percorsi() + file)))
+            self.aggiorna()
+
+    def _rimuovi(self) -> None:
+        riga = self.elenco.currentRow()
+        if riga < 0:
+            return
+        percorsi = self.percorsi()
+        del percorsi[riga]
+        self.repo.salva_testo("foto_cantiere", "\n".join(percorsi))
+        self.aggiorna()
 
 
 class PaginaSoggettiPOS(PaginaSoggetti):

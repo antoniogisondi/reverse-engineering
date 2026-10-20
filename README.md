@@ -66,6 +66,10 @@ archivi o contenuti di software commerciali.
 - **Fascicolo dell'opera**: interventi di manutenzione e documentazione di supporto
 - **Documenti Word**: PSC, POS per impresa, fascicolo dell'opera, notifica preliminare,
   con tabella delle **revisioni** nel frontespizio
+- **Impaginazione del POS**: copertina incorniciata, capitoli su banda colorata con il riferimento
+  normativo, indice automatico, foto del cantiere, cartelli di sicurezza scelti in base ai rischi,
+  icone dei DPI per fase e attrezzatura, tabella dei rischi con il livello colorato, numeri utili
+  e documenti da tenere in cantiere
 - **Controlli di completezza** prima della stampa (errori e avvisi)
 - **Interfaccia** con tema chiaro e scuro, barra laterale con icone, barra degli strumenti
   e barra di stato con ultimo salvataggio e riepilogo dei controlli sempre visibili
@@ -171,6 +175,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 | `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
 | `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); programmi e pagine in `edizioni.py`, tema in `tema.py`, icone in `icone.py` |
 | `sicurcantiere/documenti/moduli.py`, `maestranze.py` | Modulistica dell'impresa: consegna DPI, tesserini, schede dei lavoratori |
+| `sicurcantiere/documenti/stile.py`, `segnaletica.py` | Stile dei documenti (bande, schede, tabelle colorate, copertina) e cartelli di sicurezza; le immagini in `risorse/segnali` si rigenerano con `scripts/genera_segnali.py` |
 | `sicurcantiere/anagrafiche.py`, `archivio_utente.py` | Ruoli, figure, DPI, mansioni; archivio anagrafiche dell'utente |
 
 ## Prossimi passi

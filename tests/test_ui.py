@@ -474,3 +474,22 @@ def test_dialogo_archivio_lavorazioni(app, tmp_path):
     assert not d.albero.topLevelItem(0).isHidden()
     d.deleteLater()
     p.chiudi()
+
+
+def test_foto_cantiere_pos(app, tmp_path, monkeypatch):
+    from sicurcantiere import segnaletica
+    from sicurcantiere.ui.edizioni import POS, PaginaCantierePOS
+
+    Progetto(tmp_path / "f.spo", crea=True).chiudi()
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "f.spo")
+    pagina = _pagina(f, PaginaCantierePOS)
+    foto = [str(segnaletica.SEGNALI[k].file) for k in ("casco", "guanti")]
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileNames", lambda *a, **k: (foto, ""))
+    pagina.foto._aggiungi()
+    pagina.foto._aggiungi()  # nessun doppione
+    assert pagina.foto.elenco.count() == 2 and pagina.foto.percorsi() == foto
+    pagina.foto.elenco.setCurrentRow(0)
+    pagina.foto._rimuovi()
+    assert pagina.foto.percorsi() == foto[1:]
+    f.close()

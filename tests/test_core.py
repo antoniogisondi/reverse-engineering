@@ -568,7 +568,7 @@ def test_mansioni_tesserini_e_schede(repo, tmp_path):
     assert "SCHEDA DEL LAVORATORE - Giuseppe Neri" in testo and "Gru a torre" in testo
     assert "casco; guanti antitaglio" in testo and "terza categoria" in testo
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
-    assert "Lavoratori impegnati: Giuseppe Neri (Muratore)" in testo
+    assert "Lavoratori impegnati" in testo and "Giuseppe Neri (Muratore)" in testo
     assert "Lavoratori autonomi: 1" in testo and "0123" in testo and "Prot. 123" in testo
     assert "casco; guanti antitaglio" in testo
     repo.elimina("lavoratori", autonomo)
@@ -667,3 +667,33 @@ def test_migrazione_sostanze_su_piu_fasi(tmp_path):
     r.elimina("fasi", 7)
     assert r.fasi_sostanza(malta["id"]) == []
     p.chiudi()
+
+
+def test_segnaletica_e_impaginazione_pos(repo, tmp_path):
+    from docx import Document
+    from docx.oxml.ns import qn
+
+    from sicurcantiere import segnaletica
+    from sicurcantiere.documenti.pos import genera_pos
+
+    assert all(s.file.is_file() for s in segnaletica.SEGNALI.values())
+    assert segnaletica.icone_dpi(["Casco con sottogola", "guanti antitaglio", "otoprotettori"]) == [
+        "casco", "guanti", "udito"]
+    chiavi = [s.chiave for s in segnaletica.segnali_cantiere(["Caduta dall'alto", "Elettrocuzione"], [])]
+    assert chiavi[0] == "accesso" and {"caduta", "tensione", "imbracatura"} <= set(chiavi)
+    assert chiavi.index("tensione") < chiavi.index("casco") < chiavi.index("soccorso")  # divieti, avvertimenti, obblighi
+
+    a = _cantiere_completo(repo)
+    repo.salva_testo("foto_cantiere", f"{segnaletica.SEGNALI['casco'].file}\n{tmp_path / 'manca.jpg'}")
+    doc = Document(genera_pos(repo, a, tmp_path / "pos.docx"))
+    testo = "\n".join(p.text for p in doc.paragraphs)
+    assert "Foto 1 - area del cantiere" in testo and "Foto 2" not in testo  # foto mancante saltata
+    titoli = [p.text for p in doc.paragraphs if p.style.name == "Heading 1"]
+    assert {"Lavoro", "Segnaletica prevista nel cantiere", "Conclusioni generali"} <= set(titoli)
+    # immagini: foto, cartelli e icone dei DPI
+    assert len(doc.inline_shapes) > 10
+    # la tabella dei rischi ha colonne di larghezza fissa e il livello colorato
+    rischi = next(t for t in doc.tables if t.rows[0].cells[0].text == "Rischio")
+    griglia = [int(c.get(qn("w:w"))) for c in rischi._tbl.tblGrid.findall(qn("w:gridCol"))]
+    assert griglia[2] > griglia[0] > griglia[1]
+    assert rischi.rows[1].cells[1]._tc.tcPr.find(qn("w:shd")) is not None
