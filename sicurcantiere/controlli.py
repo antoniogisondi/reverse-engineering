@@ -101,7 +101,7 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
     if not any(x["ruolo"] == anagrafiche.COMMITTENTE and x["nome"].strip() for x in repo.elenco("soggetti")):
         s.append(Segnalazione(AVVISO, "Committente", "Manca il committente dei lavori."))
 
-    imprese = [i for i in repo.elenco("imprese") if i["tipo"] != anagrafiche.AUTONOMO]
+    imprese = [i for i in repo.elenco("imprese") if not anagrafiche.autonomo(i)]
     if not imprese:
         s.append(Segnalazione(ERRORE, "Impresa", "Inserire l'impresa che redige il POS."))
     oggi = date.today().isoformat()
@@ -125,9 +125,19 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
         lavoratori = repo.elenco("lavoratori", impresa_id=i["id"])
         if not lavoratori:
             s.append(Segnalazione(ERRORE, "Lavoratori", f"{nome}: nessun lavoratore indicato."))
+        if anagrafiche.affidataria(i) and not i["incaricato_97"].strip():
+            s.append(Segnalazione(AVVISO, "Impresa", f"{nome}: indicare il soggetto incaricato dei compiti "
+                                                     "dell'impresa affidataria (art. 97)."))
+        con_mansioni = set()
         for l in lavoratori:
-            chi = l["nome"] or f"Lavoratore n. {l['id']}"
-            if not l["formazione"].strip():
+            chi = anagrafiche.nominativo(l) or f"Lavoratore n. {l['id']}"
+            mansioni = repo.mansioni(l["id"])
+            con_mansioni |= {f for f, _ in mansioni}
+            if not mansioni:
+                s.append(Segnalazione(AVVISO, "Lavoratori", f"{chi}: nessuna lavorazione assegnata (mansioni)."))
+            if l["autonomo"]:
+                continue
+            if not anagrafiche.formazione_lavoratore(l):
                 s.append(Segnalazione(AVVISO, "Lavoratori", f"{chi}: formazione non indicata."))
             if not l["idoneita_scadenza"]:
                 s.append(Segnalazione(AVVISO, "Lavoratori", f"{chi}: scadenza dell'idoneità sanitaria non indicata."))
@@ -141,6 +151,8 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
             etichetta = f"{f['codice']} {f['descrizione']}".strip() or f"Fase n. {f['id']}"
             if not rischi:
                 s.append(Segnalazione(AVVISO, "Lavorazioni", f"{etichetta}: nessun rischio valutato."))
+            if lavoratori and f["id"] not in con_mansioni:
+                s.append(Segnalazione(AVVISO, "Lavorazioni", f"{etichetta}: nessun lavoratore assegnato."))
             for r in rischi:
                 if not r["misure"].strip():
                     s.append(Segnalazione(AVVISO, "Rischi", f"{etichetta}: rischio \"{r['descrizione']}\" "

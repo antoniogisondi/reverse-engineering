@@ -35,7 +35,7 @@ SicurCantiere le realizza.
 | Stima dei costi della sicurezza | Pagina Costi | v0.1 |
 | Gestione delle revisioni dei piani | Tabella `revisioni`, riportata nel frontespizio | v0.2 |
 | Controlli che segnalano errori o parti incomplete prima della stampa | `controlli.py`, pagina Documenti | v0.2 |
-| Archivi utente (responsabili ricorrenti) | - | da fare |
+| Archivi utente (responsabili e imprese ricorrenti) | `archivio_utente.py`, file comune nella cartella dell'utente | v0.8 |
 | Esportazione dei costi in xlsx | - | da fare |
 | DUVRI, PSS, PEE, piano scavi, demolizioni, amianto | - | da fare |
 | Valutazioni specifiche con metodi normati | `valutazioni/`: NIOSH semplice e composto, OCRA; misure dai fattori peggiori | v0.3 |
@@ -45,6 +45,7 @@ SicurCantiere le realizza.
 | Valutazioni rumore e vibrazioni | `valutazioni/rumore.py`, `valutazioni/vibrazioni.py` | v0.6 |
 | Valutazioni traino/spinta e trasporto | `valutazioni/traino_spinta.py`, `trasporto.py`, tavole in `snook.py` | v0.7 |
 | Anagrafica dettagliata dell'impresa, figure della sicurezza, committente responsabile dei lavori | `anagrafiche.py`, tabella `figure` | v0.7 |
+| Maestranze con DPI, formazione, mansioni (lavorazioni e attrezzature), tesserini e schede dei lavoratori | `ui/maestranze.py`, `documenti/maestranze.py` | v0.8 |
 | Valutazione del rischio chimico | - | da fare |
 | Modulistica per le imprese (verbale di consegna DPI) | `documenti/moduli.py` | v0.5 |
 | Modulistica per il CSE (verbali di coordinamento e sopralluogo) | - | da fare |

@@ -273,10 +273,17 @@ def _cantiere_completo(repo):
     return a
 
 
+def _testo_tabelle(tabelle):
+    for t in tabelle:
+        for r in t.rows:
+            for c in r.cells:
+                yield c.text
+                yield from _testo_tabelle(c.tables)
+
+
 def _testo_docx(file):
     doc = Document(file)
-    return "\n".join([p.text for p in doc.paragraphs] +
-                     [c.text for t in doc.tables for r in t.rows for c in r.cells])
+    return "\n".join([p.text for p in doc.paragraphs] + list(_testo_tabelle(doc.tables)))
 
 
 def test_genera_pos(repo, tmp_path):
@@ -490,3 +497,70 @@ def test_figure_e_dati_impresa_nel_pos(repo, tmp_path):
     assert "svolti direttamente dal datore di lavoro" in testo and "Luca Verdi" not in testo
     assert "Paolo Gialli" in testo and "art. 50" in testo
     assert repo.leggi("imprese", b)["affidataria_id"] == a
+
+
+def test_archivio_anagrafiche(repo, tmp_path):
+    from sicurcantiere.archivio_utente import IMPRESA, PERSONA, ArchivioAnagrafiche
+
+    a = _cantiere_completo(repo)
+    archivio = ArchivioAnagrafiche(tmp_path / "archivio.db")
+    cse = next(s for s in repo.elenco("soggetti") if s["ruolo"].endswith("(CSE)"))
+    archivio.salva_persona({**cse, "telefono": "333"})
+    archivio.salva_persona({**cse, "telefono": "444"})  # stesso ruolo e nome: aggiornato
+    voci = archivio.elenco(PERSONA)
+    assert len(voci) == 1 and voci[0]["dati"]["telefono"] == "444"
+    with pytest.raises(ValueError):
+        archivio.salva_persona({"ruolo": "RSPP", "nome": " "})
+    archivio.salva_impresa(repo, a)
+    assert archivio.elenco(testo="alfa")[0]["tipo"] == IMPRESA
+
+    # In un altro cantiere: la persona come figura dell'impresa, l'impresa con figure e lavoratori.
+    altro = Repository(Progetto(tmp_path / "altro.spo", crea=True))
+    nuova = archivio.inserisci_impresa(altro, archivio.elenco(IMPRESA)[0])
+    assert altro.leggi("imprese", nuova)["datore_lavoro"] == "Mario Bianchi"
+    assert [f["nome"] for f in altro.elenco("figure", impresa_id=nuova)] == ["Luca Verdi"]
+    assert [l["nome"] for l in altro.elenco("lavoratori", impresa_id=nuova)] == ["Giuseppe Neri"]
+    archivio.inserisci_persona(altro, voci[0], "figure", impresa_id=nuova, ruolo="RLST")
+    figura = altro.elenco("figure", ruolo="RLST")[0]
+    assert figura["nome"] == "Ing. Rossi" and figura["telefono"] == "444"
+    archivio.elimina(voci[0]["id"])
+    assert not archivio.elenco(PERSONA)
+    archivio.chiudi()
+    altro.progetto.chiudi()
+
+
+def test_mansioni_tesserini_e_schede(repo, tmp_path):
+    from sicurcantiere.documenti.maestranze import genera_schede_lavoratori, genera_tesserini, mansioni_lavoratore
+    from sicurcantiere.documenti.pos import genera_pos
+
+    a = _cantiere_completo(repo)
+    repo.aggiorna("imprese", a, aut_subappalto="Prot. 123 del 01/10/2025")
+    l = repo.elenco("lavoratori")[0]["id"]
+    repo.aggiorna("lavoratori", l, cognome="Neri", nome="Giuseppe", matricola="M7", data_assunzione="2020-03-01",
+                  dpi="casco; guanti antitaglio", form_base=1, form_dpi3=1)
+    fase = repo.elenco("fasi")[0]
+    attrezzature = repo.elenco("attrezzature", fase_id=fase["id"])
+    gru = next(x for x in attrezzature if x["nome"] == "Gru a torre")
+    repo.salva_mansioni(l, {(fase["id"], None), (fase["id"], gru["id"])})
+    autonomo = repo.inserisci("lavoratori", impresa_id=a, autonomo=1, nome="Sara", cognome="Gialli",
+                              mansione="Elettricista", partita_iva="0123")
+
+    m = mansioni_lavoratore(repo, repo.leggi("lavoratori", l))
+    assert [x["nome"] for x in m[0]["attrezzature"]] == ["Gru a torre"]
+    fonti = {r["fonte"] for r in m[0]["rischi"]}
+    assert "Gru a torre" in fonti and not fonti - {"", "Gru a torre"}
+    assert [x["id"] for x in repo.lavoratori_fase(fase["id"])] == [l]
+
+    testo = _testo_docx(genera_tesserini(repo, a, tmp_path / "t.docx"))
+    assert "Giuseppe Neri" in testo and "M7" in testo and "01/03/2020" in testo
+    assert "Prot. 123" in testo and "Lavoratore autonomo" in testo and "Sara Gialli" in testo
+    testo = _testo_docx(genera_schede_lavoratori(repo, a, tmp_path / "s.docx"))
+    assert "SCHEDA DEL LAVORATORE - Giuseppe Neri" in testo and "Gru a torre" in testo
+    assert "casco; guanti antitaglio" in testo and "terza categoria" in testo
+    testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "Lavoratori impegnati: Giuseppe Neri (Muratore)" in testo
+    assert "Lavoratori autonomi: 1" in testo and "0123" in testo and "Prot. 123" in testo
+    assert "casco; guanti antitaglio" in testo
+    repo.elimina("lavoratori", autonomo)
+    repo.elimina("fasi", fase["id"])
+    assert not repo.mansioni(l)  # cancellate a cascata con la fase

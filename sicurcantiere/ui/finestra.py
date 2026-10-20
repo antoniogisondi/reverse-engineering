@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 from sicurcantiere import __version__, controlli
 from sicurcantiere.db import ErroreProgetto, Progetto, anteprima
 from sicurcantiere.repository import Repository
-from sicurcantiere.ui import tema
+from sicurcantiere.ui import archivio_anagrafiche, tema
 from sicurcantiere.ui.edizioni import ESTENSIONI, PSC, Edizione
 from sicurcantiere.ui.icone import icona, icona_applicazione
 from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI
@@ -228,6 +228,7 @@ class FinestraPrincipale(QMainWindow):
         self.azione_tema.setChecked(self.scuro)
         self.azione_info = self._azione("&Informazioni", self._informazioni)
         self.azione_ai = self._azione("Impostazioni assistente &AI...", lambda: DialogoImpostazioniAI(self).exec())
+        self.azione_archivio = self._azione("Archivio &anagrafiche...", lambda: archivio_anagrafiche.gestisci(self))
         self.azioni_progetto = [self.azione_salva_con_nome, self.azione_chiudi,
                                 self.azione_psc, self.azione_controlli]
 
@@ -247,6 +248,7 @@ class FinestraPrincipale(QMainWindow):
         strumenti.addAction(self.azione_psc)
         strumenti.addAction(self.azione_controlli)
         strumenti.addSeparator()
+        strumenti.addAction(self.azione_archivio)
         strumenti.addAction(self.azione_ai)
 
         vista = self.menuBar().addMenu("&Visualizza")

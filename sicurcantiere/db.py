@@ -281,6 +281,43 @@ MIGRAZIONI: list[str] = [
         SELECT id, 'Addetto antincendio ed evacuazione', addetti_emergenze FROM imprese
         WHERE trim(addetti_emergenze) <> '';
     """,
+    # v0.8: dati dei lavori dell'impresa, soggetto incaricato (art. 97), anagrafica delle
+    # maestranze con DPI assegnati e formazione ricevuta.
+    """
+    ALTER TABLE imprese ADD COLUMN fax TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN aut_subappalto TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN data_inizio TEXT;
+    ALTER TABLE imprese ADD COLUMN data_fine TEXT;
+    ALTER TABLE imprese ADD COLUMN incaricato_97 TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN incaricato_97_mansione TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN logo TEXT NOT NULL DEFAULT '';
+
+    ALTER TABLE lavoratori ADD COLUMN cognome TEXT NOT NULL DEFAULT '';
+    ALTER TABLE lavoratori ADD COLUMN data_nascita TEXT;
+    ALTER TABLE lavoratori ADD COLUMN luogo_nascita TEXT NOT NULL DEFAULT '';
+    ALTER TABLE lavoratori ADD COLUMN matricola TEXT NOT NULL DEFAULT '';
+    ALTER TABLE lavoratori ADD COLUMN data_assunzione TEXT;
+    ALTER TABLE lavoratori ADD COLUMN foto TEXT NOT NULL DEFAULT '';
+    ALTER TABLE lavoratori ADD COLUMN dpi TEXT NOT NULL DEFAULT '';
+    ALTER TABLE lavoratori ADD COLUMN form_base INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE lavoratori ADD COLUMN form_specifica INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE lavoratori ADD COLUMN form_cantiere INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE lavoratori ADD COLUMN form_dpi3 INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE lavoratori ADD COLUMN autonomo INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE lavoratori ADD COLUMN data_inizio TEXT;
+    ALTER TABLE lavoratori ADD COLUMN data_fine TEXT;
+    ALTER TABLE lavoratori ADD COLUMN indirizzo TEXT NOT NULL DEFAULT '';
+    ALTER TABLE lavoratori ADD COLUMN codice_fiscale TEXT NOT NULL DEFAULT '';
+    ALTER TABLE lavoratori ADD COLUMN partita_iva TEXT NOT NULL DEFAULT '';
+
+    -- Mansioni: lavorazioni svolte da ogni lavoratore e macchine o attrezzature che utilizza.
+    CREATE TABLE mansioni_lavoratori (
+        id INTEGER PRIMARY KEY,
+        lavoratore_id INTEGER NOT NULL REFERENCES lavoratori(id) ON DELETE CASCADE,
+        fase_id INTEGER NOT NULL REFERENCES fasi(id) ON DELETE CASCADE,
+        attrezzatura_id INTEGER REFERENCES attrezzature(id) ON DELETE CASCADE
+    );
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

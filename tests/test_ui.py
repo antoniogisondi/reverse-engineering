@@ -36,6 +36,7 @@ def senza_dialoghi(monkeypatch):
     monkeypatch.setattr(mb, "warning", lambda *a, **k: mb.StandardButton.Ok)
     monkeypatch.setattr(mb, "critical", lambda *a, **k: mb.StandardButton.Ok)
     monkeypatch.setattr(mb, "question", lambda *a, **k: mb.StandardButton.Yes)
+    monkeypatch.setattr(mb, "information", lambda *a, **k: mb.StandardButton.Ok)
 
 
 @pytest.fixture(scope="module")
@@ -265,7 +266,7 @@ def test_programma_pos(app, tmp_path):
     imprese = _pagina(f, PaginaImprese)
     f.navigazione.setCurrentRow(f.pagine.index(imprese))
     imprese.tabella.seleziona(a)
-    assert imprese.schede.count() == 4
+    assert imprese.schede.count() == 5
     imprese.figure.campi["datore_lavoro"].setText("Mario Bianchi")
     imprese.figure.campi["rspp_datore"].setChecked(True)
     imprese.dati.campi["ccnl"].setCurrentText("Edilizia - artigianato")
@@ -281,6 +282,35 @@ def test_programma_pos(app, tmp_path):
     assert repo.leggi("imprese", b)["affidataria_id"] == a
     imprese.tabella.seleziona(a)
     assert imprese.dati.valore("ccnl") == "Edilizia - artigianato"
+
+    # Maestranze: dettaglio, DPI, mansioni.
+    from sicurcantiere.ui.maestranze import DialogoMansioni
+    from sicurcantiere.ui.modulo import DialogoDPI
+
+    fase = repo.importa_lavorazione(LAVORAZIONI[0])
+    repo.aggiorna("fasi", fase, impresa_id=a)
+    imprese.lavoratori.tabella.aggiungi()
+    lav = repo.elenco("lavoratori", impresa_id=a)[0]
+    assert lav["autonomo"] == 0
+    imprese.lavoratori.tabella.seleziona(lav["id"])
+    det = imprese.lavoratori.dettaglio
+    det.campi["form_base"].setChecked(True)
+    det.campi["data_nascita"].setDate(QDate(1966, 5, 20))
+    assert repo.leggi("lavoratori", lav["id"])["data_nascita"] == "1966-05-20"
+    dialogo_dpi = DialogoDPI(["casco"], ["guanti", "Imbracatura speciale"])
+    dialogo_dpi._suggeriti()
+    assert dialogo_dpi.scelti()[:1] == ["casco"] and "guanti" in dialogo_dpi.scelti()
+    assert "Imbracatura speciale" in dialogo_dpi.scelti()
+    mansioni = DialogoMansioni(repo, repo.leggi("lavoratori", lav["id"]))
+    radice = mansioni.albero.topLevelItem(0)
+    assert radice.foreground(0).color().name() == "#c0392b"  # nessun lavoratore ancora assegnato
+    radice.child(0).setCheckState(0, QtCore.Qt.CheckState.Checked)  # spunta anche la lavorazione
+    mansioni._conferma()
+    assert {f for f, _ in repo.mansioni(lav["id"])} == {fase}
+    assert len(repo.mansioni(lav["id"])) == 2
+    imprese.autonomi.tabella.aggiungi()
+    assert repo.elenco("lavoratori", impresa_id=a, autonomo=1)
+    assert imprese.lavoratori.tabella.vista.rowCount() == 1
 
     soggetti = _pagina(f, PaginaSoggetti)
     f.navigazione.setCurrentRow(f.pagine.index(soggetti))
@@ -312,7 +342,7 @@ def test_programma_pos(app, tmp_path):
 
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))
-    assert doc.documenti == ("pos", "sostanze", "dpi") and doc.impresa.count() == 2
+    assert doc.documenti == ("pos", "sostanze", "dpi", "tesserini", "schede") and doc.impresa.count() == 2
     messaggi = [doc.controlli.item(i).text() for i in range(doc.controlli.count())]
     assert any("medico competente" in m for m in messaggi)
     assert "error" in f.stato_controlli.text()
@@ -320,6 +350,7 @@ def test_programma_pos(app, tmp_path):
     p = Progetto(tmp_path / "v.spo")
     r = Repository(p)
     impresa = r.leggi("imprese", a)
+    assert r.leggi("lavoratori", lav["id"])["form_base"] == 1
     assert impresa["datore_lavoro"] == "Mario Bianchi" and impresa["rspp_datore"] == 1
     assert impresa["ccnl"] == "Edilizia - artigianato" and impresa["durc_scadenza"] == "2030-05-31"
     assert r.testo(chiave_testo(a, "rumore")) == "Sotto 80 dB(A)"

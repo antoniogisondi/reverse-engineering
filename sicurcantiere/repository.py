@@ -11,6 +11,7 @@ TABELLE_ELENCO = (
     "soggetti", "imprese", "lavoratori", "fasi", "rischi", "attrezzature",
     "costi", "revisioni", "interventi", "elaborati",
     "valutazioni", "ponteggi", "verifiche_ponteggio", "sostanze", "figure",
+    "mansioni_lavoratori",
 )
 ORDINAMENTO = {
     "fasi": "data_inizio IS NULL, data_inizio, id",
@@ -123,6 +124,26 @@ class Repository:
         self.aggiorna("valutazioni", id_, dati=json.dumps(dati, ensure_ascii=False, sort_keys=True))
 
     # --- prescrizioni sulle interferenze (coppie di fasi) ---
+
+    # --- mansioni dei lavoratori ---
+
+    def mansioni(self, lavoratore_id: int) -> set[tuple[int, int | None]]:
+        """Coppie (fase, attrezzatura) assegnate al lavoratore; attrezzatura None per la sola lavorazione."""
+        righe = self.progetto.query("SELECT fase_id, attrezzatura_id FROM mansioni_lavoratori WHERE lavoratore_id = ?",
+                                    (lavoratore_id,))
+        return {(r["fase_id"], r["attrezzatura_id"]) for r in righe}
+
+    def salva_mansioni(self, lavoratore_id: int, coppie: set[tuple[int, int | None]]) -> None:
+        with self.progetto.transazione() as c:
+            c.execute("DELETE FROM mansioni_lavoratori WHERE lavoratore_id = ?", (lavoratore_id,))
+            c.executemany("INSERT INTO mansioni_lavoratori (lavoratore_id, fase_id, attrezzatura_id) VALUES (?, ?, ?)",
+                          [(lavoratore_id, f, a) for f, a in sorted(coppie, key=lambda x: (x[0], x[1] or 0))])
+
+    def lavoratori_fase(self, fase_id: int) -> list[dict[str, Any]]:
+        righe = self.progetto.query(
+            "SELECT DISTINCT l.* FROM lavoratori l JOIN mansioni_lavoratori m ON m.lavoratore_id = l.id "
+            "WHERE m.fase_id = ? ORDER BY l.id", (fase_id,))
+        return [dict(r) for r in righe]
 
     def prescrizioni(self) -> dict[tuple[int, int], str]:
         return {

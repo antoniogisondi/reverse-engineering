@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 from docx import Document
@@ -90,9 +91,15 @@ def nuovo_documento():
 
 
 def frontespizio(doc, repo: Repository, titolo: str, riferimento: str, sigla: str,
-                 voci_extra: list[tuple[str, str]] = ()) -> None:
+                 voci_extra: list[tuple[str, str]] = (), logo: str = "") -> None:
     """Frontespizio con dati del cantiere e tabella delle revisioni del documento."""
     c = repo.cantiere()
+    if logo and Path(logo).is_file():
+        try:
+            doc.add_paragraph().add_run().add_picture(logo, height=Cm(2.5))
+            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        except Exception:  # noqa: BLE001 - immagine non leggibile: il frontespizio resta senza logo
+            pass
     t = doc.add_heading(titolo, 0)
     t.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p = doc.add_paragraph(riferimento)

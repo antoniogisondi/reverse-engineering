@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sicurcantiere import sds, sostanze
+from sicurcantiere import anagrafiche, sds, sostanze
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.pagine import ModuloRecord, Pagina, primario
@@ -163,7 +163,7 @@ class PaginaSostanze(Pagina):
         ]
 
     def _valori_nuovo(self) -> dict:
-        imprese = [i for i in self.repo.elenco("imprese") if i["tipo"] != "Lavoratore autonomo"]
+        imprese = [i for i in self.repo.elenco("imprese") if not anagrafiche.autonomo(i)]
         return {"impresa_id": imprese[0]["id"]} if len(imprese) == 1 else {}
 
     def _seleziona(self, id_: int | None) -> None:

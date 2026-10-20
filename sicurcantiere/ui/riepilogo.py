@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
-from sicurcantiere import analisi, controlli
+from sicurcantiere import anagrafiche, analisi, controlli
 from sicurcantiere.documenti.comune import data_it, euro
 from sicurcantiere.repository import Repository
 
@@ -78,7 +78,7 @@ def calcola_pos(repo: Repository) -> list[Voce]:
     from sicurcantiere.valutazioni.base import GIALLO as V_GIALLO
     from sicurcantiere.valutazioni.base import VERDE as V_VERDE
 
-    imprese = [i for i in repo.elenco("imprese") if i["tipo"] != "Lavoratore autonomo"]
+    imprese = [i for i in repo.elenco("imprese") if not anagrafiche.autonomo(i)]
     lavoratori = repo.elenco("lavoratori")
     fasi = repo.elenco("fasi")
     rischi = repo.elenco("rischi")

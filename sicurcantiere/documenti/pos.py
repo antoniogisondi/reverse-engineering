@@ -48,6 +48,15 @@ def elenco_dpi(testi: list[str]) -> list[str]:
     return sorted(visti.values(), key=str.lower)
 
 
+def _periodo(impresa: dict, periodo_fasi: tuple | None) -> str:
+    """Date dei lavori indicate per l'impresa o, in mancanza, ricavate dalle sue lavorazioni."""
+    inizio = analisi.data(impresa["data_inizio"]) or (periodo_fasi[0] if periodo_fasi else None)
+    fine = analisi.data(impresa["data_fine"]) or (periodo_fasi[1] if periodo_fasi else None)
+    if not (inizio and fine):
+        return ""
+    return f"dal {data_it(inizio)} al {data_it(fine)} ({(fine - inizio).days + 1} giorni)"
+
+
 def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> Path:
     impresa = repo.leggi("imprese", impresa_id)
     if impresa is None:
@@ -60,7 +69,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     doc = nuovo_documento()
     frontespizio(doc, repo, "PIANO OPERATIVO DI SICUREZZA",
                  "art. 89 c. 1 lett. h) e Allegato XV punto 3.2 del D.Lgs. 81/2008",
-                 f"POS:{impresa_id}", [("Impresa", impresa["ragione_sociale"])])
+                 f"POS:{impresa_id}", [("Impresa", impresa["ragione_sociale"])], logo=impresa["logo"])
 
     c = repo.cantiere()
     periodo = analisi.periodo_lavori(fasi)
@@ -98,7 +107,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         ("Impresa affidataria", affidataria["ragione_sociale"] if affidataria else ""),
         ("Datore di lavoro", impresa["datore_lavoro"]),
         ("Sede legale", anagrafiche.sede(impresa)),
-        ("Telefono", impresa["telefono"]),
+        ("Telefono / fax", " - ".join(v for v in (impresa["telefono"], impresa["fax"]) if v)),
         ("Email / PEC", " - ".join(v for v in (impresa["email"], impresa["pec"]) if v)),
         ("Ufficio o recapito in cantiere", impresa["recapito_cantiere"]),
         ("Partita IVA", impresa["partita_iva"]),
@@ -116,8 +125,10 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         ("Certificazioni", impresa["certificazioni"]),
         ("Tipologia dei lavori affidati", impresa["tipologia_lavori"]),
         ("Importo dei lavori da eseguire", euro(impresa["importo_lavori"]) if impresa["importo_lavori"] else ""),
-        ("Inizio e fine dei lavori dell'impresa",
-         f"{data_it(periodo[0])} - {data_it(periodo[1])}" if periodo else ""),
+        ("Inizio e fine dei lavori dell'impresa", _periodo(impresa, periodo)),
+        ("Autorizzazione al subappalto", impresa["aut_subappalto"]),
+        ("Soggetto incaricato (art. 97)", " - ".join(v for v in (impresa["incaricato_97"],
+                                                                 impresa["incaricato_97_mansione"]) if v)),
     ])
     subaffidatari = [i for i in repo.elenco("imprese", affidataria_id=impresa_id)]
     if subaffidatari:
@@ -143,12 +154,24 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         if nota:
             p.add_run(" " + nota).italic = True
 
-    doc.add_heading("4. Lavoratori impiegati in cantiere", 1)
-    if lavoratori:
-        tabella(doc, ["Nominativo", "Mansione", "Formazione e addestramento", "Idoneità sanitaria fino al"], [
-            [l["nome"], l["mansione"], l["formazione"], data_it(l["idoneita_scadenza"])] for l in lavoratori
+    doc.add_heading("4. Numero e qualifiche dei lavoratori dipendenti e autonomi", 1)
+    dipendenti = [l for l in lavoratori if not l["autonomo"]]
+    autonomi = [l for l in lavoratori if l["autonomo"]]
+    if dipendenti:
+        doc.add_heading(f"Lavoratori dipendenti: {len(dipendenti)}", 2)
+        tabella(doc, ["N.", "Qualifica", "Cognome", "Nome", "Matricola", "Idoneità fino al"], [
+            [str(n), l["mansione"], l["cognome"], l["nome"], l["matricola"],
+             data_it(l["idoneita_scadenza"]) if l["idoneita_scadenza"] else ""]
+            for n, l in enumerate(dipendenti, 1)
         ])
-    else:
+    if autonomi:
+        doc.add_heading(f"Lavoratori autonomi: {len(autonomi)}", 2)
+        tabella(doc, ["N.", "Qualifica", "Nominativo", "C.F. / P. IVA", "Periodo"], [
+            [str(n), l["mansione"], anagrafiche.nominativo(l), l["partita_iva"] or l["codice_fiscale"],
+             f"{data_it(l['data_inizio'])} - {data_it(l['data_fine'])}"]
+            for n, l in enumerate(autonomi, 1)
+        ])
+    if not lavoratori:
         testo_o_segnaposto(doc, "")
 
     numero = 5
@@ -212,6 +235,12 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
             livello = analisi.livello_rischio(r["probabilita"], r["danno"])
             descrizione = f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"]
             righe.append([descrizione, f"{livello} {analisi.classe_rischio(livello)}", r["misure"]])
+        impegnati = repo.lavoratori_fase(f["id"])
+        if impegnati:
+            p = doc.add_paragraph()
+            p.add_run("Lavoratori impegnati: ").bold = True
+            p.add_run(", ".join(f"{anagrafiche.nominativo(l)} ({l['mansione']})" if l["mansione"]
+                                else anagrafiche.nominativo(l) for l in impegnati))
         if righe:
             tabella(doc, ["Rischio", "Livello", "Misure"], righe)
         else:
@@ -236,18 +265,29 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
 
     doc.add_heading(f"{numero}. Dispositivi di protezione individuale forniti", 1)
     numero += 1
+    con_dpi = [l for l in lavoratori if anagrafiche.dpi_lavoratore(l)]
+    if con_dpi:
+        tabella(doc, ["Qualifica", "Lavoratore", "DPI forniti"], [
+            [l["mansione"], anagrafiche.nominativo(l), "; ".join(anagrafiche.dpi_lavoratore(l))] for l in con_dpi
+        ])
     dpi = elenco_dpi([r["dpi"] for r in rischi])
     if dpi:
+        doc.add_paragraph("DPI previsti dalle schede di rischio delle lavorazioni:")
         for voce in dpi:
             doc.add_paragraph(voce, style="List Bullet")
-    else:
+    elif not con_dpi:
         testo_o_segnaposto(doc, "")
 
     doc.add_heading(f"{numero}. Informazione e formazione dei lavoratori", 1)
     doc.add_paragraph(
-        "I lavoratori elencati al capitolo 4 hanno ricevuto informazione, formazione e addestramento "
-        "ai sensi degli artt. 36 e 37 del D.Lgs. 81/2008; la documentazione è conservata in cantiere."
+        "I lavoratori ricevono informazione, formazione e addestramento ai sensi degli artt. 36, 37 e 77 "
+        "del D.Lgs. 81/2008 e dell'Accordo Stato-Regioni vigente; la documentazione è conservata in cantiere."
     )
+    if lavoratori:
+        tabella(doc, ["N.", "Lavoratore", "Qualifica", "Informazione, formazione e addestramento"], [
+            [str(n), anagrafiche.nominativo(l), l["mansione"], "; ".join(anagrafiche.formazione_lavoratore(l)) or "-"]
+            for n, l in enumerate(lavoratori, 1)
+        ])
 
     firma(doc, "Il Datore di lavoro")
     doc.add_paragraph("Per presa visione, il Rappresentante dei lavoratori per la sicurezza")

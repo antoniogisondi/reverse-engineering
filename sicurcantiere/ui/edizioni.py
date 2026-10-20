@@ -88,7 +88,7 @@ class PaginaFasiPOS(PaginaFasi):
 class PaginaDocumentiPOS(PaginaDocumenti):
     titolo = "POS, modulistica e controlli"
     voce = "POS e controlli"
-    documenti = ("pos", "sostanze", "dpi")
+    documenti = ("pos", "sostanze", "dpi", "tesserini", "schede")
     principale = "pos"
     controlla = staticmethod(controlli.controlla_pos)
 

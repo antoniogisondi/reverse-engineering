@@ -32,7 +32,19 @@ archivi o contenuti di software commerciali.
   - figure della sicurezza come elenco (RSPP, ASPP, medico competente, RLS/RLST, dirigenti, direttore
     tecnico, capocantiere, preposti, addetti al primo soccorso e antincendio...) con recapiti e
     formazione; spunta per il datore di lavoro che svolge i compiti di RSPP (art. 34);
-  - lavoratori con mansione, formazione e idoneità, testi specifici del POS
+  - **maestranze**: nome e cognome, qualifica da elenco, data e luogo di nascita, matricola, assunzione,
+    foto, idoneità sanitaria, **DPI consegnati** scelti da un elenco per parte del corpo (con quelli delle
+    lavorazioni già proposti), formazione ricevuta (base, rischi della mansione, rischi del cantiere,
+    DPI di terza categoria, altri corsi);
+  - **lavoratori autonomi** dell'impresa, con periodo in cantiere e dati fiscali;
+  - **mansioni**: per ogni lavoratore le lavorazioni svolte e le macchine o attrezzature utilizzate;
+    in rosso quelle a cui non è ancora assegnato nessuno;
+  - **tesserini di riconoscimento** con foto (artt. 18, 21 e 26; L. 136/2010) e **schede dei lavoratori**
+    con mansioni, rischi, valutazioni specifiche, DPI e formazione;
+  - testi specifici del POS
+- **Archivio anagrafiche** comune a tutti i cantieri e ai tre programmi: persone (committenti,
+  coordinatori, RSPP, medici, preposti...) e imprese con figure e maestranze si salvano una volta e si
+  riprendono con «Dall'archivio...» (menu Strumenti > Archivio anagrafiche per consultarlo)
 - **Archivio** di 27 lavorazioni in 5 categorie (allestimento, nuove costruzioni,
   ristrutturazioni, infrastrutture, restauro) e di 21 macchine, attrezzi e opere
   provvisionali. Ognuna ha i propri rischi, che vengono importati con la fase
@@ -143,11 +155,12 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 | `sicurcantiere/ai.py` | Assistente AI (OpenAI e Claude) |
 | `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
 | `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); programmi e pagine in `edizioni.py`, tema in `tema.py`, icone in `icone.py` |
-| `sicurcantiere/documenti/moduli.py` | Modulistica dell'impresa (verbale di consegna DPI) |
+| `sicurcantiere/documenti/moduli.py`, `maestranze.py` | Modulistica dell'impresa: consegna DPI, tesserini, schede dei lavoratori |
+| `sicurcantiere/anagrafiche.py`, `archivio_utente.py` | Ruoli, figure, DPI, mansioni; archivio anagrafiche dell'utente |
 
 ## Prossimi passi
 
-- Archivio delle lavorazioni modificabile dall'utente e archivi dei responsabili ricorrenti
+- Archivio delle lavorazioni modificabile dall'utente
 - DUVRI, PSS, piano di emergenza
 - Altre valutazioni specifiche: rischio chimico
 - Esportazione dei costi in Excel

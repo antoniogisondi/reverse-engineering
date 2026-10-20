@@ -193,6 +193,13 @@ class TabellaCrud(QWidget):
         layout.addLayout(self.pulsanti)
         layout.addWidget(self.vista)
 
+    def aggiungi_pulsante(self, testo: str, azione) -> QPushButton:
+        """Pulsante aggiuntivo accanto ad Aggiungi ed Elimina."""
+        b = QPushButton(testo)
+        b.clicked.connect(lambda: azione())
+        self.pulsanti.insertWidget(self.pulsanti.count() - 1, b)
+        return b
+
     # --- dati ---
 
     def riga(self, indice: int) -> dict[str, Any]:

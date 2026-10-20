@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
+from sicurcantiere import anagrafiche
+
 # Matrice P x D (probabilità 1-4, danno 1-4).
 CLASSI_RISCHIO = [
     (9, "Molto alto"),
@@ -199,7 +201,7 @@ def imprese_esecutrici(imprese: list[dict[str, Any]], fasi: list[dict[str, Any]]
     Se nessuna fase ha un'impresa assegnata si contano le imprese in elenco.
     """
     assegnate = {f["impresa_id"] for f in fasi if f.get("impresa_id")}
-    candidati = [i for i in imprese if i["tipo"] != "Lavoratore autonomo"]
+    candidati = [i for i in imprese if not anagrafiche.autonomo(i)]
     if assegnate:
         candidati = [i for i in candidati if i["id"] in assegnate]
     return len(candidati)

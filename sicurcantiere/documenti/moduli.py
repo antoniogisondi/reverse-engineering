@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sicurcantiere import anagrafiche
 from sicurcantiere.documenti.comune import indirizzo_cantiere, nuovo_documento, tabella
 from sicurcantiere.documenti.pos import elenco_dpi
 from sicurcantiere.repository import Repository
@@ -38,11 +39,12 @@ def genera_consegna_dpi(repo: Repository, impresa_id: int, destinazione: str | P
         p.add_run(f"{c['nome']} - {indirizzo_cantiere(c)}".strip(" -"))
         p = doc.add_paragraph()
         p.add_run("Lavoratore: ").bold = True
-        p.add_run(l["nome"] or "____________________________")
+        p.add_run(anagrafiche.nominativo(l) or "____________________________")
         p.add_run("   Mansione: ").bold = True
         p.add_run(l["mansione"] or "____________________")
         doc.add_paragraph()
-        righe = [[voce, "", "", ""] for voce in dpi] + [["", "", "", ""] for _ in range(3)]
+        propri = anagrafiche.dpi_lavoratore(l)
+        righe = [[voce, "", "", ""] for voce in (propri or dpi)] + [["", "", "", ""] for _ in range(3)]
         tabella(doc, ["Dispositivo", "Marca / modello", "Quantità", "Data di consegna"], righe)
         doc.add_paragraph()
         doc.add_paragraph(
