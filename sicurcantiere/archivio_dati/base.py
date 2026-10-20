@@ -129,6 +129,11 @@ CATALOGO: dict[str, str] = {
     "Casseforme": OPERA,
     "Unità di decontaminazione (amianto)": OPERA,
     # --- richieste dai moduli delle fasi (schede in aggiunte.py) ---
+    "Canale di scarico delle macerie": OPERA,
+    "Estrattore d'aria con filtro assoluto HEPA (depressore)": ATTREZZO,
+    "Nebulizzatore a bassa pressione": ATTREZZO,
+    "Rilevatore di masse metalliche (magnetometro)": ATTREZZO,
+    "Taglierina a filo caldo per pannelli isolanti": ATTREZZO,
     "Attrezzatura per scavo di diaframmi (benna mordente o idrofresa)": MACCHINA,
     "Idrodemolitrice (robot ad acqua ad alta pressione)": MACCHINA,
     "Impianto di abbassamento della falda (wellpoint)": ATTREZZO,
