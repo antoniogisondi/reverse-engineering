@@ -71,7 +71,7 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     repo = f.pagine[0].repo
     a = repo.inserisci("imprese", ragione_sociale="Alfa")
     b = repo.inserisci("imprese", ragione_sociale="Beta")
-    repo.importa_lavorazione(LAVORAZIONI[0])
+    repo.importa_lavorazione(next(l for l in LAVORAZIONI if l["codice"] == "AL.01"))  # manodopera 50%
     for i in range(len(f.pagine)):
         f.navigazione.setCurrentRow(i)
         app.processEvents()
