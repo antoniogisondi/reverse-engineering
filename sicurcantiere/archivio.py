@@ -504,6 +504,7 @@ def _carica_moduli() -> None:
     for nome in MODULI_ATTREZZATURE:
         modulo = importlib.import_module(f"sicurcantiere.archivio_dati.{nome}")
         ATTREZZATURE.update(modulo.ATTREZZATURE)
+    importlib.import_module("sicurcantiere.archivio_dati.rischi_specifici").applica_aggiunte(ATTREZZATURE)
     fasi = []
     for nome in MODULI_FASI:
         fasi += importlib.import_module(f"sicurcantiere.archivio_dati.{nome}").LAVORAZIONI

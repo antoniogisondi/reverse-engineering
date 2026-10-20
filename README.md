@@ -88,6 +88,10 @@ archivi o contenuti di software commerciali.
   - **vibrazioni** mano-braccio e corpo intero (Titolo VIII Capo III): A(8), valori d'azione e
     limite dell'art. 201, minuti di utilizzo che portano al valore d'azione per ogni attrezzatura;
   - risultato in tempo reale con classe colorata e **misure suggerite in base ai fattori più penalizzanti**;
+  - valutazioni necessarie create in automatico dai rischi delle lavorazioni e delle loro macchine e
+    attrezzature (anche quelle scritte a mano, riconosciute dal nome): ogni lavorazione con
+    movimentazione manuale, movimenti ripetitivi, rumore o vibrazioni resta collegata a una
+    valutazione, che rimane «da eseguire» finché non se ne inseriscono i parametri
   - relazione Word per ogni valutazione e inclusione automatica nel POS dell'impresa
 - **Assistente AI** (DeepSeek predefinito, OpenAI/ChatGPT e Claude in alternativa):
   - compila i parametri NIOSH/OCRA dalla descrizione dell'attività, dichiarando le ipotesi fatte;

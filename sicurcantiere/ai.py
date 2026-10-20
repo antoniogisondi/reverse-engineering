@@ -78,6 +78,11 @@ class Compilazione:
     ipotesi: list[str]
 
 
+# Descrizioni dei rischi specifici riconosciute dalle valutazioni automatiche.
+RISCHI_SPECIFICI = ("Movimentazione manuale dei carichi", "Movimenti ripetitivi degli arti superiori", "Rumore",
+                    "Vibrazioni al sistema mano-braccio", "Vibrazioni al corpo intero")
+
+
 def _schema_campo(campo: Campo) -> dict[str, Any]:
     if campo.tipo == "numero":
         return {"type": "number", "description": f"{campo.etichetta} ({campo.suffisso.strip() or 'valore'})"}
@@ -287,16 +292,27 @@ class AssistenteAI:
             "danno": {**livello, "description": "Danno D da 1 (lieve) a 4 (gravissimo)"},
             "misure": {"type": "string", "description": "Misure di prevenzione e protezione"},
             "dpi": {"type": "string", "description": "DPI separati da virgola"},
+            "fonte": {"type": "string", "description": "Macchina o attrezzatura da cui deriva il rischio, "
+                                                       "scritta come nell'elenco; vuoto se deriva dalla lavorazione"},
         })}})
         testo = (
             "Individua i rischi della seguente lavorazione di cantiere che non sono già presenti "
             "nell'elenco esistente. Per ciascuno indica probabilità e danno (matrice 4x4), misure "
-            "di prevenzione e protezione concrete e i DPI.\n\n"
+            "di prevenzione e protezione concrete e i DPI.\n"
+            "Considera sia la lavorazione sia ciascuna macchina e attrezzatura indicata, e non "
+            "tralasciare i rischi specifici che richiedono una valutazione dedicata: movimentazione "
+            "manuale dei carichi (Titolo VI), movimenti ripetitivi degli arti superiori, rumore e "
+            "vibrazioni (Titolo VIII, Capi II e III). Per questi usa esattamente una di queste "
+            f"descrizioni: {'; '.join(RISCHI_SPECIFICI)}. Nel campo fonte indica la macchina o "
+            "l'attrezzatura che genera il rischio (un rischio per ciascuna, per esempio rumore "
+            "dell'escavatore e rumore del martello demolitore), oppure lascialo vuoto se il rischio "
+            "deriva dalla lavorazione.\n\n"
             f"<lavorazione>{lavorazione.strip()}</lavorazione>\n"
             f"<attrezzature>{', '.join(attrezzature) or 'non indicate'}</attrezzature>\n"
             f"<rischi_esistenti>{'; '.join(esistenti) or 'nessuno'}</rischi_esistenti>"
         )
         rischi = self._richiesta(testo, schema).get("rischi") or []
+        nomi = {a.lower(): a for a in attrezzature}
         validi = []
         for r in rischi:
             if not isinstance(r, dict) or not str(r.get("descrizione", "")).strip():
@@ -307,6 +323,7 @@ class AssistenteAI:
                 "danno": min(max(int(r.get("danno", 2)), 1), 4),
                 "misure": str(r.get("misure", "")).strip(),
                 "dpi": str(r.get("dpi", "")).strip(),
+                "fonte": nomi.get(str(r.get("fonte", "") or "").strip().lower(), ""),
             })
         return validi
 

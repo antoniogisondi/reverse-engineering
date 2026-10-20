@@ -97,6 +97,14 @@ def test_suggerisci_rischi_e_testi():
     ]})
     rischi = AssistenteAI(client=client).suggerisci_rischi("Lavori in quota", ["PLE"], [])
     assert len(rischi) == 1 and rischi[0]["probabilita"] == 4
+    client = ClientOpenAIFinto({"rischi": [
+        {"descrizione": "Rumore", "probabilita": 3, "danno": 2, "misure": "Otoprotettori", "dpi": "",
+         "fonte": "martello demolitore"},
+        {"descrizione": "Polveri", "probabilita": 3, "danno": 2, "misure": "Bagnare", "dpi": "", "fonte": "boh"},
+    ]})
+    rischi = AssistenteAI(client=client).suggerisci_rischi("Demolizioni", ["Martello demolitore"], [])
+    assert [r["fonte"] for r in rischi] == ["Martello demolitore", ""]
+    assert "Vibrazioni al sistema mano-braccio" in json.dumps(client.richieste[0], ensure_ascii=False)
     testo = AssistenteAI(client=ClientOpenAIFinto({"testo": "Il cantiere è recintato."})).scrivi_sezione(
         "Organizzazione", "Scuola a Bari")
     assert testo == "Il cantiere è recintato."

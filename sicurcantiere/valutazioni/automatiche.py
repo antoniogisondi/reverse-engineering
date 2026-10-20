@@ -3,7 +3,9 @@
 Quando una lavorazione (o una sua macchina o attrezzatura) presenta un rischio che va
 valutato con un metodo specifico - movimentazione manuale dei carichi (Titolo VI e
 Allegato XXXIII), movimenti ripetitivi, rumore (Titolo VIII Capo II), vibrazioni (Titolo VIII
-Capo III) - ogni fase con quel rischio deve essere coperta da una valutazione. `sincronizza`
+Capo III) - ogni fase con quel rischio deve essere coperta da una valutazione. Anche le
+macchine e gli attrezzi portano i loro rischi specifici nella fase in cui sono usati: quelli
+dell'archivio con la loro scheda, quelli inseriti a mano riconosciuti dal nome. `sincronizza`
 crea le valutazioni mancanti e aggiunge le fasi scoperte, così nessuna fase resta fuori anche
 se chi compila se ne dimentica. Le valutazioni create sono vuote: i parametri vanno inseriti
 dall'utente, e fino ad allora documenti e controlli le segnalano come da eseguire.
@@ -47,6 +49,41 @@ def gruppo_metodo(metodo: str) -> Gruppo | None:
     return next((g for g in GRUPPI if metodo in g.metodi), None)
 
 
+def _tipo(descrizione: str) -> tuple[str, str] | None:
+    """Gruppo del rischio e, per le vibrazioni, il distretto (mano-braccio o corpo intero)."""
+    g = gruppo_rischio(descrizione)
+    if g is None:
+        return None
+    testo = descrizione.lower()
+    return g.chiave, "mano" if "mano" in testo else "corpo" if "corpo" in testo else ""
+
+
+def rischi_attesi(nome: str) -> list[dict[str, Any]]:
+    """Rischi specifici di una macchina o di un attrezzo: dalla scheda dell'archivio o dal nome."""
+    from sicurcantiere.archivio import ATTREZZATURE
+    from sicurcantiere.archivio_dati import rischi_specifici
+
+    scheda = ATTREZZATURE.get(nome)
+    if scheda is not None:
+        return [x for x in scheda["rischi"] if _tipo(x["descrizione"])]
+    return [dict(rischi_specifici.RISCHI[k]) for k in rischi_specifici.chiavi_da_nome(nome)]
+
+
+def completa_rischi_attrezzature(repo: Repository) -> list[str]:
+    """Aggiunge alle fasi i rischi specifici delle loro macchine e attrezzi che mancano."""
+    messaggi = []
+    for a in repo.elenco("attrezzature"):
+        presenti = {_tipo(x["descrizione"]) for x in repo.elenco("rischi", fase_id=a["fase_id"])
+                    if x["fonte"] == a["nome"]}
+        for rischio in rischi_attesi(a["nome"]):
+            if _tipo(rischio["descrizione"]) not in presenti:
+                repo.inserisci("rischi", fase_id=a["fase_id"], fonte=a["nome"],
+                               **{k: rischio[k] for k in ("descrizione", "probabilita", "danno", "misure", "dpi")})
+                presenti.add(_tipo(rischio["descrizione"]))
+                messaggi.append(f"{a['nome']}: aggiunto il rischio «{rischio['descrizione']}».")
+    return messaggi
+
+
 def da_eseguire(repo: Repository, valutazione_id: int) -> bool:
     """Vero se i parametri della valutazione non sono mai stati inseriti."""
     return not repo.dati_valutazione(valutazione_id)
@@ -87,8 +124,9 @@ def fasi_scoperte(repo: Repository) -> dict[str, list[int]]:
 
 
 def sincronizza(repo: Repository) -> list[str]:
-    """Crea le valutazioni mancanti e collega le fasi scoperte; restituisce cosa è stato fatto."""
-    messaggi: list[str] = []
+    """Completa i rischi specifici delle attrezzature, crea le valutazioni mancanti e collega le
+    fasi scoperte; restituisce cosa è stato fatto."""
+    messaggi = completa_rischi_attrezzature(repo)
     for chiave, fasi in rischi_specifici(repo).items():
         g = next(x for x in GRUPPI if x.chiave == chiave)
         valutazioni = [v for v in repo.elenco("valutazioni") if v["metodo"] in g.metodi]

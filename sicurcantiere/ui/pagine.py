@@ -719,6 +719,7 @@ class PaginaFasi(Pagina):
         self.attrezzature.pulsanti.insertWidget(2, QLabel("  Dall'archivio:"))
         self.attrezzature.pulsanti.insertWidget(3, self.scelta_archivio)
         self.attrezzature.pulsanti.insertWidget(4, aggiungi_archivio)
+        self.attrezzature.modificata.connect(self._rischi_delle_attrezzature)
 
         self.descrizione_fase = ModuloRecord(repo, "fasi", [
             ("dettaglio", "Descrizione dell'attività", "testo_lungo"),
@@ -855,6 +856,13 @@ class PaginaFasi(Pagina):
         self.rischi.ricarica()
         self._aggiorna_gantt()
 
+    def _rischi_delle_attrezzature(self) -> None:
+        """Una macchina o un attrezzo scritto a mano porta nella fase i suoi rischi specifici."""
+        from sicurcantiere.valutazioni.automatiche import completa_rischi_attrezzature
+
+        if completa_rischi_attrezzature(self.repo):
+            self.rischi.ricarica()
+
     def _suggerisci_rischi(self) -> None:
         fase_id = self.fasi.id_selezionato()
         if fase_id is None:
@@ -865,7 +873,8 @@ class PaginaFasi(Pagina):
             QMessageBox.information(self, "Assistente AI", "Indicare prima la descrizione della lavorazione.")
             return
         attrezzature = [a["nome"] for a in self.repo.elenco("attrezzature", fase_id=fase_id)]
-        esistenti = [r["descrizione"] for r in self.repo.elenco("rischi", fase_id=fase_id)]
+        esistenti = [f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"]
+                     for r in self.repo.elenco("rischi", fase_id=fase_id)]
         esegui_ai(self, "L'assistente sta analizzando la lavorazione...",
                   lambda ai: ai.suggerisci_rischi(lavorazione, attrezzature, esistenti),
                   lambda proposte: self._scegli_rischi(fase_id, proposte))
@@ -880,7 +889,8 @@ class PaginaFasi(Pagina):
         elenco = QListWidget()
         for r in proposte:
             livello = analisi.livello_rischio(r["probabilita"], r["danno"])
-            item = QListWidgetItem(f"{r['descrizione']}  -  P{r['probabilita']} x D{r['danno']} = {livello} "
+            origine = f" ({r['fonte']})" if r.get("fonte") else ""
+            item = QListWidgetItem(f"{r['descrizione']}{origine}  -  P{r['probabilita']} x D{r['danno']} = {livello} "
                                    f"{analisi.classe_rischio(livello)}\n    Misure: {r['misure']}")
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked)
@@ -899,6 +909,7 @@ class PaginaFasi(Pagina):
         for i, r in enumerate(proposte):
             if elenco.item(i).checkState() == Qt.CheckState.Checked:
                 self.repo.inserisci("rischi", fase_id=fase_id, **r)
+        self._rischi_delle_attrezzature()
         self.rischi.ricarica()
         self._aggiorna_gantt()
 

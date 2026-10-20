@@ -719,3 +719,55 @@ def test_valutazioni_su_piu_lavorazioni_da_file_vecchio(tmp_path):
     r.elimina("fasi", 7)
     assert r.fasi_valutazione(sacchi["id"]) == []
     p.chiudi()
+
+
+def test_valutazioni_automatiche_dai_rischi_e_dalle_attrezzature(repo, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.archivio import ATTREZZATURE
+    from sicurcantiere.documenti.pos import genera_pos
+    from sicurcantiere.valutazioni import automatiche
+
+    # Schede dell'archivio completate con i rischi specifici mancanti.
+    assert "Vibrazioni al corpo intero" in [x["descrizione"] for x in ATTREZZATURE["Escavatore"]["rischi"]]
+    assert "Rumore" in [x["descrizione"] for x in ATTREZZATURE["Autocarro"]["rischi"]]
+
+    a = repo.inserisci("imprese", ragione_sociale="Alfa", datore_lavoro="Mario")
+    getti = repo.inserisci("fasi", codice="A", descrizione="Getti", impresa_id=a)
+    tagli = repo.inserisci("fasi", codice="B", descrizione="Tagli", impresa_id=a)
+    repo.inserisci("rischi", fase_id=getti, descrizione="Movimentazione manuale dei carichi")
+    # Attrezzo scritto a mano, fuori archivio: i rischi specifici si riconoscono dal nome.
+    repo.inserisci("attrezzature", fase_id=tagli, tipo="Attrezzo", nome="Flessibile a batteria")
+    messaggi = automatiche.sincronizza(repo)
+    assert any("Flessibile a batteria" in m for m in messaggi)
+    rischi_tagli = {(r["descrizione"], r["fonte"]) for r in repo.elenco("rischi", fase_id=tagli)}
+    assert {("Rumore", "Flessibile a batteria"), ("Vibrazioni al sistema mano-braccio",
+                                                    "Flessibile a batteria")} <= rischi_tagli
+
+    valutazioni = {v["metodo"]: v for v in repo.elenco("valutazioni")}
+    assert set(valutazioni) == {"niosh", "rumore", "vibrazioni"}
+    assert repo.fasi_valutazione(valutazioni["niosh"]["id"]) == [getti]
+    assert repo.fasi_valutazione(valutazioni["rumore"]["id"]) == [tagli]
+    assert valutazioni["rumore"]["impresa_id"] == a
+    assert all(r["valutazione_id"] for r in repo.elenco("rischi"))
+    assert automatiche.sincronizza(repo) == []  # niente da rifare
+
+    # Una nuova fase con lo stesso rischio si aggiunge alla valutazione esistente.
+    massetti = repo.inserisci("fasi", codice="C", descrizione="Massetti", impresa_id=a)
+    repo.inserisci("rischi", fase_id=massetti, descrizione="Movimentazione manuale dei carichi")
+    assert automatiche.fasi_scoperte(repo) == {"mmc": [massetti]}
+    automatiche.sincronizza(repo)
+    assert repo.fasi_valutazione(valutazioni["niosh"]["id"]) == [getti, massetti]
+    assert len(repo.elenco("valutazioni")) == 3
+    # Togliendo la fase a mano, la sincronizzazione la rimette: nessuna fase resta scoperta.
+    repo.salva_fasi_valutazione(valutazioni["niosh"]["id"], [getti])
+    repo.aggiorna("rischi", repo.elenco("rischi", fase_id=massetti)[0]["id"], valutazione_id=None)
+    automatiche.sincronizza(repo)
+    assert massetti in repo.fasi_valutazione(valutazioni["niosh"]["id"])
+
+    # Finché non si inseriscono i parametri la valutazione è «da eseguire».
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert any("Movimentazione manuale dei carichi" in m and "da eseguire" in m for m in messaggi)
+    testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "Valutazione da eseguire" in testo and "A Getti; C Massetti" in testo
+    repo.salva_dati_valutazione(valutazioni["niosh"]["id"], {"peso": 10})
+    assert not automatiche.da_eseguire(repo, valutazioni["niosh"]["id"])
