@@ -21,6 +21,7 @@ from sicurcantiere.documenti.comune import (
 from sicurcantiere.documenti.sostanze import aggiungi_sostanze, sostanze_impresa
 from sicurcantiere.documenti.valutazione import aggiungi_valutazione, valutazioni_impresa
 from sicurcantiere.repository import Repository
+from sicurcantiere.struttura import MACCHINA, struttura_fase
 from sicurcantiere.valutazioni import METODI
 
 # Sezioni a testo libero del POS, salvate per impresa.
@@ -198,6 +199,30 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         tabella(doc, ["Tipo", "Elenco"], [
             [tipo, ", ".join(sorted(nomi))] for tipo, nomi in sorted(per_tipo.items())
         ])
+        for titolo, macchine in (("Attrezzature e opere provvisionali utilizzate nelle lavorazioni", False),
+                                 ("Macchine utilizzate nelle lavorazioni", True)):
+            elenco = {a["nome"]: a for a in attrezzature if (a["tipo"] == MACCHINA) == macchine}
+            if not elenco:
+                continue
+            doc.add_heading(titolo, 2)
+            for nome, a in sorted(elenco.items()):
+                doc.add_heading(nome, 3)
+                if a["descrizione"]:
+                    doc.add_paragraph(a["descrizione"])
+                propri = {r["descrizione"]: r for r in rischi if r["fonte"] == nome}
+                if propri:
+                    p = doc.add_paragraph()
+                    p.add_run("Rischi generati dall'uso: ").bold = True
+                    p.add_run("; ".join(propri) + ".")
+                if a["misure"]:
+                    doc.add_paragraph().add_run("Misure preventive e protettive:").bold = True
+                    for riga in a["misure"].split("\n"):
+                        doc.add_paragraph(riga)
+                if a["dpi"]:
+                    p = doc.add_paragraph()
+                    chi = "dell'operatore" if macchine else "dell'utilizzatore"
+                    p.add_run(f"DPI {chi}: ").bold = True
+                    p.add_run(a["dpi"] + ".")
     else:
         testo_o_segnaposto(doc, "")
 
@@ -228,8 +253,31 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
 
     doc.add_heading(f"{numero}. Valutazione dei rischi e misure di prevenzione", 1)
     numero += 1
+    lavorazione_corrente = None
     for f in fasi:
-        doc.add_heading(nome_fase(f), 2)
+        if f["lavorazione"] != lavorazione_corrente:
+            lavorazione_corrente = f["lavorazione"]
+            if lavorazione_corrente:
+                doc.add_heading(lavorazione_corrente, 2)
+                gruppo = [g for g in fasi if g["lavorazione"] == lavorazione_corrente]
+                doc.add_paragraph("La lavorazione è suddivisa nelle seguenti fasi: "
+                                  + "; ".join(nome_fase(g) for g in gruppo) + ".")
+        doc.add_heading(nome_fase(f) + (" (fase)" if f["lavorazione"] else ""), 3 if f["lavorazione"] else 2)
+        if f["dettaglio"]:
+            doc.add_paragraph(f["dettaglio"])
+        struttura = struttura_fase(repo, f["id"])
+        for etichetta, valore in (
+            ("Macchine utilizzate", ", ".join(a["nome"] for a in struttura["macchine"])),
+            ("Attrezzi e opere provvisionali", ", ".join(a["nome"] for a in struttura["attrezzi"])),
+            ("Addetto", f["addetto"]),
+            ("Modalità organizzative", f["modalita"]),
+            ("Turni di lavoro", f["turni"]),
+            ("Procedure complementari richieste dal PSC", f["procedure_psc"]),
+        ):
+            if valore:
+                p = doc.add_paragraph()
+                p.add_run(f"{etichetta}: ").bold = True
+                p.add_run(valore)
         righe = []
         for r in (r for r in rischi if r["fase_id"] == f["id"]):
             livello = analisi.livello_rischio(r["probabilita"], r["danno"])

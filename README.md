@@ -45,12 +45,18 @@ archivi o contenuti di software commerciali.
 - **Archivio anagrafiche** comune a tutti i cantieri e ai tre programmi: persone (committenti,
   coordinatori, RSPP, medici, preposti...) e imprese con figure e maestranze si salvano una volta e si
   riprendono con «Dall'archivio...» (menu Strumenti > Archivio anagrafiche per consultarlo)
-- **Archivio** di 27 lavorazioni e 21 macchine, attrezzi e opere provvisionali, filtrabile per
+- **Archivio** di 36 fasi di lavoro e 25 macchine, attrezzi e opere provvisionali, filtrabile per
   tipologia di intervento (nuove costruzioni, ristrutturazioni, opere infrastrutturali, restauri) e
-  ordinato per categoria (allestimento, demolizioni, movimento terra, strutture, copertura, facciata,
+  ordinato per categoria e lavorazione (per esempio «Preparazione delle aree di cantiere» con le sue fasi)
+  (allestimento, demolizioni, movimento terra, strutture, copertura, facciata,
   opere interne, impianti, urbanizzazione, ripristini). Ogni voce ha i propri rischi, importati con la
   fase. Nodo **UTENTE** con le lavorazioni personalizzate salvate da un cantiere («Salva nell'archivio
   utente») e riutilizzabili negli altri
+- **Fasi di lavoro** con descrizione dell'attività, addetto, modalità organizzative, turni, procedure richieste
+  dal PSC, vista **Struttura** (lavoratori, attrezzi, macchine, rischi, misure, DPI) e collegamento di ogni
+  rischio alla sua valutazione specifica
+- **Schede d'uso** di macchine e attrezzi con misure prima, durante e dopo l'uso e DPI dell'operatore, riportate
+  nel POS nei capitoli delle attrezzature e delle macchine
 - **Gantt analitico**: per ogni fase importo, incidenza della manodopera e squadra
   → uomini-giorno e durata; grafici di **affollamento** e **pericolosità**
 - **Interferenze** tra imprese diverse nella stessa zona, ordinate per gravità, con

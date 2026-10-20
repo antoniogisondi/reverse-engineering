@@ -592,3 +592,33 @@ def test_archivio_tipologie_e_lavorazioni_utente(repo, tmp_path):
         {a["nome"] for a in repo.elenco("attrezzature", fase_id=fase)}
     archivio.chiudi()
     altro.progetto.chiudi()
+
+
+def test_struttura_fase_e_schede_d_uso(repo, tmp_path):
+    from sicurcantiere.archivio_attrezzature import SCHEDE
+    from sicurcantiere.documenti.pos import genera_pos
+    from sicurcantiere.struttura import struttura_fase
+
+    assert set(SCHEDE) == set(ATTREZZATURE)
+    assert all(s["prima"] and s["durante"] and s["dopo"] and s["dpi"] for s in SCHEDE.values())
+    a = _cantiere_completo(repo)
+    fase = repo.importa_lavorazione(lav("AL.11"))
+    repo.aggiorna("fasi", fase, impresa_id=a, modalita="Squadra di due addetti", turni="7.30-16.30")
+    f = repo.leggi("fasi", fase)
+    assert f["lavorazione"] == "Preparazione delle aree di cantiere"
+    assert f["addetto"].startswith("Addetto al taglio") and f["dettaglio"]
+    motosega = next(x for x in repo.elenco("attrezzature", fase_id=fase) if x["nome"] == "Motosega")
+    assert motosega["misure"].startswith("Prima dell'uso: 1)") and "pantaloni antitaglio" in motosega["dpi"]
+
+    s = struttura_fase(repo, fase)
+    assert [m["nome"] for m in s["macchine"]] == ["Trattore"]
+    assert {x["nome"] for x in s["attrezzi"]} == {"Motosega", "Utensili manuali"}
+    assert any("abbattimento" in r["descrizione"] for r in s["rischi_lavorazione"])
+    assert all(r["fonte"] == "Motosega" for x in s["attrezzi"] if x["nome"] == "Motosega" for r in x["rischi"])
+
+    testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "La lavorazione è suddivisa nelle seguenti fasi" in testo
+    assert "Taglio di alberi ed estirpazione delle ceppaie (fase)" in testo
+    assert "Squadra di due addetti" in testo and "7.30-16.30" in testo
+    assert "Macchine utilizzate nelle lavorazioni" in testo and "Prima dell'uso" in testo
+    assert "DPI dell'operatore" in testo

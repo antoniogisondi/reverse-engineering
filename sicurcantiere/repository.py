@@ -175,9 +175,11 @@ class Repository:
         with self.progetto.transazione() as c:
             fase_id = int(
                 c.execute(
-                    "INSERT INTO fasi (codice, descrizione, incidenza_manodopera) VALUES (?, ?, ?)",
+                    "INSERT INTO fasi (codice, descrizione, incidenza_manodopera, lavorazione, dettaglio, addetto) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
                     (lavorazione["codice"], lavorazione["descrizione"],
-                     lavorazione.get("incidenza_manodopera", 0)),
+                     lavorazione.get("incidenza_manodopera", 0), lavorazione.get("gruppo", ""),
+                     lavorazione.get("dettaglio", ""), lavorazione.get("addetto", "")),
                 ).lastrowid
             )
             self._inserisci_rischi(c, fase_id, "", lavorazione["rischi"])
@@ -193,9 +195,13 @@ class Repository:
             self._inserisci_attrezzatura(c, fase_id, nome, ATTREZZATURE[nome])
 
     def _inserisci_attrezzatura(self, c, fase_id: int, nome: str, attrezzatura: dict[str, Any]) -> None:
+        from sicurcantiere.archivio_attrezzature import testo_misure
+
+        scheda = attrezzatura.get("scheda", {})
         c.execute(
-            "INSERT INTO attrezzature (fase_id, tipo, nome) VALUES (?, ?, ?)",
-            (fase_id, attrezzatura["tipo"], nome),
+            "INSERT INTO attrezzature (fase_id, tipo, nome, descrizione, misure, dpi) VALUES (?, ?, ?, ?, ?, ?)",
+            (fase_id, attrezzatura["tipo"], nome, scheda.get("descrizione", ""), testo_misure(scheda),
+             "; ".join(scheda.get("dpi", []))),
         )
         self._inserisci_rischi(c, fase_id, nome, attrezzatura["rischi"])
 

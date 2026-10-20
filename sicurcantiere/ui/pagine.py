@@ -56,6 +56,7 @@ from sicurcantiere.ui.icone import icona
 from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.maestranze import PannelloLavoratori
 from sicurcantiere.ui.modulo import ModuloRecord
+from sicurcantiere.ui.struttura import StrutturaFase
 from sicurcantiere.ui.gantt import ZOOM, ZOOM_PREDEFINITO, Gantt, colore_livello
 from sicurcantiere.ui.riepilogo import Riepilogo
 from sicurcantiere.ui.riepilogo import calcola as calcola_riepilogo
@@ -561,8 +562,14 @@ class DialogoArchivio(QDialog):
         tipologia = self.tipologia.currentText()
         for categoria, lavorazioni in per_categoria(None if tipologia == self.TUTTE else tipologia).items():
             nodo = QTreeWidgetItem(self.albero, [categoria])
+            gruppi: dict[str, QTreeWidgetItem] = {}
             for lav in lavorazioni:
-                self._foglia(nodo, f"{lav['codice']}  {lav['descrizione']}", ", ".join(lav["attrezzature"]), lav)
+                padre = nodo
+                if lav["gruppo"]:
+                    if lav["gruppo"] not in gruppi:
+                        gruppi[lav["gruppo"]] = QTreeWidgetItem(nodo, [lav["gruppo"]])
+                    padre = gruppi[lav["gruppo"]]
+                self._foglia(padre, f"{lav['codice']}  {lav['descrizione']}", ", ".join(lav["attrezzature"]), lav)
         archivio = ArchivioAnagrafiche()
         try:
             utente = archivio.elenco(LAVORAZIONE)
@@ -597,23 +604,30 @@ class DialogoArchivio(QDialog):
             else:
                 self._spuntate.discard(chiave)
 
-    def _foglie(self):
-        for i in range(self.albero.topLevelItemCount()):
-            nodo = self.albero.topLevelItem(i)
-            for j in range(nodo.childCount()):
-                if nodo.child(j).data(0, Qt.ItemDataRole.UserRole):
-                    yield nodo, nodo.child(j)
+    def _foglie(self, nodo: QTreeWidgetItem | None = None):
+        """Coppie (nodo padre, lavorazione) a qualsiasi livello dell'albero."""
+        figli = ([self.albero.topLevelItem(i) for i in range(self.albero.topLevelItemCount())] if nodo is None
+                 else [nodo.child(j) for j in range(nodo.childCount())])
+        for figlio in figli:
+            if figlio.data(0, Qt.ItemDataRole.UserRole):
+                yield nodo, figlio
+            else:
+                yield from self._foglie(figlio)
 
     def _filtra(self, testo: str) -> None:
         testo = testo.lower().strip()
-        visibili: dict[int, bool] = {}
-        for nodo, item in self._foglie():
-            mostra = not testo or testo in item.text(0).lower() or testo in item.text(1).lower()
+
+        def filtra(item: QTreeWidgetItem) -> bool:
+            if item.data(0, Qt.ItemDataRole.UserRole):
+                mostra = not testo or testo in item.text(0).lower() or testo in item.text(1).lower()
+            else:
+                risultati = [filtra(item.child(j)) for j in range(item.childCount())]
+                mostra = not testo or any(risultati) or testo in item.text(0).lower()
             item.setHidden(not mostra)
-            visibili[id(nodo)] = visibili.get(id(nodo), False) or mostra
+            return mostra
+
         for i in range(self.albero.topLevelItemCount()):
-            nodo = self.albero.topLevelItem(i)
-            nodo.setHidden(bool(testo) and not visibili.get(id(nodo), False))
+            filtra(self.albero.topLevelItem(i))
 
     def _elimina_utente(self) -> None:
         item = self.albero.currentItem()
@@ -645,7 +659,10 @@ class PaginaFasi(Pagina):
         super().__init__(repo)
         self.fasi = TabellaCrud(repo, "fasi", [
             Colonna("codice", "Codice", larghezza=60),
-            Colonna("descrizione", "Lavorazione", larghezza=260),
+            Colonna("lavorazione", "Lavorazione", "scelta", scelta_libera=True, larghezza=190,
+                    scelte=lambda: [(g, g) for g in sorted({f["lavorazione"] for f in self.repo.elenco("fasi")
+                                                             if f["lavorazione"]})]),
+            Colonna("descrizione", "Fase di lavoro", larghezza=260),
             Colonna("impresa_id", "Impresa", "scelta", scelte=self._imprese, larghezza=170),
             Colonna("zona", "Zona", larghezza=90),
             Colonna("importo", "Importo €", "decimale", larghezza=100),
@@ -675,6 +692,7 @@ class PaginaFasi(Pagina):
                 f"{analisi.classe_rischio(l)}")),
             Colonna("misure", "Misure di prevenzione e protezione", "testo_lungo"),
             Colonna("dpi", "DPI", "testo_lungo"),
+            Colonna("valutazione_id", "Valutazione specifica", "scelta", scelte=self._valutazioni, larghezza=200),
         ])
         self.rischi.modificata.connect(self._aggiorna_gantt)
         suggerisci = QPushButton(icona("ai", "#E8792B"), "Suggerisci rischi con l'AI")
@@ -684,8 +702,11 @@ class PaginaFasi(Pagina):
         self.attrezzature = TabellaCrud(repo, "attrezzature", [
             Colonna("tipo", "Tipo", "scelta", scelte=lambda: [(t, t) for t in TIPI_ATTREZZATURA],
                     larghezza=160),
-            Colonna("nome", "Nome", "scelta", scelta_libera=True,
+            Colonna("nome", "Nome", "scelta", scelta_libera=True, larghezza=200,
                     scelte=lambda: [(n, n) for n in sorted(ATTREZZATURE)]),
+            Colonna("descrizione", "Descrizione", "testo_lungo"),
+            Colonna("misure", "Misure prima, durante e dopo l'uso", "testo_lungo"),
+            Colonna("dpi", "DPI dell'operatore", "testo_lungo"),
         ])
         self.scelta_archivio = QComboBox()
         self.scelta_archivio.addItems(sorted(ATTREZZATURE))
@@ -695,10 +716,25 @@ class PaginaFasi(Pagina):
         self.attrezzature.pulsanti.insertWidget(3, self.scelta_archivio)
         self.attrezzature.pulsanti.insertWidget(4, aggiungi_archivio)
 
+        self.descrizione_fase = ModuloRecord(repo, "fasi", [
+            ("dettaglio", "Descrizione dell'attività", "testo_lungo"),
+            ("addetto", "Lavoratori impegnati (addetto)"),
+            ("modalita", "Modalità organizzative", "testo_lungo"),
+            ("turni", "Turni di lavoro", "testo_lungo"),
+            ("procedure_psc", "Procedure complementari richieste dal PSC", "testo_lungo"),
+        ])
+        scorrimento_descrizione = QScrollArea()
+        scorrimento_descrizione.setWidgetResizable(True)
+        scorrimento_descrizione.setWidget(self.descrizione_fase)
+        self.struttura = StrutturaFase(repo)
+
         self.dettaglio = QTabWidget()
+        self.dettaglio.addTab(scorrimento_descrizione, "Descrizione e organizzazione")
+        self.dettaglio.addTab(self.struttura, "Struttura")
         self.dettaglio.addTab(self.rischi, "Rischi e misure")
         self.dettaglio.addTab(self.attrezzature, "Macchine, attrezzi e opere provvisionali")
         self.dettaglio.setEnabled(False)
+        self.dettaglio.currentChanged.connect(lambda _i: self._aggiorna_struttura())
 
         self.gantt = Gantt()
         self.gantt.fase_modificata.connect(self._fase_trascinata)
@@ -737,11 +773,28 @@ class PaginaFasi(Pagina):
             (i["id"], i["ragione_sociale"] or f"Impresa {i['id']}") for i in self.repo.elenco("imprese")
         ]
 
+    def _valutazioni(self) -> list[tuple[int | None, str]]:
+        from sicurcantiere.valutazioni import METODI
+
+        return [(None, "—")] + [
+            (v["id"], v["titolo"] or (METODI[v["metodo"]].nome if v["metodo"] in METODI else v["metodo"]))
+            for v in self.repo.elenco("valutazioni")
+        ]
+
     def _fase_selezionata(self, id_: int | None) -> None:
         self.dettaglio.setEnabled(id_ is not None)
         filtro = id_ if id_ is not None else -1
+        self.descrizione_fase.carica(id_)
         self.rischi.imposta_filtro(fase_id=filtro)
         self.attrezzature.imposta_filtro(fase_id=filtro)
+        self._aggiorna_struttura()
+
+    def _aggiorna_struttura(self) -> None:
+        if self.dettaglio.currentWidget() is self.struttura:
+            self.struttura.mostra(self.fasi.id_selezionato())
+
+    def salva_in_sospeso(self) -> None:
+        self.descrizione_fase.salva_in_sospeso()
 
     def _aggiorna_gantt(self) -> None:
         imprese = {i["id"]: i["ragione_sociale"] or f"Impresa {i['id']}" for i in self.repo.elenco("imprese")}

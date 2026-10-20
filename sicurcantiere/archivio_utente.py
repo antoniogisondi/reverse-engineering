@@ -149,7 +149,11 @@ class ArchivioAnagrafiche:
             "codice": fase["codice"],
             "descrizione": fase["descrizione"],
             "incidenza_manodopera": fase["incidenza_manodopera"],
-            "attrezzature": [{"nome": a["nome"], "tipo": a["tipo"]} for a in repo.elenco("attrezzature", fase_id=fase_id)],
+            "gruppo": fase["lavorazione"],
+            "dettaglio": fase["dettaglio"],
+            "addetto": fase["addetto"],
+            "attrezzature": [{k: a[k] for k in ("nome", "tipo", "descrizione", "misure", "dpi")}
+                             for a in repo.elenco("attrezzature", fase_id=fase_id)],
             "rischi": [{k: r[k] for k in ("fonte", "descrizione", "probabilita", "danno", "misure", "dpi")}
                        for r in repo.elenco("rischi", fase_id=fase_id)],
         }
@@ -160,9 +164,12 @@ class ArchivioAnagrafiche:
     def inserisci_lavorazione(repo: Repository, voce: dict[str, Any]) -> int:
         dati = voce["dati"]
         fase_id = repo.inserisci("fasi", codice=dati.get("codice", ""), descrizione=dati.get("descrizione", ""),
-                                 incidenza_manodopera=dati.get("incidenza_manodopera", 0))
+                                 incidenza_manodopera=dati.get("incidenza_manodopera", 0),
+                                 lavorazione=dati.get("gruppo", ""), dettaglio=dati.get("dettaglio", ""),
+                                 addetto=dati.get("addetto", ""))
         for a in dati.get("attrezzature", []):
-            repo.inserisci("attrezzature", fase_id=fase_id, nome=a["nome"], tipo=a.get("tipo", ""))
+            repo.inserisci("attrezzature", fase_id=fase_id, nome=a["nome"], tipo=a.get("tipo", ""),
+                           **{k: a.get(k, "") for k in ("descrizione", "misure", "dpi")})
         for r in dati.get("rischi", []):
             repo.inserisci("rischi", fase_id=fase_id, **r)
         return fase_id

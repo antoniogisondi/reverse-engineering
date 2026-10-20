@@ -318,6 +318,20 @@ MIGRAZIONI: list[str] = [
         attrezzatura_id INTEGER REFERENCES attrezzature(id) ON DELETE CASCADE
     );
     """,
+    # v0.9: lavorazioni suddivise in fasi, addetto e descrizione della fase, schede d'uso di
+    # macchine e attrezzi (misure prima, durante e dopo l'uso e DPI dell'operatore).
+    """
+    ALTER TABLE fasi ADD COLUMN lavorazione TEXT NOT NULL DEFAULT '';
+    ALTER TABLE fasi ADD COLUMN dettaglio TEXT NOT NULL DEFAULT '';
+    ALTER TABLE fasi ADD COLUMN addetto TEXT NOT NULL DEFAULT '';
+    ALTER TABLE fasi ADD COLUMN modalita TEXT NOT NULL DEFAULT '';
+    ALTER TABLE fasi ADD COLUMN turni TEXT NOT NULL DEFAULT '';
+    ALTER TABLE fasi ADD COLUMN procedure_psc TEXT NOT NULL DEFAULT '';
+    ALTER TABLE rischi ADD COLUMN valutazione_id INTEGER REFERENCES valutazioni(id) ON DELETE SET NULL;
+    ALTER TABLE attrezzature ADD COLUMN descrizione TEXT NOT NULL DEFAULT '';
+    ALTER TABLE attrezzature ADD COLUMN misure TEXT NOT NULL DEFAULT '';
+    ALTER TABLE attrezzature ADD COLUMN dpi TEXT NOT NULL DEFAULT '';
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

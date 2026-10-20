@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from sicurcantiere.archivio_attrezzature import NUOVE as NUOVE_ATTREZZATURE
+from sicurcantiere.archivio_attrezzature import SCHEDE
+
 DPI_BASE = "Casco, scarpe antinfortunistiche, guanti, indumenti ad alta visibilità"
 
 # Tipologie di intervento: filtrano l'archivio nella finestra di importazione.
@@ -165,14 +168,23 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
 }
 
 
+ATTREZZATURE.update(NUOVE_ATTREZZATURE)
+for _nome, _voce in ATTREZZATURE.items():
+    _voce["scheda"] = SCHEDE[_nome]
+
+
 def _lav(codice: str, descrizione: str, incidenza: float,
-         attrezzature: list[str], rischi: list[dict[str, Any]]) -> dict[str, Any]:
+         attrezzature: list[str], rischi: list[dict[str, Any]], gruppo: str = "", dettaglio: str = "",
+         addetto: str = "") -> dict[str, Any]:
     for nome in attrezzature:
         assert nome in ATTREZZATURE, nome
     categoria, tipologie = _CLASSIFICAZIONE.get(codice) or _CLASSIFICAZIONE[codice[:2]]
     return {
         "categoria": categoria,
         "tipologie": tipologie,
+        "gruppo": gruppo,
+        "dettaglio": dettaglio,
+        "addetto": addetto,
         "codice": codice,
         "descrizione": descrizione,
         "incidenza_manodopera": incidenza,
@@ -363,6 +375,123 @@ LAVORAZIONI: list[dict[str, Any]] = [
            DPI_BASE + ", mascherina, guanti"),
     ]),
 ]
+
+
+# --- Preparazione delle aree di cantiere ---
+
+_PREP = "Preparazione delle aree di cantiere"
+_PUNTURE = _r("Punture, tagli e abrasioni", 3, 2, "Attrezzi integri con impugnature sicure; guanti adatti al lavoro.")
+_BIOLOGICO_VERDE = _r("Rischio biologico (punture di insetti, zecche, morsi di animali)", 2, 2,
+                      "Indumenti a maniche lunghe e chiusi alle caviglie; repellenti; controllo della cute a fine "
+                      "turno; segnalare al medico competente eventuali allergie; cassetta di pronto soccorso.",
+                      DPI_BASE + ", stivali di sicurezza")
+_SOLE = _r("Microclima: esposizione al sole e al caldo", 3, 2,
+           "Lavori più pesanti nelle ore fresche; pause all'ombra; acqua a disposizione; copricapo.",
+           DPI_BASE + ", copricapo")
+_INVESTIMENTO_A_TERRA = _r("Investimento da mezzi in manovra", 2, 4,
+                           "Addetti a terra fuori dal raggio d'azione dei mezzi; moviere nelle manovre; "
+                           "indumenti ad alta visibilità.")
+_SOTTOSERVIZI = _r("Contatto con sottoservizi e linee elettriche", 1, 4,
+                   "Individuare in anticipo reti interrate e linee aeree con gli enti gestori; segnalarle sul "
+                   "terreno; distanze dell'Allegato IX.")
+
+LAVORAZIONI[:0] = [
+    _lav("AL.10", "Scavo di pulizia generale dell'area di cantiere", 25,
+         ["Pala meccanica", "Autocarro", "Utensili manuali"], [
+             _INVESTIMENTO_A_TERRA, _MMC, _PUNTURE, _SOTTOSERVIZI,
+             _r("Polveri", 3, 2, "Bagnare le superfici prima e durante lo scavo; non lavorare con vento forte.",
+                DPI_BASE + ", facciale filtrante FFP2"),
+         ], gruppo=_PREP, addetto="Addetto allo scavo di pulizia generale dell'area di cantiere",
+         dettaglio="Rimozione con mezzi meccanici e a mano di rifiuti, macerie, radici e materiali "
+                   "superficiali dall'area destinata al cantiere, con carico su autocarro."),
+    _lav("AL.11", "Taglio di alberi ed estirpazione delle ceppaie", 45,
+         ["Motosega", "Trattore", "Utensili manuali"], [
+             _r("Caduta della pianta o dei rami durante l'abbattimento", 2, 4,
+                "Valutare in anticipo direzione di caduta, inclinazione e stato della pianta; tacca di "
+                "direzione e cerniera; via di fuga libera; area interdetta; mai abbattere con vento forte."),
+             _r("Schiacciamento durante l'estirpazione delle ceppaie", 2, 3,
+                "Tiro con fune o catena di portata adeguata; nessuno nella zona di possibile rinculo o rottura."),
+             _MMC, _PUNTURE, _BIOLOGICO_VERDE,
+         ], gruppo=_PREP, addetto="Addetto al taglio di alberi ed estirpazione delle ceppaie",
+         dettaglio="Abbattimento di alberi presenti nell'area di cantiere, sramatura e depezzatura del "
+                   "tronco ed estirpazione delle ceppaie con mezzo meccanico."),
+    _lav("AL.12", "Taglio di arbusti e vegetazione in genere", 55,
+         ["Decespugliatore a motore", "Utensili manuali"], [
+             _PUNTURE, _BIOLOGICO_VERDE, _SOLE,
+             _r("Scivolamenti e cadute a livello", 2, 2, "Calzature con suola antiscivolo; procedere con "
+                "attenzione su terreni in pendenza o bagnati; segnalare buche e ostacoli."),
+         ], gruppo=_PREP, addetto="Addetto al taglio di arbusti e vegetazione in genere",
+         dettaglio="Taglio di erba, arbusti e vegetazione infestante con decespugliatore e attrezzi manuali, "
+                   "con raccolta del materiale tagliato."),
+    _lav("AL.13", "Trasporto a recupero di legna e frascame", 40,
+         ["Autocarro con gru", "Utensili manuali"], [
+             _MMC, _PUNTURE,
+             _r("Caduta di materiale durante il carico", 2, 3, "Carico imbracato o caricato con la gru; "
+                "nessuno sotto il carico sospeso; carico fissato sul cassone."),
+         ], gruppo=_PREP, addetto="Addetto al trasporto a recupero di legna e frascame",
+         dettaglio="Raccolta, carico e trasporto del legname e del frascame derivanti dal taglio della "
+                   "vegetazione verso i luoghi di recupero o smaltimento."),
+    _lav("AL.14", "Realizzazione della recinzione e degli accessi al cantiere", 55,
+         ["Autocarro", "Trapano elettrico", "Utensili manuali"], [
+             _MMC, _PUNTURE, _SOTTOSERVIZI,
+             _r("Investimento da veicoli lungo la strada", 2, 4, "Lavori sul lato strada protetti con "
+                "segnaletica temporanea (D.M. 22/01/2019); indumenti ad alta visibilità."),
+             _r("Urti e colpi durante l'infissione dei paletti", 2, 2, "Battipalo o mazza con impugnatura "
+                "integra; reggere i paletti con apposito attrezzo e non con le mani."),
+         ], gruppo=_PREP, addetto="Addetto alla realizzazione della recinzione e degli accessi al cantiere",
+         dettaglio="Posa della recinzione di cantiere per impedire l'accesso ai non addetti e realizzazione "
+                   "degli accessi separati per mezzi e lavoratori, con la relativa segnaletica."),
+    _lav("AL.15", "Realizzazione della viabilità di cantiere", 30,
+         ["Pala meccanica", "Autocarro", "Rullo compattatore", "Utensili manuali"], [
+             _INVESTIMENTO_A_TERRA, _MMC,
+             _r("Polveri", 3, 2, "Bagnatura periodica dei percorsi.", DPI_BASE + ", facciale filtrante FFP2"),
+         ], gruppo=_PREP, addetto="Addetto alla realizzazione della viabilità di cantiere",
+         dettaglio="Realizzazione di piste e percorsi per mezzi e persone, separati dove possibile, con "
+                   "stesa e compattazione del misto e posa della segnaletica di cantiere."),
+    _lav("AL.16", "Scotico di terreno vegetale dall'area di cantiere", 20,
+         ["Escavatore", "Pala meccanica", "Autocarro"], [
+             _INVESTIMENTO_A_TERRA, _SOTTOSERVIZI,
+             _r("Polveri", 3, 2, "Bagnatura delle superfici di lavoro.", DPI_BASE + ", facciale filtrante FFP2"),
+         ], gruppo=_PREP, addetto="Addetto allo scotico di terreno vegetale dall'area di cantiere",
+         dettaglio="Asportazione con mezzi meccanici dello strato superficiale di terreno vegetale e suo "
+                   "accumulo in area dedicata per il successivo riutilizzo."),
+]
+
+# Lavorazione di appartenenza e addetto delle fasi di base.
+_GRUPPI = {
+    "AL.01": ("Apprestamenti del cantiere", "Addetto all'allestimento e alla recinzione del cantiere"),
+    "AL.02": ("Apprestamenti del cantiere", "Addetto al montaggio e smontaggio del ponteggio"),
+    "AL.03": ("Apprestamenti del cantiere", "Addetto all'installazione della gru a torre"),
+    "AL.04": ("Impianti di servizio del cantiere", "Addetto alla realizzazione dell'impianto elettrico di cantiere"),
+    "SM.01": ("Smobilizzo del cantiere", "Addetto allo smobilizzo del cantiere"),
+    "NC.01": ("Scavi e movimenti di terra", "Addetto allo scavo"),
+    "NC.02": ("Strutture in fondazione in c.a.", "Addetto alla realizzazione delle fondazioni"),
+    "NC.03": ("Strutture in elevazione in c.a.", "Addetto alla realizzazione di pilastri e travi"),
+    "NC.04": ("Solai", "Addetto alla realizzazione dei solai"),
+    "NC.05": ("Murature e tamponamenti", "Addetto alla realizzazione delle murature"),
+    "NC.06": ("Coperture", "Addetto alla realizzazione della copertura"),
+    "NC.07": ("Impianti meccanici", "Addetto alla posa degli impianti idrico-sanitari e termici"),
+    "NC.08": ("Impianti elettrici", "Addetto alla posa dell'impianto elettrico"),
+    "NC.09": ("Intonaci", "Addetto alla formazione degli intonaci"),
+    "NC.10": ("Pavimenti e rivestimenti", "Addetto alla posa di pavimenti e rivestimenti"),
+    "NC.11": ("Pitturazioni", "Addetto alle tinteggiature"),
+    "NC.12": ("Serramenti e opere in ferro", "Addetto alla posa di serramenti e opere in ferro"),
+    "RI.01": ("Demolizioni", "Addetto alle demolizioni"),
+    "RI.02": ("Rimozioni", "Addetto alla rimozione di pavimenti e intonaci"),
+    "RI.03": ("Consolidamenti strutturali", "Addetto al consolidamento dei solai"),
+    "RI.04": ("Rifacimento di coperture", "Addetto al rifacimento del manto di copertura"),
+    "RI.05": ("Isolamento delle facciate", "Addetto alla posa del cappotto termico"),
+    "IN.01": ("Scavi e movimenti di terra", "Addetto allo scavo a sezione obbligata"),
+    "IN.02": ("Reti di sottoservizi", "Addetto alla posa di condotte e pozzetti"),
+    "IN.03": ("Pavimentazioni stradali", "Addetto alla pavimentazione stradale"),
+    "IN.04": ("Segnaletica stradale", "Addetto alla segnaletica stradale"),
+    "RS.01": ("Restauro delle superfici", "Addetto alla pulitura delle superfici"),
+    "RS.02": ("Consolidamento delle murature", "Addetto al consolidamento con iniezioni"),
+    "RS.03": ("Restauro di strutture lignee", "Addetto al restauro degli elementi lignei"),
+}
+for _l in LAVORAZIONI:
+    if _l["codice"] in _GRUPPI and not _l["gruppo"]:
+        _l["gruppo"], _l["addetto"] = _GRUPPI[_l["codice"]]
 
 
 def per_categoria(tipologia: str | None = None) -> dict[str, list[dict[str, Any]]]:
