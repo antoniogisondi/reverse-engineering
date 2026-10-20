@@ -6,9 +6,13 @@ dell'applicazione non fa perdere dati.
 
 from __future__ import annotations
 
+import glob
+import hashlib
+import os
 import shutil
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -349,6 +353,20 @@ MIGRAZIONI: list[str] = [
 VERSIONE_SCHEMA = len(MIGRAZIONI)
 
 
+COPIE_TENUTE = 5
+
+
+def cartella_copie() -> Path:
+    """Cartella delle copie di sicurezza dei cantieri (variabile SICURCANTIERE_COPIE per i test)."""
+    if os.environ.get("SICURCANTIERE_COPIE"):
+        return Path(os.environ["SICURCANTIERE_COPIE"])
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA", Path.home()))
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "SicurCantiere" / "copie di sicurezza"
+
+
 def anteprima(percorso: str | Path) -> dict[str, str] | None:
     """Nome e comune del cantiere letti in sola lettura, senza backup né migrazioni.
 
@@ -393,8 +411,17 @@ class Progetto:
             raise
 
     def _backup(self) -> None:
-        # Copia di sicurezza fatta all'apertura, prima di qualsiasi modifica.
-        shutil.copy2(self.percorso, self.percorso.with_name(self.percorso.name + ".bak"))
+        # Copia di sicurezza fatta all'apertura, prima di qualsiasi modifica, nella cartella delle
+        # copie (non accanto al file): per ogni cantiere si tengono le ultime COPIE_TENUTE.
+        cartella = cartella_copie()
+        cartella.mkdir(parents=True, exist_ok=True)
+        impronta = hashlib.sha1(str(self.percorso.resolve()).lower().encode()).hexdigest()[:8]
+        prefisso = f"{self.percorso.stem}-{impronta}-"
+        istante = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        shutil.copy2(self.percorso, cartella / f"{prefisso}{istante}{self.percorso.suffix}")
+        copie = sorted(cartella.glob(f"{glob.escape(prefisso)}*{self.percorso.suffix}"))
+        for vecchia in copie[:-COPIE_TENUTE]:
+            vecchia.unlink(missing_ok=True)
 
     def _migra(self) -> None:
         try:

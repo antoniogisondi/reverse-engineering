@@ -122,7 +122,9 @@ mostrate e riportate nella relazione.
 
 - Salvataggio automatico: ogni modifica è scritta subito sul file in una transazione; il pulsante
   **Salva** (Ctrl+S) scrive anche il campo in corso di modifica.
-- All'apertura viene fatta una copia di sicurezza `nomefile.scs.bak`.
+- All'apertura viene fatta una copia di sicurezza del cantiere nella cartella del programma
+  (Windows: `%APPDATA%\SicurCantiere\copie di sicurezza`), tenendo le ultime 5 per ogni cantiere:
+  accanto ai file dei cantieri non compaiono altri file.
 - Schema del file versionato con migrazioni: i progetti vecchi si aggiornano
   da soli; quelli creati con versioni più recenti vengono rifiutati invece di essere danneggiati.
 - Gli errori imprevisti vengono registrati nel log e mostrati senza chiudere il programma

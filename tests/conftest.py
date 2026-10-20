@@ -5,3 +5,9 @@ import pytest
 def archivio_temporaneo(tmp_path, monkeypatch):
     # L'archivio delle anagrafiche dei test non deve finire nella cartella dell'utente.
     monkeypatch.setenv("SICURCANTIERE_ARCHIVIO", str(tmp_path / "archivio.db"))
+
+
+@pytest.fixture(autouse=True)
+def copie_temporanee(tmp_path, monkeypatch):
+    # Le copie di sicurezza dei test non devono finire nella cartella dell'utente.
+    monkeypatch.setenv("SICURCANTIERE_COPIE", str(tmp_path / "copie"))

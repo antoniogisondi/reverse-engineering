@@ -27,7 +27,13 @@ def test_nuovo_progetto_ha_schema_aggiornato(tmp_path):
     p.chiudi()
     # Riapertura: crea il backup e non riapplica le migrazioni.
     p = Progetto(tmp_path / "a.scs")
-    assert (tmp_path / "a.scs.bak").exists()
+    assert not (tmp_path / "a.scs.bak").exists()  # nessuna copia accanto al file
+    from sicurcantiere.db import COPIE_TENUTE, cartella_copie
+
+    for _ in range(COPIE_TENUTE + 2):
+        Progetto(tmp_path / "a.scs").chiudi()
+    copie = list(cartella_copie().glob("a-*.scs"))
+    assert len(copie) == COPIE_TENUTE
     p.chiudi()
 
 
@@ -330,7 +336,7 @@ def test_anteprima(tmp_path):
     Repository(p).aggiorna_cantiere(nome="Scuola", comune="Bari", provincia="BA")
     p.chiudi()
     assert anteprima(tmp_path / "a.scs") == {"nome": "Scuola", "comune": "Bari", "provincia": "BA"}
-    assert not (tmp_path / "a.scs.bak").exists()  # sola lettura: niente backup
+    assert not (tmp_path / "copie").exists()  # sola lettura: niente copia di sicurezza
     (tmp_path / "rotto.scs").write_bytes(b"x" * 200)
     assert anteprima(tmp_path / "rotto.scs") is None
     assert anteprima(tmp_path / "manca.scs") is None
