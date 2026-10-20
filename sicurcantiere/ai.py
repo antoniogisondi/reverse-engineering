@@ -78,6 +78,8 @@ class Compilazione:
     ipotesi: list[str]
 
 
+TIPI_ATTREZZATURA = ("Macchina", "Attrezzo", "Opera provvisionale")
+
 # Descrizioni dei rischi specifici riconosciute dalle valutazioni automatiche.
 RISCHI_SPECIFICI = ("Movimentazione manuale dei carichi", "Movimenti ripetitivi degli arti superiori", "Rumore",
                     "Vibrazioni al sistema mano-braccio", "Vibrazioni al corpo intero")
@@ -326,6 +328,105 @@ class AssistenteAI:
                 "fonte": nomi.get(str(r.get("fonte", "") or "").strip().lower(), ""),
             })
         return validi
+
+    def _schema_attrezzatura(self) -> dict[str, Any]:
+        livello = {"type": "integer", "enum": [1, 2, 3, 4]}
+        elenco = {"type": "array", "items": {"type": "string"}}
+        return _oggetto({
+            "nome": {"type": "string"},
+            "tipo": {"type": "string", "enum": list(TIPI_ATTREZZATURA)},
+            "descrizione": {"type": "string", "description": "Cos'è e a cosa serve, una o due frasi"},
+            "prima": {**elenco, "description": "Misure prima dell'uso"},
+            "durante": {**elenco, "description": "Misure durante l'uso"},
+            "dopo": {**elenco, "description": "Misure dopo l'uso"},
+            "dpi": {"type": "string", "description": "DPI dell'operatore separati da virgola"},
+            "rischi": {"type": "array", "items": _oggetto({
+                "descrizione": {"type": "string"},
+                "probabilita": {**livello, "description": "Probabilità P da 1 (improbabile) a 4 (molto probabile)"},
+                "danno": {**livello, "description": "Danno D da 1 (lieve) a 4 (gravissimo)"},
+                "misure": {"type": "string"},
+                "dpi": {"type": "string"},
+            })},
+        })
+
+    @staticmethod
+    def _attrezzatura_valida(a: Any) -> dict[str, Any] | None:
+        if not isinstance(a, dict) or not str(a.get("nome", "")).strip():
+            return None
+        elenco = lambda k: [str(x).strip() for x in a.get(k) or [] if str(x).strip()]  # noqa: E731
+        rischi = []
+        for r in a.get("rischi") or []:
+            if isinstance(r, dict) and str(r.get("descrizione", "")).strip():
+                rischi.append({
+                    "descrizione": str(r["descrizione"]).strip(),
+                    "probabilita": min(max(int(r.get("probabilita", 2)), 1), 4),
+                    "danno": min(max(int(r.get("danno", 2)), 1), 4),
+                    "misure": str(r.get("misure", "")).strip(),
+                    "dpi": str(r.get("dpi", "")).strip(),
+                })
+        tipo = str(a.get("tipo", ""))
+        return {
+            "nome": str(a["nome"]).strip(),
+            "tipo": tipo if tipo in TIPI_ATTREZZATURA else TIPI_ATTREZZATURA[1],
+            "descrizione": str(a.get("descrizione", "")).strip(),
+            "prima": elenco("prima"), "durante": elenco("durante"), "dopo": elenco("dopo"),
+            "dpi": str(a.get("dpi", "")).strip(),
+            "rischi": rischi,
+        }
+
+    _ISTRUZIONI_ATTREZZATURE = (
+        "Per ogni macchina, attrezzo o opera provvisionale indica i rischi per chi la usa e per chi "
+        "lavora vicino, con probabilità e danno (matrice 4x4), misure e DPI, e le misure prima, "
+        "durante e dopo l'uso. Non tralasciare i rischi specifici che richiedono una valutazione "
+        "dedicata (rumore, vibrazioni, movimentazione manuale dei carichi, movimenti ripetitivi): "
+        "per questi usa esattamente una di queste descrizioni: {specifici}. Indica anche gli altri "
+        "rischi pertinenti (elettrico, investimento, ribaltamento, tagli, proiezione di schegge, "
+        "polveri, incendio...)."
+    )
+
+    def suggerisci_attrezzature(self, lavorazione: str, dettaglio: str, esistenti: list[str],
+                                catalogo: list[str]) -> list[dict[str, Any]]:
+        """Macchine, attrezzi e opere provvisionali che servono alla lavorazione, con i loro rischi."""
+        schema = _oggetto({"attrezzature": {"type": "array", "items": self._schema_attrezzatura()}})
+        testo = (
+            "Indica le macchine, gli attrezzi e le opere provvisionali che servono per eseguire la "
+            "seguente lavorazione di cantiere e che non sono già nell'elenco esistente. Quando "
+            "corrispondono, usa i nomi del catalogo esattamente come scritti.\n"
+            + self._ISTRUZIONI_ATTREZZATURE.format(specifici="; ".join(RISCHI_SPECIFICI)) + "\n\n"
+            f"<lavorazione>{lavorazione.strip()}</lavorazione>\n"
+            f"<descrizione>{dettaglio.strip() or 'non indicata'}</descrizione>\n"
+            f"<esistenti>{'; '.join(esistenti) or 'nessuna'}</esistenti>\n"
+            f"<catalogo>{'; '.join(catalogo)}</catalogo>"
+        )
+        proposte = self._richiesta(testo, schema).get("attrezzature") or []
+        nomi = {n.lower(): n for n in catalogo}
+        gia = {n.lower() for n in esistenti}
+        validi = []
+        for a in proposte:
+            a = self._attrezzatura_valida(a)
+            if a is None or a["nome"].lower() in gia:
+                continue
+            a["nome"] = nomi.get(a["nome"].lower(), a["nome"])
+            gia.add(a["nome"].lower())
+            validi.append(a)
+        return validi
+
+    def completa_attrezzatura(self, nome: str, tipo: str, lavorazione: str,
+                              rischi_esistenti: list[str]) -> dict[str, Any]:
+        """Scheda d'uso e rischi (compresi quelli specifici) di una macchina o di un attrezzo."""
+        testo = (
+            "Compila la scheda d'uso della seguente attrezzatura impiegata in cantiere e indica i "
+            "rischi che non sono già nell'elenco esistente.\n"
+            + self._ISTRUZIONI_ATTREZZATURE.format(specifici="; ".join(RISCHI_SPECIFICI)) + "\n\n"
+            f"<attrezzatura>{nome.strip()} ({tipo})</attrezzatura>\n"
+            f"<lavorazione>{lavorazione.strip() or 'non indicata'}</lavorazione>\n"
+            f"<rischi_esistenti>{'; '.join(rischi_esistenti) or 'nessuno'}</rischi_esistenti>"
+        )
+        a = self._attrezzatura_valida({"nome": nome, **self._richiesta(testo, self._schema_attrezzatura())})
+        a["nome"] = nome
+        presenti = {x.lower() for x in rischi_esistenti}
+        a["rischi"] = [r for r in a["rischi"] if r["descrizione"].lower() not in presenti]
+        return a
 
     def scrivi_sezione(self, sezione: str, contesto: str, testo_attuale: str = "") -> str:
         schema = _oggetto({"testo": {"type": "string", "description": "Testo della sezione, in paragrafi"}})

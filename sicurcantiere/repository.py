@@ -220,6 +220,20 @@ class Repository:
         with self.progetto.transazione() as c:
             self._inserisci_attrezzatura(c, fase_id, nome, ATTREZZATURE[nome])
 
+    def aggiungi_attrezzatura_proposta(self, fase_id: int, proposta: dict[str, Any]) -> None:
+        """Aggiunge una macchina o un attrezzo proposto dall'assistente (o dall'archivio se il nome c'è)."""
+        from sicurcantiere.archivio import ATTREZZATURE
+
+        if proposta["nome"] in ATTREZZATURE:
+            self.aggiungi_attrezzatura(fase_id, proposta["nome"])
+            return
+        scheda = {k: proposta.get(k, []) for k in ("prima", "durante", "dopo")}
+        scheda["descrizione"] = proposta.get("descrizione", "")
+        scheda["dpi"] = [d.strip() for d in proposta.get("dpi", "").split(",") if d.strip()]
+        with self.progetto.transazione() as c:
+            self._inserisci_attrezzatura(c, fase_id, proposta["nome"],
+                                         {"tipo": proposta["tipo"], "rischi": proposta["rischi"], "scheda": scheda})
+
     def _inserisci_attrezzatura(self, c, fase_id: int, nome: str, attrezzatura: dict[str, Any]) -> None:
         from sicurcantiere.archivio_attrezzature import testo_misure
 

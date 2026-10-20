@@ -661,10 +661,15 @@ class PaginaFasi(Pagina):
         super().__init__(repo)
         self.fasi = TabellaCrud(repo, "fasi", [
             Colonna("codice", "Codice", larghezza=60),
-            Colonna("lavorazione", "Lavorazione", "scelta", scelta_libera=True, larghezza=190,
+            Colonna("lavorazione", "Lavorazione (gruppo di fasi)", "scelta", scelta_libera=True, larghezza=210,
                     scelte=lambda: [(g, g) for g in sorted({f["lavorazione"] for f in self.repo.elenco("fasi")
-                                                             if f["lavorazione"]})]),
-            Colonna("descrizione", "Fase di lavoro", larghezza=260),
+                                                             if f["lavorazione"]})],
+                    suggerimento="La lavorazione più ampia di cui la fase fa parte, per esempio «Strutture in "
+                                 "elevazione in c.a.»: raggruppa più fasi sotto un unico titolo nel POS. "
+                                 "Facoltativa: per una fase isolata si può lasciare vuota."),
+            Colonna("descrizione", "Fase di lavoro (attività svolta)", larghezza=280,
+                    suggerimento="L'attività concreta, con i suoi rischi, macchine e lavoratori, per esempio "
+                                 "«Getto del calcestruzzo di pilastri e travi con autopompa»."),
             Colonna("impresa_id", "Impresa", "scelta", scelte=self._imprese, larghezza=170),
         ] + ([
             Colonna("zona", "Zona", larghezza=90),
@@ -720,6 +725,16 @@ class PaginaFasi(Pagina):
         self.attrezzature.pulsanti.insertWidget(3, self.scelta_archivio)
         self.attrezzature.pulsanti.insertWidget(4, aggiungi_archivio)
         self.attrezzature.modificata.connect(self._rischi_delle_attrezzature)
+        suggerisci_attrezzature = QPushButton(icona("ai", "#E8792B"), "Suggerisci con l'AI")
+        suggerisci_attrezzature.setToolTip("Macchine, attrezzi e opere provvisionali per la fase, con scheda d'uso "
+                                           "e rischi, compresi rumore, vibrazioni e movimentazione dei carichi.")
+        suggerisci_attrezzature.clicked.connect(self._suggerisci_attrezzature)
+        completa_attrezzatura = QPushButton(icona("ai", "#E8792B"), "Completa rischi e scheda con l'AI")
+        completa_attrezzatura.setToolTip("Per l'attrezzatura selezionata: descrizione, misure prima, durante e "
+                                         "dopo l'uso, DPI e rischi mancanti.")
+        completa_attrezzatura.clicked.connect(self._completa_attrezzatura)
+        for b in (suggerisci_attrezzature, completa_attrezzatura):
+            self.attrezzature.pulsanti.insertWidget(self.attrezzature.pulsanti.count() - 1, b)
 
         self.descrizione_fase = ModuloRecord(repo, "fasi", [
             ("dettaglio", "Descrizione dell'attività", "testo_lungo"),
@@ -879,39 +894,151 @@ class PaginaFasi(Pagina):
                   lambda ai: ai.suggerisci_rischi(lavorazione, attrezzature, esistenti),
                   lambda proposte: self._scegli_rischi(fase_id, proposte))
 
-    def _scegli_rischi(self, fase_id: int, proposte: list[dict]) -> None:
-        if not proposte:
-            QMessageBox.information(self, "Assistente AI", "Nessun rischio aggiuntivo individuato.")
-            return
+    @staticmethod
+    def _testo_rischio(r: dict) -> str:
+        livello = analisi.livello_rischio(r["probabilita"], r["danno"])
+        origine = f" ({r['fonte']})" if r.get("fonte") else ""
+        return (f"{r['descrizione']}{origine}  -  P{r['probabilita']} x D{r['danno']} = {livello} "
+                f"{analisi.classe_rischio(livello)}\n    Misure: {r['misure']}")
+
+    def _scegli_proposte(self, titolo: str, nota: str, testi: list[str]) -> list[int] | None:
+        """Elenco a spunta delle proposte dell'assistente; restituisce gli indici scelti."""
         dialogo = QDialog(self)
-        dialogo.setWindowTitle("Rischi suggeriti dall'assistente AI")
+        dialogo.setWindowTitle(titolo)
         dialogo.resize(760, 460)
         elenco = QListWidget()
-        for r in proposte:
-            livello = analisi.livello_rischio(r["probabilita"], r["danno"])
-            origine = f" ({r['fonte']})" if r.get("fonte") else ""
-            item = QListWidgetItem(f"{r['descrizione']}{origine}  -  P{r['probabilita']} x D{r['danno']} = {livello} "
-                                   f"{analisi.classe_rischio(livello)}\n    Misure: {r['misure']}")
+        for testo in testi:
+            item = QListWidgetItem(testo)
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked)
             elenco.addItem(item)
-        nota = QLabel("Selezionare i rischi da aggiungere alla fase. Valori e misure restano modificabili.")
-        nota.setWordWrap(True)
+        etichetta = QLabel(nota)
+        etichetta.setWordWrap(True)
         pulsanti = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         pulsanti.accepted.connect(dialogo.accept)
         pulsanti.rejected.connect(dialogo.reject)
         layout = QVBoxLayout(dialogo)
-        layout.addWidget(nota)
+        layout.addWidget(etichetta)
         layout.addWidget(elenco)
         layout.addWidget(pulsanti)
-        if dialogo.exec() != QDialog.DialogCode.Accepted or not self.repo.leggi("fasi", fase_id):
-            return
-        for i, r in enumerate(proposte):
-            if elenco.item(i).checkState() == Qt.CheckState.Checked:
-                self.repo.inserisci("rischi", fase_id=fase_id, **r)
+        if dialogo.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return [i for i in range(elenco.count()) if elenco.item(i).checkState() == Qt.CheckState.Checked]
+
+    def _dopo_aggiunte(self) -> None:
         self._rischi_delle_attrezzature()
+        self.attrezzature.ricarica()
         self.rischi.ricarica()
         self._aggiorna_gantt()
+
+    def _scegli_rischi(self, fase_id: int, proposte: list[dict]) -> None:
+        if not proposte:
+            QMessageBox.information(self, "Assistente AI", "Nessun rischio aggiuntivo individuato.")
+            return
+        scelti = self._scegli_proposte(
+            "Rischi suggeriti dall'assistente AI",
+            "Selezionare i rischi da aggiungere alla fase. Valori e misure restano modificabili.",
+            [self._testo_rischio(r) for r in proposte])
+        if scelti is None or not self.repo.leggi("fasi", fase_id):
+            return
+        for i in scelti:
+            self.repo.inserisci("rischi", fase_id=fase_id, **proposte[i])
+        self._dopo_aggiunte()
+
+    def _suggerisci_attrezzature(self) -> None:
+        fase_id = self.fasi.id_selezionato()
+        if fase_id is None:
+            QMessageBox.information(self, "Assistente AI", "Selezionare una fase.")
+            return
+        fase = self.repo.leggi("fasi", fase_id)
+        lavorazione = " - ".join(x for x in (fase["lavorazione"], f"{fase['codice']} {fase['descrizione']}".strip())
+                                 if x)
+        if not fase["descrizione"].strip():
+            QMessageBox.information(self, "Assistente AI", "Indicare prima la descrizione della fase.")
+            return
+        esistenti = [a["nome"] for a in self.repo.elenco("attrezzature", fase_id=fase_id)]
+        esegui_ai(self, "L'assistente sta individuando macchine e attrezzature...",
+                  lambda ai: ai.suggerisci_attrezzature(lavorazione, fase["dettaglio"], esistenti,
+                                                        sorted(ATTREZZATURE)),
+                  lambda proposte: self._scegli_attrezzature(fase_id, proposte))
+
+    def _scegli_attrezzature(self, fase_id: int, proposte: list[dict]) -> None:
+        if not proposte:
+            QMessageBox.information(self, "Assistente AI", "Nessuna attrezzatura aggiuntiva individuata.")
+            return
+        testi = []
+        for a in proposte:
+            if a["nome"] in ATTREZZATURE:
+                rischi = [r["descrizione"] for r in ATTREZZATURE[a["nome"]]["rischi"]]
+                origine = "scheda dell'archivio"
+            else:
+                rischi = [r["descrizione"] for r in a["rischi"]]
+                origine = "proposta dall'assistente"
+            testi.append(f"{a['nome']} ({a['tipo'].lower()}, {origine})\n    Rischi: {', '.join(rischi) or '-'}")
+        scelti = self._scegli_proposte(
+            "Macchine e attrezzature suggerite dall'assistente AI",
+            "Selezionare le attrezzature da aggiungere alla fase con la loro scheda d'uso e i loro rischi. "
+            "Per quelle presenti nell'archivio si usa la scheda dell'archivio.", testi)
+        if scelti is None or not self.repo.leggi("fasi", fase_id):
+            return
+        for i in scelti:
+            self.repo.aggiungi_attrezzatura_proposta(fase_id, proposte[i])
+        self._dopo_aggiunte()
+
+    def _completa_attrezzatura(self) -> None:
+        id_ = self.attrezzature.id_selezionato()
+        if id_ is None:
+            QMessageBox.information(self, "Assistente AI", "Selezionare una macchina o un attrezzo.")
+            return
+        a = self.repo.leggi("attrezzature", id_)
+        if not a["nome"].strip():
+            QMessageBox.information(self, "Assistente AI", "Indicare prima il nome dell'attrezzatura.")
+            return
+        fase = self.repo.leggi("fasi", a["fase_id"])
+        esistenti = [r["descrizione"] for r in self.repo.elenco("rischi", fase_id=a["fase_id"])
+                     if r["fonte"] == a["nome"]]
+        esegui_ai(self, "L'assistente sta compilando la scheda dell'attrezzatura...",
+                  lambda ai: ai.completa_attrezzatura(a["nome"], a["tipo"], fase["descrizione"], esistenti),
+                  lambda proposta: self._applica_attrezzatura(id_, proposta))
+
+    def _applica_attrezzatura(self, id_: int, proposta: dict) -> None:
+        from sicurcantiere.archivio_attrezzature import testo_misure
+
+        a = self.repo.leggi("attrezzature", id_)
+        if a is None:
+            return
+        rischi = [{**r, "fonte": a["nome"]} for r in proposta["rischi"]]
+        scheda = []
+        if not a["descrizione"].strip() and proposta["descrizione"]:
+            scheda.append("Descrizione")
+        if not a["misure"].strip() and any(proposta[k] for k in ("prima", "durante", "dopo")):
+            scheda.append("Misure prima, durante e dopo l'uso")
+        if not a["dpi"].strip() and proposta["dpi"]:
+            scheda.append("DPI dell'operatore")
+        testi = [f"Scheda d'uso: {', '.join(scheda)}"] if scheda else []
+        testi += [self._testo_rischio(r) for r in rischi]
+        if not testi:
+            QMessageBox.information(self, "Assistente AI", "Scheda già completa e nessun rischio aggiuntivo.")
+            return
+        scelti = self._scegli_proposte(
+            f"{a['nome']}: proposte dell'assistente AI",
+            "Selezionare cosa aggiungere. I campi della scheda già compilati non vengono toccati.", testi)
+        if scelti is None or not self.repo.leggi("attrezzature", id_):
+            return
+        if scheda and 0 in scelti:
+            modifiche = {}
+            if "Descrizione" in scheda:
+                modifiche["descrizione"] = proposta["descrizione"]
+            if "DPI dell'operatore" in scheda:
+                modifiche["dpi"] = "; ".join(d.strip() for d in proposta["dpi"].split(",") if d.strip())
+            if "Misure prima, durante e dopo l'uso" in scheda:
+                modifiche["misure"] = testo_misure(proposta)
+            self.repo.aggiorna("attrezzature", id_, **modifiche)
+        primo = 1 if scheda else 0
+        for i in scelti:
+            if i >= primo:
+                self.repo.inserisci("rischi", fase_id=a["fase_id"], **rischi[i - primo])
+        self._dopo_aggiunte()
 
     def _calcola_durata(self) -> None:
         id_ = self.fasi.id_selezionato()

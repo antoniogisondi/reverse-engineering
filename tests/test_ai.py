@@ -162,3 +162,27 @@ def test_estrai_sds():
     dati = AssistenteAI(client=client).estrai_sds("SEZIONE 1 ... SEZIONE 16")
     assert dati["produttore"] == "Alfa spa" and dati["codici_h"] == "H315, H318"
     assert "SEZIONE 1" in client.richieste[0]["messages"][1]["content"]
+
+
+def test_suggerisci_e_completa_attrezzature():
+    rumore = {"descrizione": "Rumore", "probabilita": 3, "danno": 2, "misure": "Otoprotettori", "dpi": "Cuffie"}
+    proposta = {"nome": "Flessibile a batteria", "tipo": "Attrezzo", "descrizione": "Mola portatile",
+                "prima": ["controllare il disco"], "durante": ["impugnare con due mani"], "dopo": ["riporre"],
+                "dpi": "occhiali, guanti", "rischi": [rumore]}
+    client = ClientOpenAIFinto({"attrezzature": [
+        proposta, {**proposta, "nome": "escavatore", "tipo": "Macchina"},
+        {**proposta, "nome": "Betoniera a bicchiere"},  # già nella fase
+        {"nome": " ", "tipo": "Attrezzo"},
+    ]})
+    esito = AssistenteAI(client=client).suggerisci_attrezzature(
+        "Demolizioni", "Taglio di murature", ["Betoniera a bicchiere"], ["Escavatore", "Betoniera a bicchiere"])
+    assert [a["nome"] for a in esito] == ["Flessibile a batteria", "Escavatore"]  # nome del catalogo
+    assert esito[0]["rischi"][0]["descrizione"] == "Rumore" and esito[0]["prima"] == ["controllare il disco"]
+    richiesta = json.dumps(client.richieste[0], ensure_ascii=False)
+    assert "Vibrazioni al corpo intero" in richiesta and "Escavatore; Betoniera" in richiesta
+
+    client = ClientOpenAIFinto({**proposta, "tipo": "Sconosciuto",
+                                "rischi": [rumore, {**rumore, "descrizione": "Vibrazioni al sistema mano-braccio"}]})
+    scheda = AssistenteAI(client=client).completa_attrezzatura("Mola", "Attrezzo", "Tagli", ["rumore"])
+    assert scheda["nome"] == "Mola" and scheda["tipo"] == "Attrezzo"
+    assert [r["descrizione"] for r in scheda["rischi"]] == ["Vibrazioni al sistema mano-braccio"]

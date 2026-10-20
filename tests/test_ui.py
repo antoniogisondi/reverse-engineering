@@ -511,3 +511,42 @@ def test_foto_cantiere_pos(app, tmp_path, monkeypatch):
     pagina.foto._rimuovi()
     assert pagina.foto.percorsi() == foto[1:]
     f.close()
+
+
+def test_attrezzature_suggerite_e_completate_con_ai(app, tmp_path, monkeypatch):
+    from sicurcantiere.ui.edizioni import POS, PaginaFasiPOS
+
+    Progetto(tmp_path / "m.spo", crea=True).chiudi()
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "m.spo")
+    pagina = _pagina(f, PaginaFasiPOS)
+    repo = pagina.repo
+    fase = repo.inserisci("fasi", codice="A", descrizione="Tagli di murature")
+    assert "raggruppa" in pagina.fasi.vista.horizontalHeaderItem(1).toolTip()
+    monkeypatch.setattr(type(pagina), "_scegli_proposte", lambda self, t, n, testi: list(range(len(testi))))
+
+    rumore = {"descrizione": "Rumore", "probabilita": 3, "danno": 2, "misure": "Cuffie", "dpi": "Otoprotettori"}
+    pagina._scegli_attrezzature(fase, [
+        {"nome": "Escavatore", "tipo": "Macchina", "descrizione": "", "prima": [], "durante": [], "dopo": [],
+         "dpi": "", "rischi": []},
+        {"nome": "Mola a disco", "tipo": "Attrezzo", "descrizione": "Mola portatile", "prima": ["controllare"],
+         "durante": [], "dopo": [], "dpi": "occhiali, guanti", "rischi": [rumore]},
+    ])
+    attrezzature = {a["nome"]: a for a in repo.elenco("attrezzature", fase_id=fase)}
+    assert attrezzature["Escavatore"]["descrizione"]  # scheda dell'archivio
+    assert attrezzature["Mola a disco"]["dpi"] == "occhiali; guanti"
+    assert "Prima dell'uso: 1) controllare." in attrezzature["Mola a disco"]["misure"]
+    rischi = {(r["descrizione"], r["fonte"]) for r in repo.elenco("rischi", fase_id=fase)}
+    assert ("Rumore", "Mola a disco") in rischi and ("Vibrazioni al corpo intero", "Escavatore") in rischi
+
+    # Attrezzo scritto a mano, completato dall'assistente senza toccare i campi già compilati.
+    trapano = repo.inserisci("attrezzature", fase_id=fase, tipo="Attrezzo", nome="Avvitatore", dpi="guanti")
+    pagina._applica_attrezzatura(trapano, {
+        "nome": "Avvitatore", "tipo": "Attrezzo", "descrizione": "Avvitatore a batteria",
+        "prima": ["caricare la batteria"], "durante": [], "dopo": [], "dpi": "occhiali",
+        "rischi": [{**rumore, "descrizione": "Movimenti ripetitivi degli arti superiori"}]})
+    a = repo.leggi("attrezzature", trapano)
+    assert a["descrizione"] == "Avvitatore a batteria" and a["dpi"] == "guanti" and "caricare" in a["misure"]
+    assert ("Movimenti ripetitivi degli arti superiori", "Avvitatore") in {
+        (r["descrizione"], r["fonte"]) for r in repo.elenco("rischi", fase_id=fase)}
+    f.close()
