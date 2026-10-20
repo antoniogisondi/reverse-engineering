@@ -248,6 +248,7 @@ def test_benvenuto_con_recenti(app, tmp_path):
 def test_programma_pos(app, tmp_path):
     from sicurcantiere.ai import Compilazione
     from sicurcantiere.ui.edizioni import POS
+    from sicurcantiere.ui import valutazioni as ui_valutazioni
     from sicurcantiere.ui.valutazioni import PaginaValutazioni
     from sicurcantiere.valutazioni import METODI
 
@@ -349,6 +350,23 @@ def test_programma_pos(app, tmp_path):
     pv.editor._aggiungi_compito()
     pv.salva_in_sospeso()
     assert len(repo.dati_valutazione(v)["compiti"]) == 2
+    # Più lavorazioni per la stessa valutazione.
+    f1 = repo.inserisci("fasi", codice="A", descrizione="Getti")
+    f2 = repo.inserisci("fasi", codice="B", descrizione="Massetti")
+    class Finto(ui_valutazioni.DialogoFasi):
+        def exec(self):
+            for i in range(self.elenco.count()):
+                self.elenco.item(i).setCheckState(QtCore.Qt.CheckState.Checked)
+            return True
+
+    ui_valutazioni.DialogoFasi, originale = Finto, ui_valutazioni.DialogoFasi
+    try:
+        pv._scegli_lavorazioni()
+    finally:
+        ui_valutazioni.DialogoFasi = originale
+    assert {f1, f2} <= set(repo.fasi_valutazione(v)) and len(repo.fasi_valutazione(v)) == len(repo.elenco("fasi"))
+    assert "A Getti; B Massetti" in pv.tabella.vista.item(0, 3).text()
+    assert "gruppo" in pv.tabella.vista.horizontalHeaderItem(2).toolTip()
 
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))

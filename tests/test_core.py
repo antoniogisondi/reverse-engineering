@@ -348,8 +348,10 @@ def test_valutazione_e_pos(repo, tmp_path):
 
     a = _cantiere_completo(repo)
     fase = repo.elenco("fasi")[0]["id"]
-    v = repo.inserisci("valutazioni", metodo="niosh", titolo="Sacchi di cemento", fase_id=fase,
-                       mansione="Manovale")
+    v = repo.inserisci("valutazioni", metodo="niosh", titolo="Sacchi di cemento", mansione="Manovale")
+    altra = repo.inserisci("fasi", codice="Z", descrizione="Massetti", impresa_id=None)
+    repo.salva_fasi_valutazione(v, [fase, altra, fase])
+    assert repo.fasi_valutazione(v) == sorted([fase, altra])
     repo.salva_dati_valutazione(v, {"peso": 25, "h": 45, "v": 10, "d": 90, "a": 45, "frequenza": 2,
                                     "durata": "lunga", "presa": "scarsa", "lavoratori": "M18-45",
                                     "descrizione": "Carico sacchi in betoniera",
@@ -357,7 +359,7 @@ def test_valutazione_e_pos(repo, tmp_path):
     testo = _testo_docx(genera_valutazione(repo, v, tmp_path / "v.docx"))
     assert "Sacchi di cemento" in testo and "UNI ISO 11228-1" in testo
     assert "Carico sacchi in betoniera" in testo and "Sacchi presi da terra" in testo
-    assert "Rischio elevato" in testo
+    assert "Rischio elevato" in testo and "Z Massetti" in testo
     pos = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
     assert "Valutazioni dei rischi specifici" in pos and "Sacchi di cemento" in pos
 
@@ -697,3 +699,23 @@ def test_segnaletica_e_impaginazione_pos(repo, tmp_path):
     griglia = [int(c.get(qn("w:w"))) for c in rischi._tbl.tblGrid.findall(qn("w:gridCol"))]
     assert griglia[2] > griglia[0] > griglia[1]
     assert rischi.rows[1].cells[1]._tc.tcPr.find(qn("w:shd")) is not None
+
+
+def test_valutazioni_su_piu_lavorazioni_da_file_vecchio(tmp_path):
+    import sqlite3
+
+    f = tmp_path / "v8.spo"
+    conn = sqlite3.connect(f)
+    conn.executescript(";".join(MIGRAZIONI[:8]) + ";PRAGMA user_version = 8;")
+    conn.execute("INSERT INTO fasi (id, codice) VALUES (7, 'A')")
+    conn.execute("INSERT INTO valutazioni (titolo, fase_id) VALUES ('Sacchi', 7)")
+    conn.execute("INSERT INTO valutazioni (titolo) VALUES ('Rumore')")
+    conn.commit()
+    conn.close()
+    p = Progetto(f)
+    r = Repository(p)
+    sacchi, rumore = r.elenco("valutazioni")
+    assert r.fasi_valutazione(sacchi["id"]) == [7] and r.fasi_valutazione(rumore["id"]) == []
+    r.elimina("fasi", 7)
+    assert r.fasi_valutazione(sacchi["id"]) == []
+    p.chiudi()

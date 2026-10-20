@@ -348,6 +348,18 @@ MIGRAZIONI: list[str] = [
     INSERT INTO sostanze_fasi (sostanza_id, fase_id)
         SELECT id, fase_id FROM sostanze WHERE fase_id IS NOT NULL AND fase_id IN (SELECT id FROM fasi);
     """,
+    # v0.12: una valutazione dei rischi specifici può riguardare più lavorazioni (la vecchia
+    # colonna valutazioni.fase_id resta nel file ma non è più usata).
+    """
+    CREATE TABLE valutazioni_fasi (
+        id INTEGER PRIMARY KEY,
+        valutazione_id INTEGER NOT NULL REFERENCES valutazioni(id) ON DELETE CASCADE,
+        fase_id INTEGER NOT NULL REFERENCES fasi(id) ON DELETE CASCADE,
+        UNIQUE (valutazione_id, fase_id)
+    );
+    INSERT INTO valutazioni_fasi (valutazione_id, fase_id)
+        SELECT id, fase_id FROM valutazioni WHERE fase_id IS NOT NULL AND fase_id IN (SELECT id FROM fasi);
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

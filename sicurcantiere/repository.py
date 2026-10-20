@@ -11,7 +11,7 @@ TABELLE_ELENCO = (
     "soggetti", "imprese", "lavoratori", "fasi", "rischi", "attrezzature",
     "costi", "revisioni", "interventi", "elaborati",
     "valutazioni", "ponteggi", "verifiche_ponteggio", "sostanze", "figure",
-    "mansioni_lavoratori", "sostanze_fasi",
+    "mansioni_lavoratori", "sostanze_fasi", "valutazioni_fasi",
 )
 ORDINAMENTO = {
     "fasi": "data_inizio IS NULL, data_inizio, id",
@@ -137,6 +137,19 @@ class Repository:
             c.execute("DELETE FROM sostanze_fasi WHERE sostanza_id = ?", (sostanza_id,))
             c.executemany("INSERT INTO sostanze_fasi (sostanza_id, fase_id) VALUES (?, ?)",
                           [(sostanza_id, f) for f in sorted(set(fasi))])
+
+    # --- lavorazioni a cui si riferisce una valutazione dei rischi specifici ---
+
+    def fasi_valutazione(self, valutazione_id: int) -> list[int]:
+        righe = self.progetto.query(
+            "SELECT fase_id FROM valutazioni_fasi WHERE valutazione_id = ? ORDER BY fase_id", (valutazione_id,))
+        return [r["fase_id"] for r in righe]
+
+    def salva_fasi_valutazione(self, valutazione_id: int, fasi: list[int] | set[int]) -> None:
+        with self.progetto.transazione() as c:
+            c.execute("DELETE FROM valutazioni_fasi WHERE valutazione_id = ?", (valutazione_id,))
+            c.executemany("INSERT INTO valutazioni_fasi (valutazione_id, fase_id) VALUES (?, ?)",
+                          [(valutazione_id, f) for f in sorted(set(fasi))])
 
     # --- mansioni dei lavoratori ---
 

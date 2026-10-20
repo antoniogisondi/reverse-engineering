@@ -109,15 +109,14 @@ class PannelloClassificazione(QWidget):
         self.testo.setText("".join(parti))
 
 
-class DialogoLavorazioni(QDialog):
-    """Elenco a spunta delle lavorazioni in cui si usa la sostanza."""
+class DialogoFasi(QDialog):
+    """Elenco a spunta delle lavorazioni del cantiere."""
 
-    def __init__(self, repo: Repository, sostanza_id: int, genitore: QWidget | None = None):
+    def __init__(self, repo: Repository, scelte: set[int], titolo: str, intestazione: str,
+                 genitore: QWidget | None = None):
         super().__init__(genitore)
-        sostanza = repo.leggi("sostanze", sostanza_id) or {}
-        self.setWindowTitle("Lavorazioni in cui si usa la sostanza")
+        self.setWindowTitle(titolo)
         self.resize(560, 480)
-        scelte = set(repo.fasi_sostanza(sostanza_id))
         imprese = {i["id"]: i["ragione_sociale"] for i in repo.elenco("imprese")}
         self.elenco = QListWidget()
         for f in repo.elenco("fasi"):
@@ -133,8 +132,9 @@ class DialogoLavorazioni(QDialog):
         pulsanti.accepted.connect(self.accept)
         pulsanti.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"<b>{sostanza.get('nome') or 'Sostanza'}</b>: spuntare tutte le lavorazioni "
-                                "in cui viene utilizzata."))
+        etichetta = QLabel(intestazione)
+        etichetta.setWordWrap(True)
+        layout.addWidget(etichetta)
         if not self.elenco.count():
             layout.addWidget(QLabel("Inserire prima le lavorazioni nella pagina «Lavorazioni e rischi»."))
         layout.addWidget(self.elenco)
@@ -143,6 +143,16 @@ class DialogoLavorazioni(QDialog):
     def scelte(self) -> list[int]:
         return [self.elenco.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.elenco.count())
                 if self.elenco.item(i).checkState() == Qt.CheckState.Checked]
+
+
+class DialogoLavorazioni(DialogoFasi):
+    """Lavorazioni in cui si usa la sostanza."""
+
+    def __init__(self, repo: Repository, sostanza_id: int, genitore: QWidget | None = None):
+        sostanza = repo.leggi("sostanze", sostanza_id) or {}
+        super().__init__(repo, set(repo.fasi_sostanza(sostanza_id)), "Lavorazioni in cui si usa la sostanza",
+                         f"<b>{sostanza.get('nome') or 'Sostanza'}</b>: spuntare tutte le lavorazioni "
+                         "in cui viene utilizzata.", genitore)
 
 
 class PaginaSostanze(Pagina):

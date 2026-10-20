@@ -30,10 +30,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sicurcantiere.documenti.valutazione import genera_valutazione
+from sicurcantiere.documenti.valutazione import genera_valutazione, lavorazioni_valutazione
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.pagine import Pagina, _riquadro, primario
+from sicurcantiere.ui.sostanze import DialogoFasi
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
 from sicurcantiere.valutazioni import COLORI, METODI, Campo, Esito, Metodo
 
@@ -259,13 +260,21 @@ class PaginaValutazioni(Pagina):
         super().__init__(repo)
         self.id_: int | None = None
         self.tabella = TabellaCrud(repo, "valutazioni", [
-            Colonna("titolo", "Valutazione", larghezza=220),
+            Colonna("titolo", "Valutazione", larghezza=220, suggerimento=(
+                "Nome che date alla valutazione, per riconoscerla nell'elenco e come titolo "
+                "nella relazione e nel POS (es. «Carico sacchi di cemento in betoniera»).")),
             Colonna("metodo", "Metodo", "scelta", larghezza=290,
                     scelte=lambda: [(k, m.nome) for k, m in METODI.items()]),
-            Colonna("mansione", "Mansione / gruppo omogeneo", larghezza=180),
-            Colonna("fase_id", "Fase", "scelta", larghezza=170, scelte=self._fasi),
+            Colonna("mansione", "Mansione / gruppo omogeneo", larghezza=180, suggerimento=(
+                "Lavoratori esposti allo stesso rischio, a cui si riferisce l'esito "
+                "(es. «Manovali», «Carpentieri»); per il rumore e le vibrazioni è il gruppo "
+                "omogeneo di esposizione.")),
+            Colonna("lavorazioni", "Lavorazioni", "calcolata", larghezza=240,
+                    calcola=lambda r: lavorazioni_valutazione(self.repo, r) or "(nessuna)",
+                    suggerimento="Lavorazioni in cui si presenta il rischio: pulsante «Lavorazioni...»."),
             Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga),
         ], valori_nuovo=lambda: {"metodo": "niosh"})
+        self.tabella.aggiungi_pulsante("Lavorazioni...", self._scegli_lavorazioni)
         self.tabella.selezione_cambiata.connect(self._seleziona)
         self.tabella.modificata.connect(self._riga_modificata)
 
@@ -340,10 +349,20 @@ class PaginaValutazioni(Pagina):
 
     # --- dati ---
 
-    def _fasi(self) -> list[tuple[int | None, str]]:
-        return [(None, "(nessuna)")] + [
-            (f["id"], f"{f['codice']} {f['descrizione']}".strip()) for f in self.repo.elenco("fasi")
-        ]
+    def _scegli_lavorazioni(self) -> None:
+        if self.id_ is None:
+            QMessageBox.information(self, "Lavorazioni", "Selezionare prima la valutazione.")
+            return
+        riga = self.repo.leggi("valutazioni", self.id_)
+        dialogo = DialogoFasi(self.repo, set(self.repo.fasi_valutazione(self.id_)),
+                              "Lavorazioni della valutazione",
+                              f"<b>{riga['titolo'] or 'Valutazione'}</b>: spuntare tutte le lavorazioni "
+                              "in cui si presenta il rischio valutato.", self)
+        if dialogo.exec():
+            self.repo.salva_fasi_valutazione(self.id_, dialogo.scelte())
+            id_ = self.id_
+            self.tabella.ricarica()
+            self.tabella.seleziona(id_)
 
     def _esito_riga(self, riga: dict[str, Any]) -> str:
         metodo = METODI.get(riga["metodo"])

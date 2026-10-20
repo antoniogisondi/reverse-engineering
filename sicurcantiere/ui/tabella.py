@@ -45,6 +45,7 @@ class Colonna:
     minimo: float = 0
     massimo: float = 1_000_000_000
     larghezza: int | None = None
+    suggerimento: str = ""  # spiegazione mostrata passando sull'intestazione
 
 
 def formatta(colonna: Colonna, riga: dict[str, Any]) -> str:
@@ -158,6 +159,9 @@ class TabellaCrud(QWidget):
         self.vista = QTableWidget(0, len(colonne))
         self.vista.setAlternatingRowColors(True)
         self.vista.setHorizontalHeaderLabels([c.titolo for c in colonne])
+        for n, c in enumerate(colonne):
+            if c.suggerimento:
+                self.vista.horizontalHeaderItem(n).setToolTip(c.suggerimento)
         self.vista.setItemDelegate(_Delegato(self))
         self.vista.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.vista.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
