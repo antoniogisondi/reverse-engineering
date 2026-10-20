@@ -162,7 +162,7 @@ class PaginaDocumentiPOS(PaginaDocumenti):
     voce = "POS e controlli"
     documenti = ("pos", "sostanze", "dpi", "tesserini", "schede")
     principale = "pos"
-    controlla = staticmethod(controlli.controlla_pos)
+    controlla = staticmethod(controlli.sincronizza_e_controlla_pos)
 
 
 # --- PiMUS ---
@@ -208,7 +208,7 @@ POS = Edizione(
     estensione=".spo", descrizione_file="Cantiere POS", colore="#2E86C1",
     pagine=(PaginaCantierePOS, PaginaSoggettiPOS, PaginaImpresePOS, PaginaFasiPOS, PaginaValutazioni,
             PaginaSostanze, PaginaDocumentiPOS),
-    azione_principale="Genera POS", controlla=controlli.controlla_pos,
+    azione_principale="Genera POS", controlla=controlli.sincronizza_e_controlla_pos,
 )
 
 PIMUS = Edizione(

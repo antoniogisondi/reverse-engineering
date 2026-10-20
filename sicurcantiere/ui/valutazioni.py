@@ -36,7 +36,7 @@ from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.pagine import Pagina, _riquadro, primario
 from sicurcantiere.ui.sostanze import DialogoFasi
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
-from sicurcantiere.valutazioni import COLORI, METODI, Campo, Esito, Metodo
+from sicurcantiere.valutazioni import COLORI, METODI, Campo, Esito, Metodo, automatiche
 
 # Esempi di descrizione mostrati nel campo vuoto, per metodo.
 ESEMPI = {
@@ -275,6 +275,18 @@ class PaginaValutazioni(Pagina):
             Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga),
         ], valori_nuovo=lambda: {"metodo": "niosh"})
         self.tabella.aggiungi_pulsante("Lavorazioni...", self._scegli_lavorazioni)
+        self.avviso = QLabel()
+        self.avviso.setWordWrap(True)
+        self.avviso.setObjectName("sottotitolo")
+        self.avviso.setVisible(False)
+        spiegazione = QLabel(
+            "Le valutazioni necessarie vengono create in automatico dai rischi delle lavorazioni "
+            "(movimentazione manuale dei carichi, movimenti ripetitivi, rumore, vibrazioni) e ogni "
+            "lavorazione con quel rischio viene collegata: restano da inserire i parametri del metodo.")
+        spiegazione.setWordWrap(True)
+        spiegazione.setObjectName("sottotitolo")
+        self.layout_.addWidget(spiegazione)
+        self.layout_.addWidget(self.avviso)
         self.tabella.selezione_cambiata.connect(self._seleziona)
         self.tabella.modificata.connect(self._riga_modificata)
 
@@ -344,6 +356,7 @@ class PaginaValutazioni(Pagina):
         verticale.setSizes([180, 620])
         self.layout_.addWidget(verticale)
 
+        self._modificato = False
         self._timer = QTimer(self, singleShot=True, interval=500)
         self._timer.timeout.connect(self.salva_in_sospeso)
 
@@ -368,6 +381,8 @@ class PaginaValutazioni(Pagina):
         metodo = METODI.get(riga["metodo"])
         if metodo is None:
             return ""
+        if not json.loads(riga["dati"] or "{}"):
+            return "Da eseguire"
         try:
             esito = metodo.esegui(json.loads(riga["dati"] or "{}"))
         except ValueError:
@@ -410,6 +425,7 @@ class PaginaValutazioni(Pagina):
 
     def _programma_salvataggio(self) -> None:
         if self.id_ is not None:
+            self._modificato = True
             self._timer.start()
 
     def _dati_correnti(self) -> dict[str, Any]:
@@ -422,7 +438,11 @@ class PaginaValutazioni(Pagina):
 
     def salva_in_sospeso(self) -> None:
         self._timer.stop()
-        if self.id_ is None or self.editor.metodo is None or not self.repo.leggi("valutazioni", self.id_):
+        # Si salva solo dopo una modifica: una valutazione appena creata resta «da eseguire»
+        # finché non se ne inseriscono i parametri, anche se viene solo aperta.
+        modificato, self._modificato = self._modificato, False
+        if not modificato or self.id_ is None or self.editor.metodo is None \
+                or not self.repo.leggi("valutazioni", self.id_):
             return
         self.repo.salva_dati_valutazione(self.id_, self._dati_correnti())
         self.repo.aggiorna("valutazioni", self.id_, note=self.note.toPlainText())
@@ -466,7 +486,8 @@ class PaginaValutazioni(Pagina):
         self.editor.imposta(metodo, risultato.dati)
         riga = self.repo.leggi("valutazioni", id_)
         modifiche = {}
-        if not riga["titolo"].strip() and risultato.titolo:
+        automatico = riga["titolo"] in {g.titolo for g in automatiche.GRUPPI}
+        if (automatico or not riga["titolo"].strip()) and risultato.titolo:
             modifiche["titolo"] = risultato.titolo
         if not riga["mansione"].strip() and risultato.mansione:
             modifiche["mansione"] = risultato.mansione
@@ -499,4 +520,7 @@ class PaginaValutazioni(Pagina):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 
     def aggiorna(self) -> None:
+        messaggi = automatiche.sincronizza(self.repo)
+        self.avviso.setText("<br>".join(messaggi))
+        self.avviso.setVisible(bool(messaggi))
         self.tabella.ricarica()

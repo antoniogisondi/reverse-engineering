@@ -185,17 +185,35 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
                 s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: {categoria.nome.lower()}, "
                                                            "valutare la sostituzione e le misure specifiche."))
 
+    from sicurcantiere.valutazioni import automatiche
+
+    for chiave, scoperte in automatiche.fasi_scoperte(repo).items():
+        g = next(x for x in automatiche.GRUPPI if x.chiave == chiave)
+        s.append(Segnalazione(ERRORE, "Valutazioni", f"{g.titolo}: {len(scoperte)} lavorazioni presentano il "
+                                                     "rischio ma non sono coperte da una valutazione."))
     for v in repo.elenco("valutazioni"):
         metodo = METODI.get(v["metodo"])
         if metodo is None:
+            continue
+        if automatiche.da_eseguire(repo, v["id"]):
+            s.append(Segnalazione(ERRORE, "Valutazioni", f"«{v['titolo'] or metodo.nome}»: valutazione da "
+                                                         "eseguire, inserire i parametri del metodo."))
             continue
         esito = metodo.esegui(repo.dati_valutazione(v["id"]))
         if esito.colore in (ROSSO, VIOLA):
             s.append(Segnalazione(AVVISO, "Valutazioni",
                                   f"«{v['titolo'] or metodo.nome}»: {esito.classe.lower()}, "
                                   "attuare le misure indicate e la sorveglianza sanitaria."))
-        if v["fase_id"] is None and v["impresa_id"] is None:
+        if v["impresa_id"] is None and not repo.fasi_valutazione(v["id"]):
             s.append(Segnalazione(AVVISO, "Valutazioni",
                                   f"«{v['titolo'] or metodo.nome}»: non collegata a una fase né a un'impresa, "
                                   "non comparirà nel POS."))
     return s
+
+
+def sincronizza_e_controlla_pos(repo: Repository) -> list[Segnalazione]:
+    """Crea le valutazioni richieste dai rischi delle lavorazioni, poi esegue i controlli del POS."""
+    from sicurcantiere.valutazioni.automatiche import sincronizza
+
+    sincronizza(repo)
+    return controlla_pos(repo)

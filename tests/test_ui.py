@@ -332,7 +332,7 @@ def test_programma_pos(app, tmp_path):
     pv = _pagina(f, PaginaValutazioni)
     f.navigazione.setCurrentRow(f.pagine.index(pv))
     pv.tabella.aggiungi()
-    v = repo.elenco("valutazioni")[0]["id"]
+    v = max(x["id"] for x in repo.elenco("valutazioni"))
     pv.tabella.seleziona(v)
     assert pv.editor.metodo.chiave == "niosh"
     pv.editor.campi["peso"].setValue(30)
@@ -345,7 +345,7 @@ def test_programma_pos(app, tmp_path):
     riga = repo.leggi("valutazioni", v)
     assert riga["titolo"] == "Casseforme" and repo.dati_valutazione(v)["ipotesi_ai"] == ["Ipotesi 1"]
     # Cambio di metodo: l'editor mostra la tabella dei compiti.
-    pv.tabella.salva_cella(0, 1, "ocra")
+    pv.tabella.salva_cella(pv.tabella.vista.currentRow(), 1, "ocra")
     assert pv.editor.metodo.chiave == "ocra" and pv.editor.tabella.rowCount() >= 1
     pv.editor._aggiungi_compito()
     pv.salva_in_sospeso()
@@ -365,7 +365,7 @@ def test_programma_pos(app, tmp_path):
     finally:
         ui_valutazioni.DialogoFasi = originale
     assert {f1, f2} <= set(repo.fasi_valutazione(v)) and len(repo.fasi_valutazione(v)) == len(repo.elenco("fasi"))
-    assert "A Getti; B Massetti" in pv.tabella.vista.item(0, 3).text()
+    assert "A Getti; B Massetti" in pv.tabella.vista.item(pv.tabella.vista.currentRow(), 3).text()
     assert "gruppo" in pv.tabella.vista.horizontalHeaderItem(2).toolTip()
 
     doc = _pagina(f, PaginaDocumenti)

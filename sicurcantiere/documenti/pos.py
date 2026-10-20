@@ -20,10 +20,11 @@ from sicurcantiere.documenti.comune import (
     testo_o_segnaposto,
 )
 from sicurcantiere.documenti.sostanze import aggiungi_sostanze, sostanze_impresa
-from sicurcantiere.documenti.valutazione import aggiungi_valutazione, valutazioni_impresa
+from sicurcantiere.documenti.valutazione import aggiungi_valutazione, lavorazioni_valutazione, valutazioni_impresa
 from sicurcantiere.repository import Repository
 from sicurcantiere.struttura import MACCHINA, struttura_fase
 from sicurcantiere.valutazioni import METODI
+from sicurcantiere.valutazioni.automatiche import da_eseguire
 
 # Sezioni a testo libero del POS, salvate per impresa.
 SEZIONI_POS: list[tuple[str, str]] = [
@@ -112,6 +113,14 @@ def _tabella_rischi(doc, rischi: list[dict]) -> None:
             livello = analisi.livello_rischio(r["probabilita"], r["danno"])
             colore = "F4B6B6" if livello >= 9 else "F9D3A6" if livello >= 6 else "FFF2B3" if livello >= 3 else "D5EFD8"
             stile.ombreggia_cella(riga.cells[1], colore)
+
+
+def _esito_breve(repo: Repository, valutazione: dict) -> list[str]:
+    """Indice e classe della valutazione, o «da eseguire» se i parametri mancano."""
+    if da_eseguire(repo, valutazione["id"]):
+        return ["-", "Valutazione da eseguire"]
+    e = METODI[valutazione["metodo"]].esegui(repo.dati_valutazione(valutazione["id"]))
+    return [e.indice_testo, e.classe]
 
 
 def _icone_dpi(doc, testi: list[str], etichetta: str) -> None:
@@ -364,9 +373,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                        else "Titolo VIII, Capo III del D.Lgs. 81/2008")
         if elenco:
             stile.tabella_colorata(doc, ["Mansione / gruppo omogeneo", "Esposizione", "Esito"], [
-                [v["mansione"] or v["titolo"],
-                 (e := METODI[metodo].esegui(repo.dati_valutazione(v["id"]))).indice_testo, e.classe]
-                for v in elenco])
+                [v["mansione"] or v["titolo"], *_esito_breve(repo, v)] for v in elenco])
             stile.nota(doc, "Il dettaglio dei calcoli e delle misure è riportato nel capitolo delle "
                             "valutazioni dei rischi specifici.")
         if metodo == "rumore" and (sezioni["rumore"].strip() or not elenco):
@@ -415,6 +422,12 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         _icone_dpi(doc, [r["dpi"] for r in struttura["rischi_lavorazione"]], "DPI dell'addetto:")
         if rischi_fase:
             _tabella_rischi(doc, rischi_fase)
+            collegate = [v for v in valutazioni if f["id"] in repo.fasi_valutazione(v["id"])]
+            if collegate:
+                stile.nota(doc, "Rischi specifici valutati con metodo dedicato (capitolo «Valutazioni dei rischi "
+                                "specifici»): " + "; ".join(
+                                    f"{v['titolo'] or METODI[v['metodo']].nome} - {_esito_breve(repo, v)[1]}"
+                                    for v in collegate if v["metodo"] in METODI) + ".")
         else:
             testo_o_segnaposto(doc, "")
 
@@ -425,10 +438,10 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     # --- valutazioni specifiche ---
     if valutazioni:
         stile.capitolo(doc, "Valutazioni dei rischi specifici", "Titoli VI, VIII e IX del D.Lgs. 81/2008")
-        stile.tabella_colorata(doc, ["Valutazione", "Metodo", "Indice", "Classe"], [
-            [v["titolo"] or METODI[v["metodo"]].nome, METODI[v["metodo"]].norma,
-             (e := METODI[v["metodo"]].esegui(repo.dati_valutazione(v["id"]))).indice_testo, e.classe]
-            for v in valutazioni if v["metodo"] in METODI])
+        stile.tabella_colorata(doc, ["Valutazione", "Lavorazioni", "Metodo", "Indice", "Classe"], [
+            [v["titolo"] or METODI[v["metodo"]].nome, lavorazioni_valutazione(repo, v) or "-",
+             METODI[v["metodo"]].norma, *_esito_breve(repo, v)]
+            for v in valutazioni if v["metodo"] in METODI], 8.5, larghezze=[3.6, 4.6, 3.4, 2.2, 3.2])
         for v in valutazioni:
             aggiungi_valutazione(doc, repo, v, livello=2)
 

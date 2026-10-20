@@ -47,6 +47,12 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
     ])
 
     grezzi = repo.dati_valutazione(valutazione["id"])
+    if not grezzi:
+        p = doc.add_paragraph()
+        r = p.add_run("Valutazione da eseguire: la lavorazione presenta questo rischio, ma i parametri "
+                      "del metodo non sono ancora stati inseriti.")
+        r.bold = True
+        return
     if str(grezzi.get("descrizione", "")).strip():
         doc.add_heading("Descrizione dell'attività", livello + 1)
         for paragrafo in str(grezzi["descrizione"]).strip().split("\n"):
