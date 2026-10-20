@@ -1,7 +1,8 @@
 """Archivio delle anagrafiche dell'utente, comune a tutti i cantieri e ai tre programmi.
 
-Contiene le persone (committenti, coordinatori, RSPP, medici competenti, preposti...) e le
-imprese con le loro figure e maestranze, così da non doverle riscrivere in ogni cantiere.
+Contiene le persone (committenti, coordinatori, RSPP, medici competenti, preposti...), le
+imprese con le loro figure e maestranze e le lavorazioni personalizzate (con macchine,
+attrezzi e rischi), così da non doverle riscrivere in ogni cantiere.
 Si trova in un file SQLite nella cartella dei dati dell'utente.
 """
 
@@ -18,6 +19,7 @@ from sicurcantiere.repository import Repository
 
 PERSONA = "persona"
 IMPRESA = "impresa"
+LAVORAZIONE = "lavorazione"
 
 # Campi che non hanno senso fuori dal cantiere di origine.
 _ESCLUSI = {"id", "impresa_id", "affidataria_id", "fase_id"}
@@ -135,3 +137,32 @@ class ArchivioAnagrafiche:
         for l in dati.get("lavoratori", []):
             repo.inserisci("lavoratori", impresa_id=impresa_id, **self._campi(repo, "lavoratori", l))
         return impresa_id
+
+    # --- lavorazioni personalizzate ---
+
+    def salva_lavorazione(self, repo: Repository, fase_id: int, categoria: str = "") -> int:
+        """Salva la fase del cantiere come lavorazione dell'utente, con attrezzature e rischi."""
+        fase = repo.leggi("fasi", fase_id)
+        if fase is None:
+            raise ValueError("Lavorazione inesistente")
+        dati = {
+            "codice": fase["codice"],
+            "descrizione": fase["descrizione"],
+            "incidenza_manodopera": fase["incidenza_manodopera"],
+            "attrezzature": [{"nome": a["nome"], "tipo": a["tipo"]} for a in repo.elenco("attrezzature", fase_id=fase_id)],
+            "rischi": [{k: r[k] for k in ("fonte", "descrizione", "probabilita", "danno", "misure", "dpi")}
+                       for r in repo.elenco("rischi", fase_id=fase_id)],
+        }
+        nome = " ".join(v for v in (fase["codice"], fase["descrizione"]) if v)
+        return self.salva(LAVORAZIONE, nome, dati, categoria)
+
+    @staticmethod
+    def inserisci_lavorazione(repo: Repository, voce: dict[str, Any]) -> int:
+        dati = voce["dati"]
+        fase_id = repo.inserisci("fasi", codice=dati.get("codice", ""), descrizione=dati.get("descrizione", ""),
+                                 incidenza_manodopera=dati.get("incidenza_manodopera", 0))
+        for a in dati.get("attrezzature", []):
+            repo.inserisci("attrezzature", fase_id=fase_id, nome=a["nome"], tipo=a.get("tipo", ""))
+        for r in dati.get("rischi", []):
+            repo.inserisci("rischi", fase_id=fase_id, **r)
+        return fase_id

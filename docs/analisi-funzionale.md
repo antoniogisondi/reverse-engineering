@@ -24,7 +24,7 @@ SicurCantiere le realizza.
 | Redazione di POS (Allegato XV 3.2.1) | `documenti/pos.py`, con dati di impresa e lavoratori | v0.2 |
 | Fascicolo dell'opera (Allegato XVI) | `documenti/fascicolo.py`, schede I, II e III | v0.2 |
 | Notifica preliminare (Allegato XII) | `documenti/notifica.py`, campi ricavati dal progetto | v0.2 |
-| Archivio delle fasi di lavoro per macrocategorie (nuove costruzioni, ristrutturazioni, infrastrutture, restauro) | `archivio.py`: lavorazioni con categoria, macchine e attrezzi, rischi, misure, DPI | v0.2 |
+| Archivio delle fasi di lavoro per tipologia di intervento e categoria, con lavorazioni personalizzate dell'utente | `archivio.py` (tipologie e categorie), nodo UTENTE in `archivio_utente.py` | v0.8 |
 | Archivio di macchine e attrezzi con i loro rischi | `archivio.py`, `ATTREZZATURE`: i rischi della macchina vengono importati insieme alla fase | v0.2 |
 | Personalizzazione delle lavorazioni (rischi, misure, attrezzature) | Tabelle modificabili nella pagina Fasi | v0.2 |
 | Gantt analitico: importo, incidenza della manodopera, squadra → durata | `analisi.durata_stimata`, pulsante "Calcola durata" | v0.2 |
@@ -92,3 +92,9 @@ anagrafica dell'impresa con posizioni INAIL e Cassa edile, codice ATECO, tipolog
 lavori; responsabili con qualifica e recapiti; nota quando il datore di lavoro svolge i compiti di
 RSPP; committente "nella persona di". I compiti delle figure riportati nel POS sono scritti da zero
 come sintesi degli articoli del D.Lgs. 81/2008.
+
+### Archivio delle lavorazioni
+L'organizzazione per tipologia di intervento e per categoria riprende quella comune ai software del
+settore, nota dalle schermate fornite dall'utente. Dagli archivi commerciali si possono prendere solo
+i **titoli** delle lavorazioni, come elenco di cosa coprire. Descrizioni, rischi, misure e DPI si
+scrivono da zero a partire dal D.Lgs. 81/2008 e dalle norme tecniche, senza ricopiare le schede.

@@ -39,7 +39,8 @@ from PySide6.QtWidgets import (
 )
 
 from sicurcantiere import anagrafiche, analisi, controlli
-from sicurcantiere.archivio import ATTREZZATURE, per_categoria
+from sicurcantiere.archivio import ATTREZZATURE, TIPOLOGIE, per_categoria
+from sicurcantiere.archivio_utente import LAVORAZIONE, ArchivioAnagrafiche
 from sicurcantiere.documenti.comune import euro
 from sicurcantiere.documenti.fascicolo import genera_fascicolo
 from sicurcantiere.documenti.maestranze import genera_schede_lavoratori, genera_tesserini
@@ -509,44 +510,99 @@ def _valida_fase(fase: dict) -> str | None:
 
 
 class DialogoArchivio(QDialog):
+    """Archivio delle lavorazioni per tipologia di intervento e categoria, più quelle dell'utente."""
+
+    TUTTE = "Tutte le tipologie"
+
     def __init__(self, genitore: QWidget | None = None):
         super().__init__(genitore)
         self.setWindowTitle("Importa lavorazioni dall'archivio")
-        self.resize(640, 520)
+        self.resize(700, 600)
+        self.tipologia = QComboBox()
+        self.tipologia.addItems([self.TUTTE] + TIPOLOGIE)
+        self.tipologia.currentIndexChanged.connect(self._popola)
         self.filtro = QLineEdit()
         self.filtro.setPlaceholderText("Cerca una lavorazione...")
         self.filtro.textChanged.connect(self._filtra)
         self.albero = QTreeWidget()
         self.albero.setHeaderLabels(["Lavorazione", "Macchine e attrezzi"])
-        self.albero.setColumnWidth(0, 360)
-        for categoria, lavorazioni in per_categoria().items():
-            nodo = QTreeWidgetItem([categoria])
-            nodo.setFlags(nodo.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
-            self.albero.addTopLevelItem(nodo)
-            for lav in lavorazioni:
-                item = QTreeWidgetItem([f"{lav['codice']}  {lav['descrizione']}",
-                                        ", ".join(lav["attrezzature"])])
-                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                item.setCheckState(0, Qt.CheckState.Unchecked)
-                item.setData(0, Qt.ItemDataRole.UserRole, lav)
-                nodo.addChild(item)
-        self.albero.expandAll()
+        self.albero.setColumnWidth(0, 380)
+        self._spuntate: set[str] = set()
+        self.albero.itemChanged.connect(self._ricorda)
+        elimina = QPushButton("Elimina dalle lavorazioni utente")
+        elimina.clicked.connect(self._elimina_utente)
         pulsanti = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         pulsanti.accepted.connect(self.accept)
         pulsanti.rejected.connect(self.reject)
+        riga = QHBoxLayout()
+        riga.addWidget(QLabel("Tipologia:"))
+        riga.addWidget(self.tipologia, 1)
+        basso = QHBoxLayout()
+        basso.addWidget(elimina)
+        basso.addStretch()
+        basso.addWidget(pulsanti)
         layout = QVBoxLayout(self)
+        layout.addLayout(riga)
         layout.addWidget(QLabel("Selezionare le lavorazioni da aggiungere al cantiere:"))
         layout.addWidget(self.filtro)
         layout.addWidget(self.albero)
-        layout.addWidget(pulsanti)
+        layout.addLayout(basso)
+        self._popola()
+
+    @staticmethod
+    def _chiave(dati: dict) -> str:
+        return ("utente:" + str(dati["id"])) if "dati" in dati else ("base:" + dati["codice"])
+
+    def _popola(self) -> None:
+        self.albero.blockSignals(True)
+        self.albero.clear()
+        tipologia = self.tipologia.currentText()
+        for categoria, lavorazioni in per_categoria(None if tipologia == self.TUTTE else tipologia).items():
+            nodo = QTreeWidgetItem(self.albero, [categoria])
+            for lav in lavorazioni:
+                self._foglia(nodo, f"{lav['codice']}  {lav['descrizione']}", ", ".join(lav["attrezzature"]), lav)
+        archivio = ArchivioAnagrafiche()
+        try:
+            utente = archivio.elenco(LAVORAZIONE)
+        finally:
+            archivio.chiudi()
+        nodo = QTreeWidgetItem(self.albero, ["UTENTE - lavorazioni personalizzate"])
+        font = nodo.font(0)
+        font.setBold(True)
+        nodo.setFont(0, font)
+        if not utente:
+            vuoto = QTreeWidgetItem(nodo, ["(nessuna: in «Lavorazioni» usare «Salva nell'archivio utente»)"])
+            vuoto.setDisabled(True)
+        for voce in utente:
+            self._foglia(nodo, voce["nome"], ", ".join(a["nome"] for a in voce["dati"].get("attrezzature", [])), voce)
+        self.albero.expandAll()
+        self.albero.blockSignals(False)
+        self._filtra(self.filtro.text())
+
+    def _foglia(self, nodo: QTreeWidgetItem, testo: str, attrezzi: str, dati: dict) -> None:
+        item = QTreeWidgetItem(nodo, [testo, attrezzi])
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setCheckState(0, Qt.CheckState.Checked if self._chiave(dati) in self._spuntate
+                           else Qt.CheckState.Unchecked)
+        item.setData(0, Qt.ItemDataRole.UserRole, dati)
+
+    def _ricorda(self, item: QTreeWidgetItem, _colonna: int) -> None:
+        dati = item.data(0, Qt.ItemDataRole.UserRole)
+        if dati:
+            chiave = self._chiave(dati)
+            if item.checkState(0) == Qt.CheckState.Checked:
+                self._spuntate.add(chiave)
+            else:
+                self._spuntate.discard(chiave)
 
     def _foglie(self):
         for i in range(self.albero.topLevelItemCount()):
             nodo = self.albero.topLevelItem(i)
             for j in range(nodo.childCount()):
-                yield nodo, nodo.child(j)
+                if nodo.child(j).data(0, Qt.ItemDataRole.UserRole):
+                    yield nodo, nodo.child(j)
 
     def _filtra(self, testo: str) -> None:
         testo = testo.lower().strip()
@@ -557,7 +613,23 @@ class DialogoArchivio(QDialog):
             visibili[id(nodo)] = visibili.get(id(nodo), False) or mostra
         for i in range(self.albero.topLevelItemCount()):
             nodo = self.albero.topLevelItem(i)
-            nodo.setHidden(not visibili.get(id(nodo), False))
+            nodo.setHidden(bool(testo) and not visibili.get(id(nodo), False))
+
+    def _elimina_utente(self) -> None:
+        item = self.albero.currentItem()
+        dati = item.data(0, Qt.ItemDataRole.UserRole) if item else None
+        if not dati or "dati" not in dati:
+            QMessageBox.information(self, "Archivio", "Selezionare una lavorazione del nodo UTENTE.")
+            return
+        if QMessageBox.question(self, "Archivio", f"Eliminare «{dati['nome']}» dalle lavorazioni utente?") \
+                == QMessageBox.StandardButton.Yes:
+            archivio = ArchivioAnagrafiche()
+            try:
+                archivio.elimina(dati["id"])
+            finally:
+                archivio.chiudi()
+            self._spuntate.discard(self._chiave(dati))
+            self._popola()
 
     def selezionate(self) -> list[dict]:
         return [item.data(0, Qt.ItemDataRole.UserRole) for _, item in self._foglie()
@@ -591,6 +663,7 @@ class PaginaFasi(Pagina):
         calcola.clicked.connect(self._calcola_durata)
         self.fasi.pulsanti.insertWidget(2, archivio)
         self.fasi.pulsanti.insertWidget(3, calcola)
+        self.fasi.aggiungi_pulsante("Salva nell'archivio utente", self._salva_in_archivio)
 
         self.rischi = TabellaCrud(repo, "rischi", [
             Colonna("descrizione", "Rischio", "testo_lungo"),
@@ -686,11 +759,30 @@ class PaginaFasi(Pagina):
             return
         ultima = None
         for lav in dialogo.selezionate():
-            ultima = self.repo.importa_lavorazione(lav)
+            if "dati" in lav:  # lavorazione dell'archivio utente
+                ultima = ArchivioAnagrafiche.inserisci_lavorazione(self.repo, lav)
+            else:
+                ultima = self.repo.importa_lavorazione(lav)
         self.fasi.ricarica()
         if ultima is not None:
             self.fasi.seleziona(ultima)
         self._aggiorna_gantt()
+
+    def _salva_in_archivio(self) -> None:
+        fase = self.fasi.id_selezionato()
+        if fase is None:
+            QMessageBox.information(self, "Archivio", "Selezionare prima la lavorazione da salvare.")
+            return
+        archivio = ArchivioAnagrafiche()
+        try:
+            archivio.salva_lavorazione(self.repo, fase)
+        except ValueError as e:
+            QMessageBox.warning(self, "Archivio", str(e))
+            return
+        finally:
+            archivio.chiudi()
+        QMessageBox.information(self, "Archivio", "Lavorazione salvata nel nodo UTENTE dell'archivio, con "
+                                                  "macchine, attrezzi e rischi: si ritrova in «Importa da archivio».")
 
     def _aggiungi_attrezzatura(self) -> None:
         fase = self.fasi.id_selezionato()

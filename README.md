@@ -45,9 +45,12 @@ archivi o contenuti di software commerciali.
 - **Archivio anagrafiche** comune a tutti i cantieri e ai tre programmi: persone (committenti,
   coordinatori, RSPP, medici, preposti...) e imprese con figure e maestranze si salvano una volta e si
   riprendono con «Dall'archivio...» (menu Strumenti > Archivio anagrafiche per consultarlo)
-- **Archivio** di 27 lavorazioni in 5 categorie (allestimento, nuove costruzioni,
-  ristrutturazioni, infrastrutture, restauro) e di 21 macchine, attrezzi e opere
-  provvisionali. Ognuna ha i propri rischi, che vengono importati con la fase
+- **Archivio** di 27 lavorazioni e 21 macchine, attrezzi e opere provvisionali, filtrabile per
+  tipologia di intervento (nuove costruzioni, ristrutturazioni, opere infrastrutturali, restauri) e
+  ordinato per categoria (allestimento, demolizioni, movimento terra, strutture, copertura, facciata,
+  opere interne, impianti, urbanizzazione, ripristini). Ogni voce ha i propri rischi, importati con la
+  fase. Nodo **UTENTE** con le lavorazioni personalizzate salvate da un cantiere («Salva nell'archivio
+  utente») e riutilizzabili negli altri
 - **Gantt analitico**: per ogni fase importo, incidenza della manodopera e squadra
   → uomini-giorno e durata; grafici di **affollamento** e **pericolosità**
 - **Interferenze** tra imprese diverse nella stessa zona, ordinate per gravità, con
@@ -160,7 +163,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 
 ## Prossimi passi
 
-- Archivio delle lavorazioni modificabile dall'utente
+- Ampliamento dell'archivio delle lavorazioni (contenuti scritti da zero)
 - DUVRI, PSS, piano di emergenza
 - Altre valutazioni specifiche: rischio chimico
 - Esportazione dei costi in Excel

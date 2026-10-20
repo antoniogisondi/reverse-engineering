@@ -564,3 +564,31 @@ def test_mansioni_tesserini_e_schede(repo, tmp_path):
     repo.elimina("lavoratori", autonomo)
     repo.elimina("fasi", fase["id"])
     assert not repo.mansioni(l)  # cancellate a cascata con la fase
+
+
+def test_archivio_tipologie_e_lavorazioni_utente(repo, tmp_path):
+    from sicurcantiere.archivio import TIPOLOGIE, per_categoria
+    from sicurcantiere.archivio_utente import LAVORAZIONE, ArchivioAnagrafiche
+
+    tutte = sum(len(v) for v in per_categoria().values())
+    assert tutte == len(LAVORAZIONI)
+    for t in TIPOLOGIE:
+        gruppi = per_categoria(t)
+        assert gruppi and all(t in l["tipologie"] for v in gruppi.values() for l in v)
+    assert "Lavori di urbanizzazione e stradali" not in per_categoria("Restauri")
+
+    fase = repo.importa_lavorazione(lav("NC.03"))
+    repo.aggiorna("fasi", fase, descrizione="Pilastri e travi in c.a. (personalizzata)")
+    repo.inserisci("rischi", fase_id=fase, descrizione="Rischio aggiunto dall'utente", misure="Misura")
+    archivio = ArchivioAnagrafiche(tmp_path / "a.db")
+    archivio.salva_lavorazione(repo, fase)
+    voce = archivio.elenco(LAVORAZIONE)[0]
+    assert voce["nome"] == "NC.03 Pilastri e travi in c.a. (personalizzata)"
+    altro = Repository(Progetto(tmp_path / "x.spo", crea=True))
+    nuova = archivio.inserisci_lavorazione(altro, voce)
+    assert altro.leggi("fasi", nuova)["descrizione"].endswith("(personalizzata)")
+    assert len(altro.elenco("rischi", fase_id=nuova)) == len(repo.elenco("rischi", fase_id=fase))
+    assert {a["nome"] for a in altro.elenco("attrezzature", fase_id=nuova)} == \
+        {a["nome"] for a in repo.elenco("attrezzature", fase_id=fase)}
+    archivio.chiudi()
+    altro.progetto.chiudi()

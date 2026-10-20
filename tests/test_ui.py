@@ -426,3 +426,29 @@ def test_pagina_sostanze(app, tmp_path, monkeypatch):
     assert s["nome"] == "Cemento CEM II" and s["data_sds"] == "2024-02-01"  # dati del PDF mantenuti
     assert s["codici_h"] == "H315, H317, H318, H335, H319"
     f.close()
+
+
+def test_dialogo_archivio_lavorazioni(app, tmp_path):
+    from sicurcantiere.archivio_utente import ArchivioAnagrafiche
+    from sicurcantiere.ui.pagine import DialogoArchivio
+
+    p = Progetto(tmp_path / "a.spo", crea=True)
+    r = Repository(p)
+    fase = r.importa_lavorazione(LAVORAZIONI[0])
+    archivio = ArchivioAnagrafiche()
+    archivio.salva_lavorazione(r, fase)
+    archivio.chiudi()
+    d = DialogoArchivio()
+    nodi = [d.albero.topLevelItem(i).text(0) for i in range(d.albero.topLevelItemCount())]
+    assert nodi[0] == "Allestimento e smobilizzo del cantiere" and nodi[-1].startswith("UTENTE")
+    utente = d.albero.topLevelItem(d.albero.topLevelItemCount() - 1)
+    utente.child(0).setCheckState(0, QtCore.Qt.CheckState.Checked)
+    d.tipologia.setCurrentText("Restauri")  # la spunta resta dopo il cambio di tipologia
+    nodi = [d.albero.topLevelItem(i).text(0) for i in range(d.albero.topLevelItemCount())]
+    assert "Lavori di urbanizzazione e stradali" not in nodi
+    scelte = d.selezionate()
+    assert len(scelte) == 1 and "dati" in scelte[0]
+    d.filtro.setText("gru a torre")
+    assert not d.albero.topLevelItem(0).isHidden()
+    d.deleteLater()
+    p.chiudi()

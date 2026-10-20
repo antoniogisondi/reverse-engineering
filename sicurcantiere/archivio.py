@@ -11,13 +11,52 @@ from typing import Any
 
 DPI_BASE = "Casco, scarpe antinfortunistiche, guanti, indumenti ad alta visibilità"
 
+# Tipologie di intervento: filtrano l'archivio nella finestra di importazione.
+TIPOLOGIE = ["Nuove costruzioni", "Ristrutturazioni", "Opere infrastrutturali", "Restauri"]
+
+# Categorie (macrogruppi di lavorazioni) in ordine di presentazione.
 CATEGORIE = [
-    "Allestimento e smobilizzo",
-    "Nuove costruzioni",
-    "Ristrutturazioni",
-    "Opere infrastrutturali",
-    "Restauro",
+    "Allestimento e smobilizzo del cantiere",
+    "Demolizioni e rimozioni",
+    "Lavori di movimento terra",
+    "Lavori strutturali",
+    "Opere edili in copertura",
+    "Opere edili in facciata",
+    "Opere edili interne",
+    "Impianti tecnici per edifici",
+    "Lavori di urbanizzazione e stradali",
+    "Ripristini e restauri",
 ]
+
+# Codice della lavorazione -> categoria e tipologie in cui compare.
+_CLASSIFICAZIONE: dict[str, tuple[str, tuple[str, ...]]] = {
+    "AL": ("Allestimento e smobilizzo del cantiere", tuple(TIPOLOGIE)),
+    "SM": ("Allestimento e smobilizzo del cantiere", tuple(TIPOLOGIE)),
+    "NC.01": ("Lavori di movimento terra", ("Nuove costruzioni", "Ristrutturazioni", "Opere infrastrutturali")),
+    "NC.02": ("Lavori strutturali", ("Nuove costruzioni", "Ristrutturazioni")),
+    "NC.03": ("Lavori strutturali", ("Nuove costruzioni", "Ristrutturazioni")),
+    "NC.04": ("Lavori strutturali", ("Nuove costruzioni", "Ristrutturazioni")),
+    "NC.05": ("Opere edili in facciata", ("Nuove costruzioni", "Ristrutturazioni")),
+    "NC.06": ("Opere edili in copertura", ("Nuove costruzioni", "Ristrutturazioni")),
+    "NC.07": ("Impianti tecnici per edifici", ("Nuove costruzioni", "Ristrutturazioni", "Restauri")),
+    "NC.08": ("Impianti tecnici per edifici", ("Nuove costruzioni", "Ristrutturazioni", "Restauri")),
+    "NC.09": ("Opere edili interne", ("Nuove costruzioni", "Ristrutturazioni", "Restauri")),
+    "NC.10": ("Opere edili interne", ("Nuove costruzioni", "Ristrutturazioni", "Restauri")),
+    "NC.11": ("Opere edili interne", ("Nuove costruzioni", "Ristrutturazioni", "Restauri")),
+    "NC.12": ("Opere edili interne", ("Nuove costruzioni", "Ristrutturazioni")),
+    "RI.01": ("Demolizioni e rimozioni", ("Ristrutturazioni", "Restauri")),
+    "RI.02": ("Demolizioni e rimozioni", ("Ristrutturazioni", "Restauri")),
+    "RI.03": ("Lavori strutturali", ("Ristrutturazioni", "Restauri")),
+    "RI.04": ("Opere edili in copertura", ("Ristrutturazioni", "Restauri")),
+    "RI.05": ("Opere edili in facciata", ("Ristrutturazioni",)),
+    "IN.01": ("Lavori di movimento terra", ("Opere infrastrutturali", "Nuove costruzioni")),
+    "IN.02": ("Lavori di urbanizzazione e stradali", ("Opere infrastrutturali", "Nuove costruzioni")),
+    "IN.03": ("Lavori di urbanizzazione e stradali", ("Opere infrastrutturali",)),
+    "IN.04": ("Lavori di urbanizzazione e stradali", ("Opere infrastrutturali",)),
+    "RS.01": ("Ripristini e restauri", ("Restauri", "Ristrutturazioni")),
+    "RS.02": ("Ripristini e restauri", ("Restauri", "Ristrutturazioni")),
+    "RS.03": ("Opere edili in copertura", ("Restauri",)),
+}
 
 
 def _r(descrizione: str, p: int, d: int, misure: str, dpi: str = DPI_BASE) -> dict[str, Any]:
@@ -126,12 +165,14 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
 }
 
 
-def _lav(categoria: str, codice: str, descrizione: str, incidenza: float,
+def _lav(codice: str, descrizione: str, incidenza: float,
          attrezzature: list[str], rischi: list[dict[str, Any]]) -> dict[str, Any]:
     for nome in attrezzature:
         assert nome in ATTREZZATURE, nome
+    categoria, tipologie = _CLASSIFICAZIONE.get(codice) or _CLASSIFICAZIONE[codice[:2]]
     return {
         "categoria": categoria,
+        "tipologie": tipologie,
         "codice": codice,
         "descrizione": descrizione,
         "incidenza_manodopera": incidenza,
@@ -150,16 +191,14 @@ _CADUTA_MATERIALE = _r("Caduta di materiale dall'alto", 3, 3,
 _POLVERI = _r("Polveri", 3, 2, "Bagnatura; aspirazione; taglio a umido.",
               DPI_BASE + ", mascherina FFP2, occhiali")
 
-_A, _N, _R, _I, _S = CATEGORIE
-
 LAVORAZIONI: list[dict[str, Any]] = [
     # --- Allestimento e smobilizzo ---
-    _lav(_A, "AL.01", "Allestimento e recinzione del cantiere", 50, ["Autocarro", "Utensili manuali"], [
+    _lav("AL.01", "Allestimento e recinzione del cantiere", 50, ["Autocarro", "Utensili manuali"], [
         _r("Investimento da mezzi in manovra", 2, 4,
            "Delimitare le aree di manovra; segnaletica; moviere a terra durante le manovre in retromarcia."),
         _MMC,
     ]),
-    _lav(_A, "AL.02", "Montaggio e smontaggio di ponteggio metallico fisso", 70,
+    _lav("AL.02", "Montaggio e smontaggio di ponteggio metallico fisso", 70,
          ["Autocarro", "Utensili manuali"], [
         _r("Caduta dall'alto durante il montaggio", 3, 4,
            "Montaggio secondo PiMUS e autorizzazione ministeriale; lavoratori formati (Allegato XXI); "
@@ -169,36 +208,36 @@ LAVORAZIONI: list[dict[str, Any]] = [
         _r("Elettrocuzione per vicinanza a linee aeree", 1, 4,
            "Rispettare le distanze dell'Allegato IX; se non possibile chiedere il distacco all'ente gestore."),
     ]),
-    _lav(_A, "AL.03", "Installazione della gru a torre", 40, ["Autogru", "Utensili manuali"], [
+    _lav("AL.03", "Installazione della gru a torre", 40, ["Autogru", "Utensili manuali"], [
         _CADUTA_ALTO, _CADUTA_MATERIALE,
         _r("Cedimento del basamento", 1, 4, "Basamento calcolato da tecnico abilitato; verifica del terreno."),
     ]),
-    _lav(_A, "AL.04", "Impianto elettrico e di terra del cantiere", 60, ["Trapano elettrico", "Utensili manuali"], [
+    _lav("AL.04", "Impianto elettrico e di terra del cantiere", 60, ["Trapano elettrico", "Utensili manuali"], [
         _r("Elettrocuzione", 2, 4,
            "Quadri ASC certificati; interruttori differenziali; impianto di terra verificato; "
            "impresa abilitata con dichiarazione di conformità.",
            DPI_BASE + ", guanti isolanti"),
     ]),
-    _lav(_A, "SM.01", "Smobilizzo del cantiere", 50, ["Autocarro", "Utensili manuali"], [
+    _lav("SM.01", "Smobilizzo del cantiere", 50, ["Autocarro", "Utensili manuali"], [
         _r("Investimento da mezzi in manovra", 2, 4, "Moviere durante le manovre; area delimitata."),
         _MMC,
     ]),
     # --- Nuove costruzioni ---
-    _lav(_N, "NC.01", "Scavo di sbancamento e a sezione aperta", 25, ["Escavatore", "Autocarro"], [
+    _lav("NC.01", "Scavo di sbancamento e a sezione aperta", 25, ["Escavatore", "Autocarro"], [
         _r("Seppellimento per franamento delle pareti", 2, 4,
            "Pendenza delle pareti adeguata al terreno o armature; nessun deposito sul ciglio; verifica dopo le piogge."),
         _r("Caduta nello scavo", 3, 3, "Parapetti o delimitazione del ciglio; accessi con scale vincolate."),
         _r("Contatto con sottoservizi", 2, 4,
            "Rilievo preventivo dei sottoservizi presso gli enti gestori; scavo a mano in prossimità."),
     ]),
-    _lav(_N, "NC.02", "Fondazioni in cemento armato", 35,
+    _lav("NC.02", "Fondazioni in cemento armato", 35,
          ["Autobetoniera", "Autopompa per calcestruzzo", "Sega circolare", "Utensili manuali"], [
         _r("Punture e tagli da ferri di armatura", 3, 2, "Proteggere le estremità dei ferri di ripresa."),
         _r("Contatto con il calcestruzzo (dermatiti)", 3, 2, "Evitare il contatto con la pelle; lavaggio immediato.",
            DPI_BASE + ", stivali e guanti impermeabili"),
         _r("Caduta nello scavo di fondazione", 2, 3, "Passerelle con parapetto; ciglio delimitato."),
     ]),
-    _lav(_N, "NC.03", "Strutture in elevazione in cemento armato", 40,
+    _lav("NC.03", "Strutture in elevazione in cemento armato", 40,
          ["Gru a torre", "Autopompa per calcestruzzo", "Sega circolare", "Ponteggio metallico fisso"], [
         _CADUTA_ALTO, _CADUTA_MATERIALE,
         _r("Crollo delle casseforme o dei puntelli", 2, 4,
@@ -206,19 +245,19 @@ LAVORAZIONI: list[dict[str, Any]] = [
         _r("Vibrazioni e rumore da vibratore per calcestruzzo", 3, 2, "Rotazione degli addetti.",
            DPI_BASE + ", otoprotettori"),
     ]),
-    _lav(_N, "NC.04", "Solai in latero-cemento", 45,
+    _lav("NC.04", "Solai in latero-cemento", 45,
          ["Gru a torre", "Autopompa per calcestruzzo", "Ponteggio metallico fisso"], [
         _r("Caduta dall'alto attraverso il solaio o dai bordi", 3, 4,
            "Sottopalchi o reti anticaduta; parapetti perimetrali; non camminare sulle pignatte.",
            DPI_BASE + ", imbracatura"),
         _CADUTA_MATERIALE,
     ]),
-    _lav(_N, "NC.05", "Murature di tamponamento in laterizio", 50,
+    _lav("NC.05", "Murature di tamponamento in laterizio", 50,
          ["Betoniera a bicchiere", "Ponteggio metallico fisso", "Utensili manuali"], [
         _r("Caduta dall'alto", 2, 4, "Lavorare da ponteggio o ponti su cavalletti conformi."),
         _MMC, _POLVERI,
     ]),
-    _lav(_N, "NC.06", "Copertura a falde", 45,
+    _lav("NC.06", "Copertura a falde", 45,
          ["Gru a torre", "Sega circolare", "Ponteggio metallico fisso"], [
         _r("Caduta dall'alto dal bordo e attraverso la copertura", 3, 4,
            "Ponteggio con mantovana; camminamenti sulle superfici non portanti; linee vita.",
@@ -226,38 +265,38 @@ LAVORAZIONI: list[dict[str, Any]] = [
         _CADUTA_MATERIALE,
         _r("Condizioni climatiche avverse", 3, 2, "Sospendere i lavori con vento forte, pioggia o ghiaccio."),
     ]),
-    _lav(_N, "NC.07", "Impianti idrico-sanitari e di riscaldamento", 45,
+    _lav("NC.07", "Impianti idrico-sanitari e di riscaldamento", 45,
          ["Cannello a gas", "Trapano elettrico", "Scala a mano"], [
         _r("Incendio", 1, 4, "Allontanare i materiali infiammabili; controllo dell'area a fine lavoro."),
         _MMC,
     ]),
-    _lav(_N, "NC.08", "Impianto elettrico dell'edificio", 55,
+    _lav("NC.08", "Impianto elettrico dell'edificio", 55,
          ["Trapano elettrico", "Smerigliatrice angolare", "Scala a mano"], [
         _r("Elettrocuzione", 2, 4, "Lavorare fuori tensione; sezionamento e blocco dei quadri; verifica di assenza di tensione."),
         _POLVERI,
     ]),
-    _lav(_N, "NC.09", "Intonaci interni ed esterni", 60,
+    _lav("NC.09", "Intonaci interni ed esterni", 60,
          ["Betoniera a bicchiere", "Trabattello", "Ponteggio metallico fisso"], [
         _r("Caduta dall'alto da ponti su cavalletti o trabattelli", 2, 3, "Opere provvisionali conformi e verificate."),
         _r("Schizzi di malta negli occhi", 3, 2, "Non lavorare sopra la testa senza protezione degli occhi.",
            DPI_BASE + ", occhiali"),
     ]),
-    _lav(_N, "NC.10", "Pavimenti e rivestimenti", 50, ["Smerigliatrice angolare", "Utensili manuali"], [
+    _lav("NC.10", "Pavimenti e rivestimenti", 50, ["Smerigliatrice angolare", "Utensili manuali"], [
         _r("Posture incongrue (lavoro in ginocchio)", 4, 1, "Pause; alternanza delle attività.", DPI_BASE + ", ginocchiere"),
         _r("Contatto con adesivi e prodotti chimici", 2, 2, "Consultare le schede di sicurezza; aerare i locali."),
         _POLVERI,
     ]),
-    _lav(_N, "NC.11", "Tinteggiature", 65, ["Trabattello", "Scala a mano"], [
+    _lav("NC.11", "Tinteggiature", 65, ["Trabattello", "Scala a mano"], [
         _r("Caduta dall'alto", 2, 3, "Trabattelli e scale conformi."),
         _r("Inalazione di vapori e contatto con prodotti chimici", 2, 2,
            "Consultare le schede di sicurezza; ventilazione dei locali.", DPI_BASE + ", mascherina, occhiali"),
     ]),
-    _lav(_N, "NC.12", "Serramenti e opere in ferro", 40,
+    _lav("NC.12", "Serramenti e opere in ferro", 40,
          ["Saldatrice", "Smerigliatrice angolare", "Trapano elettrico"], [
         _MMC, _CADUTA_ALTO,
     ]),
     # --- Ristrutturazioni ---
-    _lav(_R, "RI.01", "Demolizioni parziali di murature e tramezzi", 55,
+    _lav("RI.01", "Demolizioni parziali di murature e tramezzi", 55,
          ["Martello demolitore", "Autocarro", "Utensili manuali"], [
         _r("Crollo di strutture", 2, 4,
            "Programma delle demolizioni (art. 151); puntellamenti; procedere dall'alto verso il basso."),
@@ -265,59 +304,59 @@ LAVORAZIONI: list[dict[str, Any]] = [
         _r("Presenza di amianto", 1, 4,
            "Verifica preliminare dei materiali; se presente, rimozione da impresa iscritta all'albo con piano di lavoro."),
     ]),
-    _lav(_R, "RI.02", "Rimozione di pavimenti e intonaci", 60,
+    _lav("RI.02", "Rimozione di pavimenti e intonaci", 60,
          ["Martello demolitore", "Utensili manuali"], [_POLVERI, _MMC]),
-    _lav(_R, "RI.03", "Consolidamento di solai esistenti", 50,
+    _lav("RI.03", "Consolidamento di solai esistenti", 50,
          ["Trapano elettrico", "Saldatrice", "Utensili manuali"], [
         _r("Crollo del solaio durante l'intervento", 2, 4, "Puntellare il solaio prima dell'intervento; carichi limitati."),
         _CADUTA_ALTO,
     ]),
-    _lav(_R, "RI.04", "Rifacimento del manto di copertura", 45,
+    _lav("RI.04", "Rifacimento del manto di copertura", 45,
          ["Autogru", "Ponteggio metallico fisso", "Utensili manuali"], [
         _r("Caduta dall'alto dal bordo e attraverso la copertura", 3, 4,
            "Parapetti perimetrali o ponteggio con mantovana; camminamenti; linee vita.",
            DPI_BASE + ", imbracatura con cordino"),
         _CADUTA_MATERIALE,
     ]),
-    _lav(_R, "RI.05", "Rifacimento della facciata con cappotto termico", 50,
+    _lav("RI.05", "Rifacimento della facciata con cappotto termico", 50,
          ["Ponteggio metallico fisso", "Trapano elettrico", "Utensili manuali"], [
         _CADUTA_ALTO, _CADUTA_MATERIALE,
         _r("Incendio dei pannelli isolanti", 1, 4, "Nessuna lavorazione a caldo vicino ai pannelli; estintori."),
     ]),
     # --- Opere infrastrutturali ---
-    _lav(_I, "IN.01", "Scavo a sezione obbligata per condotte", 30, ["Escavatore", "Autocarro"], [
+    _lav("IN.01", "Scavo a sezione obbligata per condotte", 30, ["Escavatore", "Autocarro"], [
         _r("Seppellimento", 2, 4, "Armatura delle pareti oltre 1,50 m di profondità (art. 119)."),
         _r("Contatto con sottoservizi", 2, 4, "Rilievo preventivo; scavo a mano in prossimità."),
         _r("Investimento da traffico veicolare", 2, 4,
            "Segnaletica temporanea secondo il D.M. 10/07/2002; movieri; indumenti ad alta visibilità classe 3."),
     ]),
-    _lav(_I, "IN.02", "Posa di condotte e pozzetti", 40, ["Escavatore", "Autogru"], [
+    _lav("IN.02", "Posa di condotte e pozzetti", 40, ["Escavatore", "Autogru"], [
         _r("Schiacciamento durante la posa", 2, 4, "Guidare i tubi con funi; nessuno nello scavo sotto il carico."),
     ]),
-    _lav(_I, "IN.03", "Fresatura e pavimentazione stradale in conglomerato bituminoso", 20,
+    _lav("IN.03", "Fresatura e pavimentazione stradale in conglomerato bituminoso", 20,
          ["Vibrofinitrice", "Rullo compattatore", "Autocarro"], [
         _r("Investimento da traffico veicolare", 3, 4,
            "Segnaletica temporanea; movieri; delimitazione dell'area di lavoro."),
         _r("Ustioni da conglomerato caldo", 2, 2, "Evitare il contatto con il materiale steso; indumenti a maniche lunghe.",
            DPI_BASE + ", scarpe con suola resistente al calore"),
     ]),
-    _lav(_I, "IN.04", "Segnaletica stradale orizzontale e verticale", 50, ["Autocarro", "Utensili manuali"], [
+    _lav("IN.04", "Segnaletica stradale orizzontale e verticale", 50, ["Autocarro", "Utensili manuali"], [
         _r("Investimento da traffico veicolare", 3, 4, "Cantiere mobile segnalato; veicolo con pannello a messaggio."),
     ]),
     # --- Restauro ---
-    _lav(_S, "RS.01", "Pulitura di superfici lapidee e intonaci storici", 70,
+    _lav("RS.01", "Pulitura di superfici lapidee e intonaci storici", 70,
          ["Ponteggio metallico fisso", "Utensili manuali"], [
         _r("Inalazione di prodotti chimici e polveri", 3, 2, "Schede di sicurezza; ventilazione.",
            DPI_BASE + ", mascherina con filtri, occhiali"),
         _CADUTA_ALTO,
     ]),
-    _lav(_S, "RS.02", "Consolidamento di murature con iniezioni", 55,
+    _lav("RS.02", "Consolidamento di murature con iniezioni", 55,
          ["Trapano elettrico", "Ponteggio metallico fisso"], [
         _r("Schizzi di miscela", 3, 2, "Verificare la tenuta di tubi e raccordi prima dell'iniezione.",
            DPI_BASE + ", occhiali, guanti impermeabili"),
         _VIBRAZIONI_MB,
     ]),
-    _lav(_S, "RS.03", "Restauro di elementi lignei di copertura", 60,
+    _lav("RS.03", "Restauro di elementi lignei di copertura", 60,
          ["Ponteggio metallico fisso", "Sega circolare", "Utensili manuali"], [
         _CADUTA_ALTO,
         _r("Esposizione a prodotti antitarlo", 2, 2, "Applicare in ambienti ventilati; schede di sicurezza.",
@@ -326,8 +365,10 @@ LAVORAZIONI: list[dict[str, Any]] = [
 ]
 
 
-def per_categoria() -> dict[str, list[dict[str, Any]]]:
+def per_categoria(tipologia: str | None = None) -> dict[str, list[dict[str, Any]]]:
+    """Lavorazioni raggruppate per categoria, eventualmente solo quelle di una tipologia di intervento."""
     gruppi: dict[str, list[dict[str, Any]]] = {c: [] for c in CATEGORIE}
     for lav in LAVORAZIONI:
-        gruppi[lav["categoria"]].append(lav)
-    return gruppi
+        if tipologia is None or tipologia in lav["tipologie"]:
+            gruppi[lav["categoria"]].append(lav)
+    return {c: l for c, l in gruppi.items() if l}
