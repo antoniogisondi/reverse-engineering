@@ -445,7 +445,7 @@ def test_dialogo_archivio_lavorazioni(app, tmp_path):
     utente.child(0).setCheckState(0, QtCore.Qt.CheckState.Checked)
     d.tipologia.setCurrentText("Restauri")  # la spunta resta dopo il cambio di tipologia
     nodi = [d.albero.topLevelItem(i).text(0) for i in range(d.albero.topLevelItemCount())]
-    assert "Lavori di urbanizzazione e stradali" not in nodi
+    assert "Lavori stradali" not in nodi
     scelte = d.selezionate()
     assert len(scelte) == 1 and "dati" in scelte[0]
     d.filtro.setText("gru a torre")

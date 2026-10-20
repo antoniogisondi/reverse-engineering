@@ -575,7 +575,7 @@ def test_archivio_tipologie_e_lavorazioni_utente(repo, tmp_path):
     for t in TIPOLOGIE:
         gruppi = per_categoria(t)
         assert gruppi and all(t in l["tipologie"] for v in gruppi.values() for l in v)
-    assert "Lavori di urbanizzazione e stradali" not in per_categoria("Restauri")
+    assert "Lavori stradali" not in per_categoria("Restauri")
 
     fase = repo.importa_lavorazione(lav("NC.03"))
     repo.aggiorna("fasi", fase, descrizione="Pilastri e travi in c.a. (personalizzata)")

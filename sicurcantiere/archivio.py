@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import importlib
+
+from sicurcantiere.archivio_dati import base as _base
 from sicurcantiere.archivio_attrezzature import NUOVE as NUOVE_ATTREZZATURE
 from sicurcantiere.archivio_attrezzature import SCHEDE
 
@@ -18,18 +21,7 @@ DPI_BASE = "Casco, scarpe antinfortunistiche, guanti, indumenti ad alta visibili
 TIPOLOGIE = ["Nuove costruzioni", "Ristrutturazioni", "Opere infrastrutturali", "Restauri"]
 
 # Categorie (macrogruppi di lavorazioni) in ordine di presentazione.
-CATEGORIE = [
-    "Allestimento e smobilizzo del cantiere",
-    "Demolizioni e rimozioni",
-    "Lavori di movimento terra",
-    "Lavori strutturali",
-    "Opere edili in copertura",
-    "Opere edili in facciata",
-    "Opere edili interne",
-    "Impianti tecnici per edifici",
-    "Lavori di urbanizzazione e stradali",
-    "Ripristini e restauri",
-]
+CATEGORIE = list(_base.CATEGORIE)
 
 # Codice della lavorazione -> categoria e tipologie in cui compare.
 _CLASSIFICAZIONE: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -53,9 +45,9 @@ _CLASSIFICAZIONE: dict[str, tuple[str, tuple[str, ...]]] = {
     "RI.04": ("Opere edili in copertura", ("Ristrutturazioni", "Restauri")),
     "RI.05": ("Opere edili in facciata", ("Ristrutturazioni",)),
     "IN.01": ("Lavori di movimento terra", ("Opere infrastrutturali", "Nuove costruzioni")),
-    "IN.02": ("Lavori di urbanizzazione e stradali", ("Opere infrastrutturali", "Nuove costruzioni")),
-    "IN.03": ("Lavori di urbanizzazione e stradali", ("Opere infrastrutturali",)),
-    "IN.04": ("Lavori di urbanizzazione e stradali", ("Opere infrastrutturali",)),
+    "IN.02": ("Lavori di urbanizzazione e reti", ("Opere infrastrutturali", "Nuove costruzioni")),
+    "IN.03": ("Lavori stradali", ("Opere infrastrutturali",)),
+    "IN.04": ("Lavori stradali", ("Opere infrastrutturali",)),
     "RS.01": ("Ripristini e restauri", ("Restauri", "Ristrutturazioni")),
     "RS.02": ("Ripristini e restauri", ("Restauri", "Ristrutturazioni")),
     "RS.03": ("Opere edili in copertura", ("Restauri",)),
@@ -492,6 +484,38 @@ _GRUPPI = {
 for _l in LAVORAZIONI:
     if _l["codice"] in _GRUPPI and not _l["gruppo"]:
         _l["gruppo"], _l["addetto"] = _GRUPPI[_l["codice"]]
+
+
+# --- Archivio esteso: moduli per categoria in archivio_dati ---
+
+# Moduli attivi: si aggiungono qui man mano che sono completi e verificati.
+MODULI_ATTREZZATURE: tuple[str, ...] = ()
+MODULI_FASI: tuple[str, ...] = ()
+# Fasi generiche delle prime versioni, sostituite dalle fasi più dettagliate dei moduli.
+SOSTITUITE = {
+    "AL.01", "AL.02", "AL.03", "AL.04", "SM.01",
+    "NC.01", "NC.02", "NC.03", "NC.04", "NC.05", "NC.06", "NC.07", "NC.08", "NC.09", "NC.10", "NC.11", "NC.12",
+    "RI.01", "RI.02", "RI.03", "RI.04", "RI.05", "IN.01", "IN.02", "IN.03", "IN.04", "RS.01", "RS.02", "RS.03",
+}
+
+
+def _carica_moduli() -> None:
+    for nome in MODULI_ATTREZZATURE:
+        modulo = importlib.import_module(f"sicurcantiere.archivio_dati.{nome}")
+        ATTREZZATURE.update(modulo.ATTREZZATURE)
+    fasi = []
+    for nome in MODULI_FASI:
+        fasi += importlib.import_module(f"sicurcantiere.archivio_dati.{nome}").LAVORAZIONI
+    for f in fasi:
+        for a in f["attrezzature"]:
+            assert a in ATTREZZATURE, f"{f['codice']}: attrezzatura senza scheda: {a}"
+    if fasi:
+        LAVORAZIONI[:] = [l for l in LAVORAZIONI if l["codice"] not in SOSTITUITE] + fasi
+    codici = [l["codice"] for l in LAVORAZIONI]
+    assert len(codici) == len(set(codici)), "codici duplicati nell'archivio"
+
+
+_carica_moduli()
 
 
 def per_categoria(tipologia: str | None = None) -> dict[str, list[dict[str, Any]]]:
