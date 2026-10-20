@@ -90,7 +90,11 @@ def calcola_pos(repo: Repository) -> list[Voce]:
         if v["metodo"] in METODI:
             esiti.append(METODI[v["metodo"]].esegui(repo.dati_valutazione(v["id"])))
     critiche = [e for e in esiti if e.colore not in (V_VERDE, V_GIALLO)]
-    periodo = analisi.periodo_lavori(fasi)
+    # Periodo dalle date dei lavori indicate per le imprese; in mancanza, dalle fasi (file del PSC).
+    date_imprese = [(analisi.data(i["data_inizio"]), analisi.data(i["data_fine"])) for i in imprese]
+    date_imprese = [(a, b) for a, b in date_imprese if a and b]
+    periodo = ((min(a for a, _ in date_imprese), max(b for _, b in date_imprese)) if date_imprese
+               else analisi.periodo_lavori(fasi))
     segnalazioni = controlli.controlla_pos(repo)
     errori = sum(1 for s in segnalazioni if s.livello == controlli.ERRORE)
     avvisi = len(segnalazioni) - errori
@@ -103,7 +107,7 @@ def calcola_pos(repo: Repository) -> list[Voce]:
              ERRORE if scadute else OK if lavoratori else ATTENZIONE),
         Voce("durata", "Periodo dei lavori",
              f"{analisi.giorni_lavorativi(*periodo)} gg lavorativi" if periodo else "-",
-             f"{data_it(periodo[0])} - {data_it(periodo[1])}" if periodo else "Date delle lavorazioni mancanti"),
+             f"{data_it(periodo[0])} - {data_it(periodo[1])}" if periodo else "Date dei lavori dell'impresa mancanti"),
         Voce("fasi", "Lavorazioni", str(len(fasi)), f"{len(rischi)} rischi valutati"),
         Voce("rischi", "Rischi alti e molto alti", str(len(alti)), "livello P x D da 9 a 16",
              ATTENZIONE if alti else OK),

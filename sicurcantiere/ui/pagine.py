@@ -654,6 +654,8 @@ class PaginaFasi(Pagina):
     titolo = "Fasi di lavoro e cronoprogramma (Gantt analitico)"
     voce = "Fasi e cronoprogramma"
     icona = "fasi"
+    # Nel PSC importi, squadre, date e Gantt delle fasi; nel POS non servono.
+    cronoprogramma = True
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -664,6 +666,7 @@ class PaginaFasi(Pagina):
                                                              if f["lavorazione"]})]),
             Colonna("descrizione", "Fase di lavoro", larghezza=260),
             Colonna("impresa_id", "Impresa", "scelta", scelte=self._imprese, larghezza=170),
+        ] + ([
             Colonna("zona", "Zona", larghezza=90),
             Colonna("importo", "Importo €", "decimale", larghezza=100),
             Colonna("incidenza_manodopera", "Manodopera %", "decimale", massimo=100, larghezza=115),
@@ -672,14 +675,15 @@ class PaginaFasi(Pagina):
             Colonna("data_fine", "Fine", "data", larghezza=95),
             Colonna("uomini_giorno", "Uomini-giorno", "calcolata",
                     calcola=lambda f: str(analisi.uomini_giorno([f]) or "")),
-        ], valida=_valida_fase)
+        ] if self.cronoprogramma else []), valida=_valida_fase)
         archivio = primario(QPushButton("Importa da archivio..."))
         archivio.clicked.connect(self._importa)
-        calcola = QPushButton("Calcola durata")
-        calcola.setToolTip("Data di fine da importo, incidenza della manodopera, squadra e costo uomo-giorno.")
-        calcola.clicked.connect(self._calcola_durata)
         self.fasi.pulsanti.insertWidget(2, archivio)
-        self.fasi.pulsanti.insertWidget(3, calcola)
+        if self.cronoprogramma:
+            calcola = QPushButton("Calcola durata")
+            calcola.setToolTip("Data di fine da importo, incidenza della manodopera, squadra e costo uomo-giorno.")
+            calcola.clicked.connect(self._calcola_durata)
+            self.fasi.pulsanti.insertWidget(3, calcola)
         self.fasi.aggiungi_pulsante("Salva nell'archivio utente", self._salva_in_archivio)
 
         self.rischi = TabellaCrud(repo, "rischi", [
@@ -760,9 +764,14 @@ class PaginaFasi(Pagina):
 
         divisore = QSplitter(Qt.Orientation.Vertical)
         divisore.addWidget(self.fasi)
-        divisore.addWidget(riquadro_gantt)
+        if self.cronoprogramma:
+            divisore.addWidget(riquadro_gantt)
+        else:
+            # Il cronoprogramma resta figlio della pagina (nascosto) per non essere distrutto.
+            riquadro_gantt.setParent(self)
+            riquadro_gantt.hide()
         divisore.addWidget(self.dettaglio)
-        divisore.setSizes([200, 400, 220])
+        divisore.setSizes([200, 400, 220] if self.cronoprogramma else [300, 450])
         self.layout_.addWidget(divisore)
 
         self.fasi.selezione_cambiata.connect(self._fase_selezionata)

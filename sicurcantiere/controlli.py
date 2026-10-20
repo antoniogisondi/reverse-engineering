@@ -177,7 +177,7 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
             s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: indicazioni di pericolo (frasi H) non inserite."))
         if not so["data_sds"]:
             s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: data della scheda di sicurezza non indicata."))
-        if so["impresa_id"] is None and so["fase_id"] is None:
+        if so["impresa_id"] is None and not repo.fasi_sostanza(so["id"]):
             s.append(Segnalazione(AVVISO, "Sostanze", f"{nome}: non collegata a un'impresa né a una lavorazione, "
                                                        "non comparirà nel POS."))
         for categoria in classificazione.categorie(codici):

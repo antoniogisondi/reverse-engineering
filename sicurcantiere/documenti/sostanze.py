@@ -21,18 +21,24 @@ from sicurcantiere.repository import Repository
 def sostanze_impresa(repo: Repository, impresa_id: int) -> list[dict[str, Any]]:
     """Sostanze dell'impresa, indicate direttamente o tramite una sua lavorazione."""
     fasi = {f["id"] for f in repo.elenco("fasi", impresa_id=impresa_id)}
-    return [s for s in repo.elenco("sostanze") if s["impresa_id"] == impresa_id or s["fase_id"] in fasi]
+    return [s for s in repo.elenco("sostanze")
+            if s["impresa_id"] == impresa_id or fasi & set(repo.fasi_sostanza(s["id"]))]
+
+
+def lavorazioni_sostanza(repo: Repository, sostanza: dict[str, Any]) -> str:
+    """Nomi delle lavorazioni in cui si usa la sostanza, separati da punto e virgola."""
+    fasi = {f["id"]: f for f in repo.elenco("fasi")}
+    return "; ".join(nome_fase(fasi[f]) for f in repo.fasi_sostanza(sostanza["id"]) if f in fasi)
 
 
 def aggiungi_sostanze(doc, repo: Repository, elenco: list[dict[str, Any]], livello: int = 2) -> None:
     if not elenco:
         doc.add_paragraph("Non è previsto l'uso di sostanze o miscele pericolose.")
         return
-    fasi = {f["id"]: f for f in repo.elenco("fasi")}
     righe = []
     for s in elenco:
         codici = sostanze.codici_h(s["codici_h"])
-        uso = s["uso"] or (nome_fase(fasi[s["fase_id"]]) if s["fase_id"] in fasi else "")
+        uso = "; ".join(v for v in (lavorazioni_sostanza(repo, s), s["uso"]) if v)
         righe.append([
             s["nome"], uso,
             ", ".join(f"{p} {sostanze.PITTOGRAMMI[p]}" for p in sostanze.pittogrammi(codici)) or "-",

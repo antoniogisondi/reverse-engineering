@@ -332,6 +332,18 @@ MIGRAZIONI: list[str] = [
     ALTER TABLE attrezzature ADD COLUMN misure TEXT NOT NULL DEFAULT '';
     ALTER TABLE attrezzature ADD COLUMN dpi TEXT NOT NULL DEFAULT '';
     """,
+    # v0.11: una sostanza può essere usata in più lavorazioni (la vecchia colonna sostanze.fase_id
+    # resta nel file ma non è più usata).
+    """
+    CREATE TABLE sostanze_fasi (
+        id INTEGER PRIMARY KEY,
+        sostanza_id INTEGER NOT NULL REFERENCES sostanze(id) ON DELETE CASCADE,
+        fase_id INTEGER NOT NULL REFERENCES fasi(id) ON DELETE CASCADE,
+        UNIQUE (sostanza_id, fase_id)
+    );
+    INSERT INTO sostanze_fasi (sostanza_id, fase_id)
+        SELECT id, fase_id FROM sostanze WHERE fase_id IS NOT NULL AND fase_id IN (SELECT id FROM fasi);
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

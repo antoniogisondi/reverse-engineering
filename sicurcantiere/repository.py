@@ -11,7 +11,7 @@ TABELLE_ELENCO = (
     "soggetti", "imprese", "lavoratori", "fasi", "rischi", "attrezzature",
     "costi", "revisioni", "interventi", "elaborati",
     "valutazioni", "ponteggi", "verifiche_ponteggio", "sostanze", "figure",
-    "mansioni_lavoratori",
+    "mansioni_lavoratori", "sostanze_fasi",
 )
 ORDINAMENTO = {
     "fasi": "data_inizio IS NULL, data_inizio, id",
@@ -124,6 +124,19 @@ class Repository:
         self.aggiorna("valutazioni", id_, dati=json.dumps(dati, ensure_ascii=False, sort_keys=True))
 
     # --- prescrizioni sulle interferenze (coppie di fasi) ---
+
+    # --- lavorazioni in cui si usa una sostanza ---
+
+    def fasi_sostanza(self, sostanza_id: int) -> list[int]:
+        righe = self.progetto.query("SELECT fase_id FROM sostanze_fasi WHERE sostanza_id = ? ORDER BY fase_id",
+                                    (sostanza_id,))
+        return [r["fase_id"] for r in righe]
+
+    def salva_fasi_sostanza(self, sostanza_id: int, fasi: list[int] | set[int]) -> None:
+        with self.progetto.transazione() as c:
+            c.execute("DELETE FROM sostanze_fasi WHERE sostanza_id = ?", (sostanza_id,))
+            c.executemany("INSERT INTO sostanze_fasi (sostanza_id, fase_id) VALUES (?, ?)",
+                          [(sostanza_id, f) for f in sorted(set(fasi))])
 
     # --- mansioni dei lavoratori ---
 

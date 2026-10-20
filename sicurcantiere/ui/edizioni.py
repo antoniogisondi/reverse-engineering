@@ -83,6 +83,7 @@ class PaginaImpresePOS(PaginaImprese):
 class PaginaFasiPOS(PaginaFasi):
     titolo = "Lavorazioni, rischi, macchine e attrezzature"
     voce = "Lavorazioni e rischi"
+    cronoprogramma = False
 
 
 class PaginaDocumentiPOS(PaginaDocumenti):

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -265,9 +264,8 @@ class PaginaValutazioni(Pagina):
                     scelte=lambda: [(k, m.nome) for k, m in METODI.items()]),
             Colonna("mansione", "Mansione / gruppo omogeneo", larghezza=180),
             Colonna("fase_id", "Fase", "scelta", larghezza=170, scelte=self._fasi),
-            Colonna("data", "Data", "data", larghezza=95),
             Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga),
-        ], valori_nuovo=lambda: {"metodo": "niosh", "data": date.today().isoformat()})
+        ], valori_nuovo=lambda: {"metodo": "niosh"})
         self.tabella.selezione_cambiata.connect(self._seleziona)
         self.tabella.modificata.connect(self._riga_modificata)
 

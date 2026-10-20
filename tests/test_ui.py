@@ -283,6 +283,13 @@ def test_programma_pos(app, tmp_path):
     imprese.tabella.seleziona(a)
     assert imprese.dati.valore("ccnl") == "Edilizia - artigianato"
 
+    from sicurcantiere.ui.edizioni import PaginaFasiPOS
+
+    lavorazioni = _pagina(f, PaginaFasiPOS)
+    campi = [c.campo for c in lavorazioni.fasi.colonne]
+    assert "data_inizio" not in campi and "importo" not in campi and "lavorazione" in campi
+    assert lavorazioni.gantt.isHidden() or not lavorazioni.gantt.isVisible()
+
     # Maestranze: dettaglio, DPI, mansioni.
     from sicurcantiere.ui.maestranze import DialogoMansioni
     from sicurcantiere.ui.modulo import DialogoDPI
@@ -425,6 +432,18 @@ def test_pagina_sostanze(app, tmp_path, monkeypatch):
     assert s["produttore"] == "Beta spa" and s["dpi"] == "Guanti"
     assert s["nome"] == "Cemento CEM II" and s["data_sds"] == "2024-02-01"  # dati del PDF mantenuti
     assert s["codici_h"] == "H315, H317, H318, H335, H319"
+    # Più lavorazioni per la stessa sostanza.
+    from sicurcantiere.ui.sostanze import DialogoLavorazioni
+
+    f1 = repo.inserisci("fasi", codice="A", descrizione="Getti")
+    f2 = repo.inserisci("fasi", codice="B", descrizione="Massetti")
+    dialogo = DialogoLavorazioni(repo, s["id"])
+    for i in range(dialogo.elenco.count()):
+        dialogo.elenco.item(i).setCheckState(QtCore.Qt.CheckState.Checked)
+    assert dialogo.scelte() == [f1, f2]
+    repo.salva_fasi_sostanza(s["id"], dialogo.scelte())
+    pagina.tabella.ricarica()
+    assert "A Getti; B Massetti" in pagina.tabella.vista.item(0, 2).text()
     f.close()
 
 

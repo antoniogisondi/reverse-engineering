@@ -185,10 +185,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
 
     doc.add_heading(f"{numero}. Lavorazioni svolte dall'impresa", 1)
     numero += 1
-    tabella(doc, ["Lavorazione", "Zona", "Inizio", "Fine", "Lavoratori"], [
-        [nome_fase(f), f["zona"], data_it(f["data_inizio"]), data_it(f["data_fine"]), str(f["lavoratori"])]
-        for f in fasi
-    ])
+    tabella(doc, ["Lavorazione", "Fase di lavoro"], [[f["lavorazione"], nome_fase(f)] for f in fasi])
 
     doc.add_heading(f"{numero}. Opere provvisionali, macchine e attrezzature", 1)
     numero += 1

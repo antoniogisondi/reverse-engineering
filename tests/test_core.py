@@ -399,8 +399,11 @@ def test_sostanze_nel_pos_e_elenco(repo, tmp_path):
 
     a = _cantiere_completo(repo)
     fase = repo.elenco("fasi")[0]["id"]
-    repo.inserisci("sostanze", fase_id=fase, nome="Cemento Portland", codici_h="H315, H317, H318, H335",
-                   avvertenza="Pericolo", data_sds="2024-03-15", dpi="Guanti nitrile, occhiali a tenuta")
+    altra = repo.inserisci("fasi", codice="X.01", descrizione="Massetti", impresa_id=a)
+    cemento = repo.inserisci("sostanze", nome="Cemento Portland", codici_h="H315, H317, H318, H335",
+                             avvertenza="Pericolo", data_sds="2024-03-15", dpi="Guanti nitrile, occhiali a tenuta")
+    repo.salva_fasi_sostanza(cemento, [fase, altra, fase])
+    assert repo.fasi_sostanza(cemento) == sorted([fase, altra])
     repo.inserisci("sostanze", impresa_id=a, nome="Disarmante", codici_h="H350")
     repo.inserisci("sostanze", nome="Orfano")
     assert [s["nome"] for s in sostanze_impresa(repo, a)] == ["Cemento Portland", "Disarmante"]
@@ -408,6 +411,7 @@ def test_sostanze_nel_pos_e_elenco(repo, tmp_path):
     assert "Sostanze e miscele pericolose" in pos and "Cemento Portland" in pos
     assert "GHS05 Corrosivo" in pos and "Provoca gravi lesioni oculari" in pos
     assert "Guanti nitrile" in pos
+    assert "X.01 Massetti" in pos  # tutte le lavorazioni in cui si usa
     elenco = _testo_docx(genera_elenco_sostanze(repo, a, tmp_path / "sostanze.docx"))
     assert "Cancerogeno o mutageno" in elenco
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
@@ -637,3 +641,23 @@ def test_archivio_esteso_verificato():
     assert set(CATALOGO) <= set(ATTREZZATURE)
     assert all(l["categoria"] in CATEGORIE for l in LAVORAZIONI)
     assert all(a in ATTREZZATURE for l in LAVORAZIONI for a in l["attrezzature"])
+
+
+def test_migrazione_sostanze_su_piu_fasi(tmp_path):
+    import sqlite3
+
+    f = tmp_path / "v7.spo"
+    conn = sqlite3.connect(f)
+    conn.executescript(";".join(MIGRAZIONI[:7]) + ";PRAGMA user_version = 7;")
+    conn.execute("INSERT INTO fasi (id, codice) VALUES (7, 'A')")
+    conn.execute("INSERT INTO sostanze (nome, fase_id) VALUES ('Malta', 7)")
+    conn.execute("INSERT INTO sostanze (nome) VALUES ('Vernice')")
+    conn.commit()
+    conn.close()
+    p = Progetto(f)
+    r = Repository(p)
+    malta, vernice = r.elenco("sostanze")
+    assert r.fasi_sostanza(malta["id"]) == [7] and r.fasi_sostanza(vernice["id"]) == []
+    r.elimina("fasi", 7)
+    assert r.fasi_sostanza(malta["id"]) == []
+    p.chiudi()

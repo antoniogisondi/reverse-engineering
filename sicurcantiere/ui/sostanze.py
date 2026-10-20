@@ -7,9 +7,13 @@ from pathlib import Path
 from PySide6.QtCore import QPointF, QRectF, Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QPainter, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -20,6 +24,8 @@ from PySide6.QtWidgets import (
 )
 
 from sicurcantiere import anagrafiche, sds, sostanze
+from sicurcantiere.documenti.comune import nome_fase
+from sicurcantiere.documenti.sostanze import lavorazioni_sostanza
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.pagine import ModuloRecord, Pagina, primario
@@ -103,6 +109,42 @@ class PannelloClassificazione(QWidget):
         self.testo.setText("".join(parti))
 
 
+class DialogoLavorazioni(QDialog):
+    """Elenco a spunta delle lavorazioni in cui si usa la sostanza."""
+
+    def __init__(self, repo: Repository, sostanza_id: int, genitore: QWidget | None = None):
+        super().__init__(genitore)
+        sostanza = repo.leggi("sostanze", sostanza_id) or {}
+        self.setWindowTitle("Lavorazioni in cui si usa la sostanza")
+        self.resize(560, 480)
+        scelte = set(repo.fasi_sostanza(sostanza_id))
+        imprese = {i["id"]: i["ragione_sociale"] for i in repo.elenco("imprese")}
+        self.elenco = QListWidget()
+        for f in repo.elenco("fasi"):
+            testo = nome_fase(f) or f"Fase n. {f['id']}"
+            if f["impresa_id"] in imprese:
+                testo += f"  ({imprese[f['impresa_id']]})"
+            item = QListWidgetItem(testo)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked if f["id"] in scelte else Qt.CheckState.Unchecked)
+            item.setData(Qt.ItemDataRole.UserRole, f["id"])
+            self.elenco.addItem(item)
+        pulsanti = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        pulsanti.accepted.connect(self.accept)
+        pulsanti.rejected.connect(self.reject)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(f"<b>{sostanza.get('nome') or 'Sostanza'}</b>: spuntare tutte le lavorazioni "
+                                "in cui viene utilizzata."))
+        if not self.elenco.count():
+            layout.addWidget(QLabel("Inserire prima le lavorazioni nella pagina «Lavorazioni e rischi»."))
+        layout.addWidget(self.elenco)
+        layout.addWidget(pulsanti)
+
+    def scelte(self) -> list[int]:
+        return [self.elenco.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.elenco.count())
+                if self.elenco.item(i).checkState() == Qt.CheckState.Checked]
+
+
 class PaginaSostanze(Pagina):
     titolo = "Sostanze e miscele pericolose"
     voce = "Sostanze pericolose"
@@ -114,7 +156,8 @@ class PaginaSostanze(Pagina):
         self.tabella = TabellaCrud(repo, "sostanze", [
             Colonna("nome", "Prodotto", larghezza=220),
             Colonna("impresa_id", "Impresa", "scelta", larghezza=170, scelte=self._imprese),
-            Colonna("fase_id", "Lavorazione", "scelta", larghezza=200, scelte=self._fasi),
+            Colonna("lavorazioni", "Lavorazioni in cui si usa", "calcolata", larghezza=260,
+                    calcola=lambda r: lavorazioni_sostanza(self.repo, r) or "(nessuna)"),
             Colonna("codici_h", "Frasi H", larghezza=180),
             Colonna("avvertenza", "Avvertenza", "scelta", larghezza=100,
                     scelte=lambda: [("", "-"), ("Pericolo", "Pericolo"), ("Attenzione", "Attenzione")]),
@@ -128,6 +171,7 @@ class PaginaSostanze(Pagina):
         self.apri_scheda.clicked.connect(self._apri_scheda)
         self.tabella.pulsanti.insertWidget(2, importa)
         self.tabella.pulsanti.insertWidget(3, self.apri_scheda)
+        self.tabella.aggiungi_pulsante("Lavorazioni...", self._scegli_lavorazioni)
         self.tabella.selezione_cambiata.connect(self._seleziona)
         self.tabella.modificata.connect(self._aggiorna_classificazione)
 
@@ -135,7 +179,7 @@ class PaginaSostanze(Pagina):
             ("produttore", "Produttore / fornitore"),
             ("stato_fisico", "Stato fisico"),
             ("quantita", "Quantità presente in cantiere"),
-            ("uso", "Uso (se diverso dalla lavorazione)"),
+            ("uso", "Altri usi o note sull'uso"),
             ("conservazione", "Conservazione"),
             ("dpi", "DPI (sezione 8 della scheda)"),
             ("misure", "Misure specifiche"),
@@ -157,10 +201,16 @@ class PaginaSostanze(Pagina):
             (i["id"], i["ragione_sociale"] or f"Impresa {i['id']}") for i in self.repo.elenco("imprese")
         ]
 
-    def _fasi(self):
-        return [(None, "(nessuna)")] + [
-            (f["id"], f"{f['codice']} {f['descrizione']}".strip()) for f in self.repo.elenco("fasi")
-        ]
+    def _scegli_lavorazioni(self) -> None:
+        if self.id_ is None:
+            QMessageBox.information(self, "Lavorazioni", "Selezionare prima la sostanza.")
+            return
+        dialogo = DialogoLavorazioni(self.repo, self.id_, self)
+        if dialogo.exec():
+            self.repo.salva_fasi_sostanza(self.id_, dialogo.scelte())
+            id_ = self.id_
+            self.tabella.ricarica()
+            self.tabella.seleziona(id_)
 
     def _valori_nuovo(self) -> dict:
         imprese = [i for i in self.repo.elenco("imprese") if not anagrafiche.autonomo(i)]

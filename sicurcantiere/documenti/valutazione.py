@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from sicurcantiere.documenti.comune import (
-    data_it,
     firma,
     nome_fase,
     nuovo_documento,
@@ -40,7 +39,6 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
         ("Mansione / gruppo omogeneo", valutazione["mansione"]),
         ("Fase di lavoro", nome_fase(fase) if fase else ""),
         ("Impresa", impresa["ragione_sociale"] if impresa else ""),
-        ("Data della valutazione", data_it(valutazione["data"])),
     ])
 
     grezzi = repo.dati_valutazione(valutazione["id"])
