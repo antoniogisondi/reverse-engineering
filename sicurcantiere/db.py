@@ -219,6 +219,68 @@ MIGRAZIONI: list[str] = [
         conservazione TEXT NOT NULL DEFAULT ''
     );
     """,
+    # v0.7: anagrafica dettagliata dell'impresa, figure della sicurezza come elenco,
+    # committente che svolge anche il ruolo di responsabile dei lavori.
+    """
+    ALTER TABLE cantiere ADD COLUMN committente_rl INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE cantiere ADD COLUMN titolo_abilitativo TEXT NOT NULL DEFAULT '';
+    ALTER TABLE cantiere ADD COLUMN cap TEXT NOT NULL DEFAULT '';
+
+    ALTER TABLE soggetti ADD COLUMN qualifica TEXT NOT NULL DEFAULT '';
+    ALTER TABLE soggetti ADD COLUMN rappresentante TEXT NOT NULL DEFAULT '';
+    ALTER TABLE soggetti ADD COLUMN partita_iva TEXT NOT NULL DEFAULT '';
+    ALTER TABLE soggetti ADD COLUMN pec TEXT NOT NULL DEFAULT '';
+
+    ALTER TABLE imprese ADD COLUMN forma_giuridica TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN cap TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN comune TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN provincia TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN email TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN pec TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN recapito_cantiere TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN cciaa TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN ateco TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN inail TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN inps TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN cassa_edile TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN ccnl TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN organico TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN durc_scadenza TEXT;
+    ALTER TABLE imprese ADD COLUMN dvr_data TEXT;
+    ALTER TABLE imprese ADD COLUMN soa TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN certificazioni TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN tipologia_lavori TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN importo_lavori REAL NOT NULL DEFAULT 0;
+    ALTER TABLE imprese ADD COLUMN affidataria_id INTEGER REFERENCES imprese(id) ON DELETE SET NULL;
+    ALTER TABLE imprese ADD COLUMN rspp_datore INTEGER NOT NULL DEFAULT 0;
+    UPDATE imprese SET inail = posizione_inail_inps;
+
+    CREATE TABLE figure (
+        id INTEGER PRIMARY KEY,
+        impresa_id INTEGER NOT NULL REFERENCES imprese(id) ON DELETE CASCADE,
+        ruolo TEXT NOT NULL DEFAULT '',
+        nome TEXT NOT NULL DEFAULT '',
+        qualifica TEXT NOT NULL DEFAULT '',
+        codice_fiscale TEXT NOT NULL DEFAULT '',
+        telefono TEXT NOT NULL DEFAULT '',
+        email TEXT NOT NULL DEFAULT '',
+        formazione TEXT NOT NULL DEFAULT '',
+        formazione_scadenza TEXT
+    );
+    INSERT INTO figure (impresa_id, ruolo, nome)
+        SELECT id, 'RSPP', rspp FROM imprese WHERE trim(rspp) <> '';
+    INSERT INTO figure (impresa_id, ruolo, nome)
+        SELECT id, 'Medico competente', medico_competente FROM imprese WHERE trim(medico_competente) <> '';
+    INSERT INTO figure (impresa_id, ruolo, nome)
+        SELECT id, 'RLS', rls FROM imprese WHERE trim(rls) <> '';
+    INSERT INTO figure (impresa_id, ruolo, nome)
+        SELECT id, 'Preposto', preposto FROM imprese WHERE trim(preposto) <> '';
+    INSERT INTO figure (impresa_id, ruolo, nome)
+        SELECT id, 'Addetto al primo soccorso', addetti_emergenze FROM imprese WHERE trim(addetti_emergenze) <> '';
+    INSERT INTO figure (impresa_id, ruolo, nome)
+        SELECT id, 'Addetto antincendio ed evacuazione', addetti_emergenze FROM imprese
+        WHERE trim(addetti_emergenze) <> '';
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

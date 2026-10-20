@@ -136,3 +136,56 @@ def test_vibrazioni():
     assert wbv.indice == pytest.approx(0.6 * math.sqrt(0.75))
     assert wbv.colore == ROSSO and any("Sedili" in m for m in wbv.misure)
     assert vibrazioni.classe(0.3, "wbv")[1] == VERDE
+
+
+def test_tavole_snook_complete():
+    from sicurcantiere.valutazioni import snook
+
+    colonne = sum(len(i) for _, i in snook.COLONNE_SPINTA_TRAINO)
+    assert all(len(r) == colonne == 35 for righe in snook.SPINTA_TRAINO.values() for r in righe)
+    assert all(len(r) == 21 for righe in snook.TRASPORTO.values() for r in righe)
+    # Femmine, traino, mani a 89 cm, 7,6 m, una volta al minuto.
+    assert snook.forza_raccomandata("traino", "F", "iniziale", 90, 7.6, 60)[0] == 16
+    assert snook.forza_raccomandata("traino", "F", "mantenimento", 90, 7.6, 60)[0] == 9
+    # Scelte prudenziali: 10 m -> 15,2 m; una ogni 3 minuti -> colonna dei 2 minuti.
+    valore, info = snook.forza_raccomandata("spinta", "M", "iniziale", 100, 10, 20)
+    assert valore == 22 and info["distanza"] == 15.2 and info["intervallo"] == 120
+    # Una volta per turno resta nella colonna delle 8 ore.
+    assert snook.forza_raccomandata("spinta", "M", "iniziale", 144, 2, 0.13)[0] == 31
+    with pytest.raises(snook.FuoriTabella):
+        snook.forza_raccomandata("spinta", "M", "iniziale", 95, 2.1, 1000)
+
+
+def test_traino_spinta():
+    azione = {"nome": "Carriola", "tipo": "spinta", "forza_iniziale": 22, "forza_mantenimento": 12,
+              "altezza": 95, "distanza": 15, "frequenza": 20}
+    dati = {"genere": "M", "condizioni": "buone", "compiti": [azione]}
+    esito = METODI["traino_spinta"].esegui(dati)
+    assert esito.indice == pytest.approx(1.0) and esito.colore == GIALLO
+    leggera = {**azione, "forza_iniziale": 11, "forza_mantenimento": 6}
+    assert METODI["traino_spinta"].esegui({**dati, "compiti": [leggera]}).colore == VERDE
+    assert METODI["traino_spinta"].esegui({**dati, "condizioni": "sfavorevoli",
+                                           "compiti": [leggera]}).colore == ROSSO
+    # Popolazione mista: limiti femminili (mantenimento 7 kg), indice 12/7.
+    mista = METODI["traino_spinta"].esegui({**dati, "genere": "F"})
+    assert mista.indice == pytest.approx(12 / 7) and mista.colore == ROSSO
+    fuori = METODI["traino_spinta"].esegui({**dati, "compiti": [{**azione, "distanza": 2, "frequenza": 1000}]})
+    assert math.isinf(fuori.indice) and fuori.colore == VIOLA and fuori.note
+    assert METODI["traino_spinta"].esegui({**dati, "compiti": []}).indice is None
+
+
+def test_trasporto():
+    from sicurcantiere.valutazioni import trasporto
+
+    blocchi = {"nome": "Blocchi", "peso": 12, "frequenza": 3, "durata": 120, "distanza": 5, "altezza": "bassa"}
+    dati = {"lavoratori": "M18-45", "condizioni": "buone", "compiti": [blocchi]}
+    esito = METODI["trasporto"].esegui(dati)
+    # 36 kg/min contro 30 kg/min (distanza fino a 10 m); Snook 12/13.
+    assert esito.indice == pytest.approx(36 * 60 / 1500) and esito.colore == ROSSO
+    assert trasporto.limiti_massa(5, True) == pytest.approx((20, 1000, 10000 * 2 / 3))
+    assert trasporto.limiti_massa(30, False) == (15, 750, 6000)
+    # Nell'ora più gravosa: 30 min a 36 kg/min e 30 min a 10 kg/min.
+    m = trasporto.masse_cumulate([blocchi | {"durata": 30}, {**blocchi, "peso": 10, "frequenza": 1}])
+    assert m == pytest.approx((36, 36 * 30 + 10 * 30, 36 * 30 + 10 * 120))
+    leggero = METODI["trasporto"].esegui({**dati, "compiti": [{**blocchi, "peso": 5, "frequenza": 1}]})
+    assert leggero.colore == VERDE

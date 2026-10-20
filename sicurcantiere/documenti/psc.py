@@ -8,7 +8,7 @@ from typing import Any
 
 from docx.shared import Pt
 
-from sicurcantiere import analisi
+from sicurcantiere import anagrafiche, analisi
 from sicurcantiere.documenti.comune import (
     data_it,
     euro,
@@ -88,7 +88,7 @@ def _cronoprogramma(doc, fasi: list[dict[str, Any]], imprese: dict[int, str],
 
 def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
     cantiere = repo.cantiere()
-    soggetti = repo.elenco("soggetti")
+    soggetti = anagrafiche.soggetti(repo)
     imprese = repo.elenco("imprese")
     fasi = repo.elenco("fasi")
     costi = repo.elenco("costi")

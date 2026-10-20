@@ -108,6 +108,7 @@ def foglio_di_stile(c: Colori) -> str:
     /* Titoli */
     QLabel#titoloPagina {{ font-size: 16pt; font-weight: 600; color: {c.testo}; padding: 2px 0 6px 0; }}
     QLabel#sottotitolo {{ color: {c.testo_debole}; }}
+    QLabel#titoloGruppo {{ font-weight: 600; color: {c.accento}; padding: 10px 0 2px 0; }}
 
     /* Riquadri di riepilogo */
     QFrame#tessera {{

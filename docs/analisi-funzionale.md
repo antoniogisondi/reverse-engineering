@@ -43,7 +43,9 @@ SicurCantiere le realizza.
 | Assistente AI (chatbot per la redazione) | `ai.py`: compilazione parametri, rischi, testi; OpenAI o Claude | v0.3 |
 | Sostanze pericolose e schede di sicurezza | `sostanze.py`, `sds.py`: classificazione dalle frasi H, lettura SDS in PDF | v0.5 |
 | Valutazioni rumore e vibrazioni | `valutazioni/rumore.py`, `valutazioni/vibrazioni.py` | v0.6 |
-| Valutazioni traino/spinta, trasporto, rischio chimico | - | da fare |
+| Valutazioni traino/spinta e trasporto | `valutazioni/traino_spinta.py`, `trasporto.py`, tavole in `snook.py` | v0.7 |
+| Anagrafica dettagliata dell'impresa, figure della sicurezza, committente responsabile dei lavori | `anagrafiche.py`, tabella `figure` | v0.7 |
+| Valutazione del rischio chimico | - | da fare |
 | Modulistica per le imprese (verbale di consegna DPI) | `documenti/moduli.py` | v0.5 |
 | Modulistica per il CSE (verbali di coordinamento e sopralluogo) | - | da fare |
 | Layout di cantiere e modello 3D/BIM | - | fuori obiettivo per ora |
@@ -71,3 +73,21 @@ diverse (o non ancora assegnate) e la zona di lavoro coincide (o non è indicata
 La gravità è il livello di rischio più alto tra le due fasi. Il coordinatore
 scrive le prescrizioni solo per le coppie che lo richiedono. Nel PSC le
 interferenze senza prescrizione ricevono quella generica di sfasamento.
+
+### Traino, spinta e trasporto
+Le forze e i pesi raccomandati sono le righe del 90% della popolazione delle tavole pubblicate da
+Snook e Ciriello (Ergonomics 34(9), 1991), le stesse richiamate dalla UNI ISO 11228-2 (metodo 1)
+e dalle linee di indirizzo nazionali sulla movimentazione manuale dei carichi. Si sceglie l'altezza
+delle mani più vicina, la distanza di tabella uguale o immediatamente superiore e la frequenza di
+tabella uguale o immediatamente più alta (scelta prudenziale). Per popolazioni miste si usano i
+limiti femminili. Fasce: indice fino a 0,85 accettabile, fino a 1 attenzione, oltre 1 rischio.
+Per il trasporto si verifica anche la massa cumulata (UNI ISO 11228-1): 120, 75, 60, 30 e 15 kg/min
+per distanze fino a 1, 2, 4, 10 e 20 m; 10.000 kg nel turno fino a 10 m e 6.000 kg oltre; limiti
+ridotti di un terzo in condizioni sfavorevoli.
+
+### Confronto con un POS prodotto da software commerciale
+Da un POS reale fornito dall'utente sono state ricavate solo le **voci** richieste (non i testi):
+anagrafica dell'impresa con posizioni INAIL e Cassa edile, codice ATECO, tipologia e importo dei
+lavori; responsabili con qualifica e recapiti; nota quando il datore di lavoro svolge i compiti di
+RSPP; committente "nella persona di". I compiti delle figure riportati nel POS sono scritti da zero
+come sintesi degli articoli del D.Lgs. 81/2008.

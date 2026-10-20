@@ -5,11 +5,13 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from sicurcantiere import analisi
+from sicurcantiere import anagrafiche, analisi
 from sicurcantiere.documenti.comune import (
     data_it,
+    euro,
     firma,
     frontespizio,
+    indirizzo_cantiere,
     nome_fase,
     nuovo_documento,
     tabella,
@@ -60,34 +62,88 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                  "art. 89 c. 1 lett. h) e Allegato XV punto 3.2 del D.Lgs. 81/2008",
                  f"POS:{impresa_id}", [("Impresa", impresa["ragione_sociale"])])
 
-    doc.add_heading("1. Dati identificativi dell'impresa", 1)
+    c = repo.cantiere()
+    periodo = analisi.periodo_lavori(fasi)
+    doc.add_heading("1. Dati generali del lavoro", 1)
+    tabella_voci(doc, [
+        ("Opera", c["nome"]),
+        ("Natura dell'opera", c["natura_opera"]),
+        ("Indirizzo del cantiere", indirizzo_cantiere(c)),
+        ("Titolo abilitativo", c["titolo_abilitativo"]),
+        ("Importo presunto dei lavori", euro(c["importo_lavori"]) if c["importo_lavori"] else ""),
+    ])
+    doc.add_heading("Committente, responsabile dei lavori, coordinatori e direzione lavori", 2)
+    soggetti = anagrafiche.soggetti(repo)
+    if soggetti:
+        tabella(doc, ["Ruolo", "Nominativo", "Qualifica", "Codice fiscale / P. IVA", "Recapiti"], [
+            [s["ruolo"],
+             s["nome"] + (f", nella persona di {s['rappresentante']}" if s["rappresentante"] else ""),
+             s["qualifica"], s["codice_fiscale"] or s["partita_iva"],
+             " - ".join(v for v in (s["indirizzo"], s["telefono"], s["email"], s["pec"]) if v)]
+            for s in soggetti
+        ])
+        for s in soggetti:
+            if s.get("nota"):
+                doc.add_paragraph(s["nota"]).runs[0].italic = True
+                break
+    else:
+        testo_o_segnaposto(doc, "")
+
+    doc.add_heading("2. Dati identificativi dell'impresa esecutrice", 1)
+    affidataria = repo.leggi("imprese", impresa["affidataria_id"]) if impresa["affidataria_id"] else None
     tabella_voci(doc, [
         ("Ragione sociale", impresa["ragione_sociale"]),
-        ("Ruolo nel cantiere", impresa["tipo"]),
+        ("Forma giuridica", impresa["forma_giuridica"]),
+        ("Tipologia nel cantiere", impresa["tipo"]),
+        ("Impresa affidataria", affidataria["ragione_sociale"] if affidataria else ""),
+        ("Datore di lavoro", impresa["datore_lavoro"]),
+        ("Sede legale", anagrafiche.sede(impresa)),
+        ("Telefono", impresa["telefono"]),
+        ("Email / PEC", " - ".join(v for v in (impresa["email"], impresa["pec"]) if v)),
+        ("Ufficio o recapito in cantiere", impresa["recapito_cantiere"]),
         ("Partita IVA", impresa["partita_iva"]),
         ("Codice fiscale", impresa["codice_fiscale"]),
-        ("Sede", impresa["indirizzo"]),
-        ("Telefono", impresa["telefono"]),
-        ("Posizioni INAIL / INPS / Cassa edile", impresa["posizione_inail_inps"]),
+        ("Iscrizione CCIAA", impresa["cciaa"]),
+        ("Codice ATECO", impresa["ateco"]),
+        ("Posizione INAIL", impresa["inail"]),
+        ("Matricola INPS", impresa["inps"]),
+        ("Cassa edile", impresa["cassa_edile"]),
+        ("Contratto collettivo applicato", impresa["ccnl"]),
+        ("Organico medio annuo", impresa["organico"]),
+        ("DURC valido fino al", data_it(impresa["durc_scadenza"]) if impresa["durc_scadenza"] else ""),
+        ("Documento di valutazione dei rischi del", data_it(impresa["dvr_data"]) if impresa["dvr_data"] else ""),
+        ("Attestazione SOA", impresa["soa"]),
+        ("Certificazioni", impresa["certificazioni"]),
+        ("Tipologia dei lavori affidati", impresa["tipologia_lavori"]),
+        ("Importo dei lavori da eseguire", euro(impresa["importo_lavori"]) if impresa["importo_lavori"] else ""),
+        ("Inizio e fine dei lavori dell'impresa",
+         f"{data_it(periodo[0])} - {data_it(periodo[1])}" if periodo else ""),
     ])
+    subaffidatari = [i for i in repo.elenco("imprese", affidataria_id=impresa_id)]
+    if subaffidatari:
+        doc.add_heading("Imprese subappaltatrici e lavoratori autonomi", 2)
+        tabella(doc, ["Ragione sociale", "Tipologia", "P. IVA", "Lavori affidati"], [
+            [i["ragione_sociale"], i["tipo"], i["partita_iva"], i["tipologia_lavori"]] for i in subaffidatari
+        ])
 
-    doc.add_heading("2. Figure della sicurezza e relative mansioni", 1)
-    tabella(doc, ["Figura", "Nominativo", "Compiti in cantiere"], [
-        ["Datore di lavoro", impresa["datore_lavoro"],
-         "Organizza il lavoro, redige il POS, fornisce DPI, formazione e attrezzature conformi."],
-        ["Responsabile del servizio di prevenzione e protezione", impresa["rspp"],
-         "Collabora alla valutazione dei rischi e alla redazione del POS."],
-        ["Medico competente", impresa["medico_competente"],
-         "Sorveglianza sanitaria ed espressione dei giudizi di idoneità."],
-        ["Rappresentante dei lavoratori per la sicurezza", impresa["rls"],
-         "Consultato sul PSC e sul POS; segnala i rischi individuati."],
-        ["Direttore tecnico / capocantiere / preposto", impresa["preposto"] or impresa["referente"],
-         "Sovrintende alle lavorazioni e verifica l'applicazione delle misure di sicurezza."],
-        ["Addetti alle emergenze (primo soccorso, antincendio, evacuazione)", impresa["addetti_emergenze"],
-         "Attuano le procedure di emergenza del cantiere."],
+    doc.add_heading("3. Figure della sicurezza e specifiche mansioni", 1)
+    figure = [{"ruolo": anagrafiche.DATORE, "nome": impresa["datore_lavoro"], "qualifica": "",
+               "telefono": impresa["telefono"], "formazione": ""}] + anagrafiche.figure(repo, impresa)
+    tabella(doc, ["Figura", "Nominativo", "Recapiti", "Formazione"], [
+        [f["ruolo"], " - ".join(v for v in (f["nome"], f["qualifica"]) if v), f["telefono"],
+         f["formazione"]] for f in figure
     ])
+    doc.add_heading("Specifiche mansioni inerenti la sicurezza", 2)
+    for ruolo in dict.fromkeys(f["ruolo"] for f in figure):
+        nomi = ", ".join(f["nome"] for f in figure if f["ruolo"] == ruolo and f["nome"])
+        p = doc.add_paragraph()
+        p.add_run(f"{ruolo}{f' ({nomi})' if nomi else ''}: ").bold = True
+        p.add_run(anagrafiche.compiti(ruolo) or "compiti secondo l'incarico ricevuto.")
+        nota = next((f.get("nota") for f in figure if f["ruolo"] == ruolo and f.get("nota")), None)
+        if nota:
+            p.add_run(" " + nota).italic = True
 
-    doc.add_heading("3. Lavoratori impiegati in cantiere", 1)
+    doc.add_heading("4. Lavoratori impiegati in cantiere", 1)
     if lavoratori:
         tabella(doc, ["Nominativo", "Mansione", "Formazione e addestramento", "Idoneità sanitaria fino al"], [
             [l["nome"], l["mansione"], l["formazione"], data_it(l["idoneita_scadenza"])] for l in lavoratori
@@ -95,7 +151,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     else:
         testo_o_segnaposto(doc, "")
 
-    numero = 4
+    numero = 5
     sezioni = {chiave: repo.testo(chiave_testo(impresa_id, chiave)) for chiave, _ in SEZIONI_POS}
     doc.add_heading(f"{numero}. {SEZIONI_POS[0][1]}", 1)
     testo_o_segnaposto(doc, sezioni["attivita"])
@@ -189,7 +245,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
 
     doc.add_heading(f"{numero}. Informazione e formazione dei lavoratori", 1)
     doc.add_paragraph(
-        "I lavoratori elencati al capitolo 3 hanno ricevuto informazione, formazione e addestramento "
+        "I lavoratori elencati al capitolo 4 hanno ricevuto informazione, formazione e addestramento "
         "ai sensi degli artt. 36 e 37 del D.Lgs. 81/2008; la documentazione è conservata in cantiere."
     )
 

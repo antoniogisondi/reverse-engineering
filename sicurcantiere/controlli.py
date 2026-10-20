@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sicurcantiere import analisi
+from sicurcantiere import anagrafiche, analisi
 from sicurcantiere.repository import Repository
 
 ERRORE = "Errore"
@@ -21,7 +21,6 @@ class Segnalazione:
 def controlla(repo: Repository) -> list[Segnalazione]:
     s: list[Segnalazione] = []
     c = repo.cantiere()
-    soggetti = repo.elenco("soggetti")
     imprese = repo.elenco("imprese")
     fasi = repo.elenco("fasi")
     rischi = repo.elenco("rischi")
@@ -41,7 +40,7 @@ def controlla(repo: Repository) -> list[Segnalazione]:
     if c["importo_lavori"] <= 0:
         avviso("Dati generali", "Importo presunto dei lavori non indicato.")
 
-    ruoli = {x["ruolo"] for x in soggetti if x["nome"].strip()}
+    ruoli = {x["ruolo"] for x in anagrafiche.soggetti(repo) if x["nome"].strip()}
     if "Committente" not in ruoli:
         errore("Soggetti", "Manca il committente.")
     if analisi.obblighi(imprese, fasi).psc:
@@ -99,17 +98,30 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
     if not (c["indirizzo"].strip() and c["comune"].strip()):
         s.append(Segnalazione(ERRORE, "Cantiere", "Manca l'indirizzo completo del cantiere."))
 
-    imprese = [i for i in repo.elenco("imprese") if i["tipo"] != "Lavoratore autonomo"]
+    if not any(x["ruolo"] == anagrafiche.COMMITTENTE and x["nome"].strip() for x in repo.elenco("soggetti")):
+        s.append(Segnalazione(AVVISO, "Committente", "Manca il committente dei lavori."))
+
+    imprese = [i for i in repo.elenco("imprese") if i["tipo"] != anagrafiche.AUTONOMO]
     if not imprese:
         s.append(Segnalazione(ERRORE, "Impresa", "Inserire l'impresa che redige il POS."))
     oggi = date.today().isoformat()
     for i in imprese:
         nome = i["ragione_sociale"] or f"Impresa n. {i['id']}"
-        for campo, etichetta in (("datore_lavoro", "il datore di lavoro"), ("rspp", "l'RSPP"),
-                                 ("medico_competente", "il medico competente"), ("rls", "l'RLS o RLST"),
-                                 ("addetti_emergenze", "gli addetti alle emergenze")):
-            if not i[campo].strip():
-                s.append(Segnalazione(ERRORE, "Impresa", f"{nome}: indicare {etichetta}."))
+        if not i["datore_lavoro"].strip():
+            s.append(Segnalazione(ERRORE, "Impresa", f"{nome}: indicare il datore di lavoro."))
+        if not (i["indirizzo"].strip() and i["comune"].strip()):
+            s.append(Segnalazione(AVVISO, "Impresa", f"{nome}: indirizzo della sede legale incompleto."))
+        if not (i["partita_iva"].strip() or i["codice_fiscale"].strip()):
+            s.append(Segnalazione(AVVISO, "Impresa", f"{nome}: partita IVA o codice fiscale non indicati."))
+        if not i["inail"].strip():
+            s.append(Segnalazione(AVVISO, "Impresa", f"{nome}: posizione INAIL non indicata."))
+        if i["durc_scadenza"] and i["durc_scadenza"] < oggi:
+            s.append(Segnalazione(ERRORE, "Impresa", f"{nome}: DURC scaduto."))
+        ruoli = {f["ruolo"] for f in anagrafiche.figure(repo, i) if f["nome"].strip()}
+        for richiesti, etichetta, grave in anagrafiche.FIGURE_OBBLIGATORIE:
+            if not ruoli & set(richiesti):
+                s.append(Segnalazione(ERRORE if grave else AVVISO, "Figure della sicurezza",
+                                      f"{nome}: indicare {etichetta}."))
         lavoratori = repo.elenco("lavoratori", impresa_id=i["id"])
         if not lavoratori:
             s.append(Segnalazione(ERRORE, "Lavoratori", f"{nome}: nessun lavoratore indicato."))

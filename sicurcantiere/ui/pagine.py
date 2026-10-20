@@ -5,11 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import QDate, Qt, QTimer, QUrl
 from PySide6.QtGui import QBrush, QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
+    QDateEdit,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -36,7 +38,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sicurcantiere import analisi, controlli
+from sicurcantiere import anagrafiche, analisi, controlli
 from sicurcantiere.archivio import ATTREZZATURE, per_categoria
 from sicurcantiere.documenti.comune import euro
 from sicurcantiere.documenti.fascicolo import genera_fascicolo
@@ -54,15 +56,8 @@ from sicurcantiere.ui.riepilogo import Riepilogo
 from sicurcantiere.ui.riepilogo import calcola as calcola_riepilogo
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
 
-RUOLI = [
-    "Committente",
-    "Responsabile dei lavori",
-    "Coordinatore per la progettazione (CSP)",
-    "Coordinatore per l'esecuzione (CSE)",
-    "Progettista",
-    "Direttore dei lavori",
-]
-TIPI_IMPRESA = ["Affidataria", "Esecutrice", "Lavoratore autonomo"]
+RUOLI = anagrafiche.RUOLI_SOGGETTI
+TIPI_IMPRESA = anagrafiche.TIPI_IMPRESA
 TIPI_ATTREZZATURA = ["Macchina", "Attrezzo", "Opera provvisionale"]
 
 
@@ -93,7 +88,7 @@ def contesto_cantiere(repo: Repository) -> str:
         f"Indirizzo: {c['indirizzo']} {c['comune']} {c['provincia']}".strip(),
         f"Importo lavori: {c['importo_lavori']:.0f} euro",
         f"Descrizione: {c['descrizione']}",
-        "Soggetti: " + "; ".join(f"{s['ruolo']}: {s['nome']}" for s in repo.elenco("soggetti")),
+        "Soggetti: " + "; ".join(f"{s['ruolo']}: {s['nome']}" for s in anagrafiche.soggetti(repo)),
         "Imprese: " + "; ".join(f"{i['ragione_sociale']} ({i['tipo']})" for i in repo.elenco("imprese")),
         "Fasi di lavoro:",
     ]
@@ -171,46 +166,146 @@ class TestiLiberi(QWidget):
 
 
 class ModuloRecord(QWidget):
-    """Modulo con campi di testo collegati a un record di una tabella.
+    """Modulo con i campi di un record di una tabella.
 
-    Si salvano solo i campi modificati nel modulo, così un aggiornamento del
-    record fatto altrove (per esempio dall'assistente AI) non viene
-    sovrascritto con i valori vecchi rimasti nei campi.
+    Ogni campo è (campo, etichetta) per il testo oppure (campo, etichetta, tipo, opzioni) con tipo
+    testo, scelta (elenco modificabile), data, numero, spunta o impresa; (None, titolo) inserisce
+    un titolo di gruppo. Si salvano solo i campi modificati nel modulo, così un aggiornamento del
+    record fatto altrove (per esempio dall'assistente AI) non viene sovrascritto con i valori
+    vecchi rimasti nei campi.
     """
 
-    def __init__(self, repo: Repository, tabella: str, campi: list[tuple[str, str]]):
+    DATA_VUOTA = QDate(2000, 1, 1)
+
+    def __init__(self, repo: Repository, tabella: str, campi: list[tuple]):
         super().__init__()
         self.repo = repo
         self.tabella = tabella
         self.id_: int | None = None
-        self.campi: dict[str, QLineEdit] = {}
+        self.campi: dict[str, QWidget] = {}
+        self.tipi: dict[str, str] = {}
         self._modificati: set[str] = set()
+        self._caricamento = False
         modulo = QFormLayout(self)
-        for campo, etichetta in campi:
-            e = QLineEdit()
-            e.textChanged.connect(lambda _testo, c=campo: self._modificati.add(c))
-            e.editingFinished.connect(lambda c=campo: self._salva(c))
-            modulo.addRow(etichetta, e)
-            self.campi[campo] = e
+        for voce in campi:
+            campo, etichetta = voce[0], voce[1]
+            if campo is None:
+                titolo = QLabel(etichetta)
+                titolo.setObjectName("titoloGruppo")
+                modulo.addRow(titolo)
+                continue
+            tipo = voce[2] if len(voce) > 2 else "testo"
+            opzioni = voce[3] if len(voce) > 3 else []
+            w = self._crea(campo, tipo, opzioni)
+            modulo.addRow("" if tipo == "spunta" else etichetta, w)
+            if tipo == "spunta":
+                w.setText(etichetta)
+            self.campi[campo] = w
+            self.tipi[campo] = tipo
+
+    def _crea(self, campo: str, tipo: str, opzioni: list[str]) -> QWidget:
+        def modificato(*_: Any) -> None:
+            if not self._caricamento:
+                self._modificati.add(campo)
+
+        def subito(*_: Any) -> None:
+            if not self._caricamento:
+                self._modificati.add(campo)
+                self._salva(campo)
+
+        if tipo == "scelta":
+            w = QComboBox()
+            w.setEditable(True)
+            w.addItems([""] + list(opzioni))
+            w.currentTextChanged.connect(modificato)
+            w.activated.connect(lambda *_: self._salva(campo))
+            w.lineEdit().editingFinished.connect(lambda: self._salva(campo))
+            return w
+        if tipo == "impresa":
+            w = QComboBox()
+            w.currentIndexChanged.connect(subito)
+            return w
+        if tipo == "data":
+            w = QDateEdit()
+            w.setCalendarPopup(True)
+            w.setDisplayFormat("dd/MM/yyyy")
+            w.setMinimumDate(self.DATA_VUOTA)
+            w.setSpecialValueText("non indicata")
+            w.dateChanged.connect(subito)
+            return w
+        if tipo == "numero":
+            w = QDoubleSpinBox()
+            w.setRange(0, 1e10)
+            w.setDecimals(2)
+            w.setGroupSeparatorShown(True)
+            w.setSuffix(" €")
+            w.valueChanged.connect(modificato)
+            w.editingFinished.connect(lambda: self._salva(campo))
+            return w
+        if tipo == "spunta":
+            w = QCheckBox()
+            w.toggled.connect(subito)
+            return w
+        w = QLineEdit()
+        w.textChanged.connect(modificato)
+        w.editingFinished.connect(lambda: self._salva(campo))
+        return w
+
+    def valore(self, campo: str) -> Any:
+        w, tipo = self.campi[campo], self.tipi[campo]
+        if tipo == "scelta":
+            return w.currentText().strip()
+        if tipo == "impresa":
+            return w.currentData()
+        if tipo == "data":
+            return None if w.date() == self.DATA_VUOTA else w.date().toString(Qt.DateFormat.ISODate)
+        if tipo == "numero":
+            return w.value()
+        if tipo == "spunta":
+            return int(w.isChecked())
+        return w.text()
+
+    def _imposta(self, campo: str, valore: Any) -> None:
+        w, tipo = self.campi[campo], self.tipi[campo]
+        if tipo == "scelta":
+            w.setCurrentText(valore or "")
+        elif tipo == "impresa":
+            w.clear()
+            w.addItem("—", None)
+            for i in self.repo.elenco("imprese"):
+                if i["id"] != self.id_:
+                    w.addItem(i["ragione_sociale"] or f"Impresa n. {i['id']}", i["id"])
+            w.setCurrentIndex(max(w.findData(valore), 0))
+        elif tipo == "data":
+            d = QDate.fromString(valore or "", Qt.DateFormat.ISODate)
+            w.setDate(d if d.isValid() else self.DATA_VUOTA)
+        elif tipo == "numero":
+            w.setValue(float(valore or 0))
+        elif tipo == "spunta":
+            w.setChecked(bool(valore))
+        else:
+            w.setText(valore or "")
 
     def _salva(self, campo: str) -> None:
         if self.id_ is not None and campo in self._modificati:
-            self.repo.aggiorna(self.tabella, self.id_, **{campo: self.campi[campo].text()})
+            self.repo.aggiorna(self.tabella, self.id_, **{campo: self.valore(campo)})
             self._modificati.discard(campo)
 
     def salva_in_sospeso(self) -> None:
         if self.id_ is not None and self._modificati and self.repo.leggi(self.tabella, self.id_):
-            self.repo.aggiorna(self.tabella, self.id_, **{c: self.campi[c].text() for c in self._modificati})
+            self.repo.aggiorna(self.tabella, self.id_, **{c: self.valore(c) for c in self._modificati})
         self._modificati.clear()
 
     def carica(self, id_: int | None) -> None:
         self.salva_in_sospeso()
         self.id_ = id_
         record = self.repo.leggi(self.tabella, id_) if id_ is not None else None
-        for campo, e in self.campi.items():
-            e.blockSignals(True)
-            e.setText(record[campo] if record else "")
-            e.blockSignals(False)
+        self._caricamento = True
+        try:
+            for campo in self.campi:
+                self._imposta(campo, record[campo] if record else None)
+        finally:
+            self._caricamento = False
         self.setEnabled(record is not None)
 
 
@@ -245,8 +340,10 @@ class PaginaDatiGenerali(Pagina):
         ("nome", "Denominazione dell'opera"),
         ("natura_opera", "Natura dell'opera"),
         ("indirizzo", "Indirizzo"),
+        ("cap", "CAP"),
         ("comune", "Comune"),
         ("provincia", "Provincia"),
+        ("titolo_abilitativo", "Titolo abilitativo (permesso, SCIA, CILA...)"),
     ]
 
     def __init__(self, repo: Repository):
@@ -331,18 +428,33 @@ class PaginaSoggetti(Pagina):
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
+        self.committente_rl = QCheckBox("Il committente è anche responsabile dei lavori")
+        self.committente_rl.setToolTip("Nei documenti il committente compare anche come responsabile dei lavori "
+                                       "e non serve inserire un responsabile dei lavori a parte.")
+        self.committente_rl.toggled.connect(self._salva_committente_rl)
+        self.layout_.addWidget(self.committente_rl)
         self.tabella = TabellaCrud(repo, "soggetti", [
             Colonna("ruolo", "Ruolo", "scelta", scelte=lambda: [(r, r) for r in RUOLI],
                     scelta_libera=True, larghezza=260),
-            Colonna("nome", "Nominativo", larghezza=200),
+            Colonna("nome", "Nominativo / ragione sociale", larghezza=210),
+            Colonna("rappresentante", "Nella persona di", larghezza=170),
+            Colonna("qualifica", "Qualifica", larghezza=140),
             Colonna("codice_fiscale", "Codice fiscale", larghezza=150),
+            Colonna("partita_iva", "P. IVA", larghezza=110),
             Colonna("indirizzo", "Indirizzo", larghezza=200),
             Colonna("telefono", "Telefono", larghezza=110),
-            Colonna("email", "Email"),
+            Colonna("email", "Email", larghezza=170),
+            Colonna("pec", "PEC"),
         ])
         self.layout_.addWidget(self.tabella)
 
+    def _salva_committente_rl(self, attivo: bool) -> None:
+        self.repo.aggiorna_cantiere(committente_rl=int(attivo))
+
     def aggiorna(self) -> None:
+        self.committente_rl.blockSignals(True)
+        self.committente_rl.setChecked(bool(self.repo.cantiere()["committente_rl"]))
+        self.committente_rl.blockSignals(False)
         self.tabella.ricarica()
 
 
@@ -350,32 +462,85 @@ class PaginaImprese(Pagina):
     titolo = "Imprese, lavoratori e dati per il POS"
     voce = "Imprese e lavoratori"
     icona = "imprese"
-    # Schede di dettaglio mostrate dal programma: figure, lavoratori, pos.
-    schede_visibili: tuple[str, ...] = ("figure", "lavoratori", "pos")
+    # Schede di dettaglio mostrate dal programma: dati, figure, lavoratori, pos.
+    schede_visibili: tuple[str, ...] = ("dati", "figure", "lavoratori", "pos")
+
+    CAMPI_DATI = [
+        (None, "Anagrafica"),
+        ("forma_giuridica", "Forma giuridica", "scelta", anagrafiche.FORME_GIURIDICHE),
+        ("codice_fiscale", "Codice fiscale"),
+        ("cciaa", "Iscrizione CCIAA (n. REA)"),
+        ("ateco", "Codice ATECO / categoria ISTAT"),
+        ("affidataria_id", "Impresa affidataria di riferimento", "impresa"),
+        (None, "Sede legale e recapiti"),
+        ("indirizzo", "Indirizzo"),
+        ("cap", "CAP"),
+        ("comune", "Comune"),
+        ("provincia", "Provincia"),
+        ("email", "Email"),
+        ("pec", "PEC"),
+        ("recapito_cantiere", "Ufficio o recapito in cantiere"),
+        (None, "Posizioni assicurative e contratto"),
+        ("inail", "Posizione INAIL (codice ditta / PAT)"),
+        ("inps", "Matricola INPS"),
+        ("cassa_edile", "Cassa edile (cassa e codice impresa)"),
+        ("ccnl", "Contratto collettivo applicato", "scelta", anagrafiche.CCNL),
+        ("organico", "Organico medio annuo"),
+        ("durc_scadenza", "DURC valido fino al", "data"),
+        (None, "Qualificazione"),
+        ("dvr_data", "Data del documento di valutazione dei rischi", "data"),
+        ("soa", "Attestazione SOA (categorie e classifiche)"),
+        ("certificazioni", "Certificazioni (ISO 9001, ISO 45001, ...)"),
+        (None, "Lavori in questo cantiere"),
+        ("tipologia_lavori", "Tipologia dei lavori affidati"),
+        ("importo_lavori", "Importo dei lavori da eseguire", "numero"),
+        ("orario_lavoro", "Orario di lavoro in cantiere"),
+    ]
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
         self.tabella = TabellaCrud(repo, "imprese", [
             Colonna("ragione_sociale", "Ragione sociale", larghezza=240),
-            Colonna("tipo", "Tipo", "scelta", scelte=lambda: [(t, t) for t in TIPI_IMPRESA],
-                    larghezza=150),
+            Colonna("tipo", "Tipologia", "scelta", scelte=lambda: [(t, t) for t in TIPI_IMPRESA],
+                    scelta_libera=True, larghezza=200),
             Colonna("partita_iva", "P. IVA", larghezza=120),
-            Colonna("indirizzo", "Sede", larghezza=200),
             Colonna("referente", "Referente", larghezza=150),
             Colonna("telefono", "Telefono"),
         ])
 
+        self.dati = ModuloRecord(repo, "imprese", self.CAMPI_DATI)
+        self.dati.campi["provincia"].setMaxLength(2)
+        scorrimento_dati = QScrollArea()
+        scorrimento_dati.setWidgetResizable(True)
+        scorrimento_dati.setWidget(self.dati)
+
+        # Datore di lavoro e figure della sicurezza (Allegato XV 3.2.1 lett. a e b).
         self.figure = ModuloRecord(repo, "imprese", [
-            ("codice_fiscale", "Codice fiscale"),
             ("datore_lavoro", "Datore di lavoro"),
-            ("rspp", "RSPP"),
-            ("medico_competente", "Medico competente"),
-            ("rls", "RLS / RLST"),
-            ("preposto", "Direttore tecnico / capocantiere / preposto"),
-            ("addetti_emergenze", "Addetti primo soccorso, antincendio, evacuazione"),
-            ("posizione_inail_inps", "Posizioni INAIL / INPS / Cassa edile"),
-            ("orario_lavoro", "Orario di lavoro in cantiere"),
+            ("rspp_datore", "Il datore di lavoro svolge direttamente i compiti di RSPP (art. 34)", "spunta"),
         ])
+        self.elenco_figure = TabellaCrud(repo, "figure", [
+            Colonna("ruolo", "Figura", "scelta", scelte=lambda: [(r, r) for r in anagrafiche.FIGURE_IMPRESA],
+                    scelta_libera=True, larghezza=230),
+            Colonna("nome", "Nominativo", larghezza=180),
+            Colonna("qualifica", "Qualifica", larghezza=140),
+            Colonna("codice_fiscale", "Codice fiscale", larghezza=150),
+            Colonna("telefono", "Telefono", larghezza=110),
+            Colonna("email", "Email", larghezza=160),
+            Colonna("formazione", "Corso / attestato", larghezza=200),
+            Colonna("formazione_scadenza", "Aggiornamento entro", "data"),
+        ], valori_nuovo=lambda: {"ruolo": "Preposto"})
+        self.elenco_figure.imposta_filtro(impresa_id=-1)
+        pannello_figure = QWidget()
+        lf = QVBoxLayout(pannello_figure)
+        lf.addWidget(self.figure)
+        aiuto = QLabel("Una riga per persona e per ruolo: RSPP, medico competente, RLS o RLST, preposti, "
+                       "direttore tecnico, capocantiere, addetti al primo soccorso e antincendio.")
+        aiuto.setObjectName("sottotitolo")
+        aiuto.setWordWrap(True)
+        lf.addWidget(aiuto)
+        lf.addWidget(self.elenco_figure)
+
         self.lavoratori = TabellaCrud(repo, "lavoratori", [
             Colonna("nome", "Nominativo", larghezza=200),
             Colonna("mansione", "Mansione", larghezza=180),
@@ -388,17 +553,17 @@ class PaginaImprese(Pagina):
         scorrimento.setWidget(self.testi_pos)
 
         self.schede = QTabWidget()
-        if "figure" in self.schede_visibili:
-            self.schede.addTab(self.figure, "Figure della sicurezza")
-        if "lavoratori" in self.schede_visibili:
-            self.schede.addTab(self.lavoratori, "Lavoratori")
-        if "pos" in self.schede_visibili:
-            self.schede.addTab(scorrimento, "Testi del POS")
+        for chiave, widget, titolo in (("dati", scorrimento_dati, "Dati dell'impresa"),
+                                       ("figure", pannello_figure, "Figure della sicurezza"),
+                                       ("lavoratori", self.lavoratori, "Lavoratori"),
+                                       ("pos", scorrimento, "Testi del POS")):
+            if chiave in self.schede_visibili:
+                self.schede.addTab(widget, titolo)
         self.schede.setEnabled(False)
         self.schede.setVisible(bool(self.schede_visibili))
         # Le schede non mostrate restano figlie della pagina: senza un genitore
         # Qt le distruggerebbe mentre la pagina le usa ancora.
-        for w in (self.figure, self.lavoratori, scorrimento):
+        for w in (scorrimento_dati, pannello_figure, self.lavoratori, scorrimento):
             if w.parent() is None:
                 w.setParent(self)
                 w.hide()
@@ -406,7 +571,7 @@ class PaginaImprese(Pagina):
         divisore = QSplitter(Qt.Orientation.Vertical)
         divisore.addWidget(self.tabella)
         divisore.addWidget(self.schede)
-        divisore.setSizes([250, 450])
+        divisore.setSizes([220, 480])
         self.layout_.addWidget(divisore)
         self.tabella.selezione_cambiata.connect(self._impresa_selezionata)
 
@@ -420,6 +585,7 @@ class PaginaImprese(Pagina):
         righe = [
             f"Impresa che redige il POS: {impresa['ragione_sociale']} ({impresa['tipo']})",
             f"Orario di lavoro: {impresa['orario_lavoro'] or 'non indicato'}",
+            f"Tipologia dei lavori: {impresa['tipologia_lavori'] or 'non indicata'}",
             "Lavorazioni dell'impresa: " + "; ".join(f"{f['codice']} {f['descrizione']}" for f in fasi),
             "Lavoratori: " + "; ".join(f"{l['nome']} ({l['mansione']})" for l in lavoratori),
         ]
@@ -427,11 +593,14 @@ class PaginaImprese(Pagina):
 
     def _impresa_selezionata(self, id_: int | None) -> None:
         self.schede.setEnabled(id_ is not None)
+        self.dati.carica(id_)
         self.figure.carica(id_)
+        self.elenco_figure.imposta_filtro(impresa_id=id_ if id_ is not None else -1)
         self.lavoratori.imposta_filtro(impresa_id=id_ if id_ is not None else -1)
         self.testi_pos.carica(lambda s, i=id_ if id_ is not None else -1: chiave_testo(i, s))
 
     def salva_in_sospeso(self) -> None:
+        self.dati.salva_in_sospeso()
         self.figure.salva_in_sospeso()
         self.testi_pos.salva_in_sospeso()
 

@@ -5,7 +5,7 @@ Famiglia di programmi desktop per la sicurezza nei cantieri temporanei o mobili
 
 | Programma | Per chi | Documenti | File |
 | --- | --- | --- | --- |
-| **SicurCantiere POS** | Impresa esecutrice | POS, valutazioni dei rischi specifici (NIOSH, OCRA, rumore, vibrazioni), sostanze pericolose, verbali di consegna DPI | `.spo` |
+| **SicurCantiere POS** | Impresa esecutrice | POS, valutazioni dei rischi specifici (NIOSH, traino e spinta, trasporto, OCRA, rumore, vibrazioni), sostanze pericolose, verbali di consegna DPI | `.spo` |
 | **SicurCantiere PSC** | Coordinatore (CSP/CSE) | PSC, fascicolo dell'opera, notifica preliminare | `.scs` |
 | **SicurCantiere PiMUS** | Impresa che monta i ponteggi | PiMUS con verifiche | `.spm` |
 
@@ -20,10 +20,19 @@ archivi o contenuti di software commerciali.
 
 - **Dati generali** del cantiere, con verifica automatica degli obblighi:
   PSC e coordinatori (art. 90), notifica preliminare (art. 99), picco di lavoratori presenti
-- **Soggetti** con compiti di sicurezza (committente, CSP, CSE, ...)
-- **Imprese e lavoratori**: figure della sicurezza (datore di lavoro, RSPP, medico competente,
-  RLS, preposto, addetti alle emergenze), lavoratori con mansione, formazione e idoneità,
-  testi specifici del POS
+- **Soggetti** con compiti di sicurezza (committente, responsabile dei lavori, CSP, CSE, progettisti,
+  direzione lavori, collaudatore...), con qualifica, "nella persona di", P. IVA e PEC; una spunta indica
+  che il **committente è anche responsabile dei lavori** e i documenti lo riportano in entrambi i ruoli
+- **Imprese e lavoratori**:
+  - tipologia (affidataria, affidataria ed esecutrice, esecutrice, subappaltatrice, lavoratore autonomo,
+    nolo a caldo) e impresa affidataria di riferimento per i subappalti;
+  - anagrafica completa: forma giuridica, sede legale, email e PEC, recapito in cantiere, CCIAA, ATECO,
+    posizioni INAIL, INPS e Cassa edile, CCNL, organico, scadenza del DURC, data del DVR, SOA,
+    certificazioni, tipologia e importo dei lavori affidati;
+  - figure della sicurezza come elenco (RSPP, ASPP, medico competente, RLS/RLST, dirigenti, direttore
+    tecnico, capocantiere, preposti, addetti al primo soccorso e antincendio...) con recapiti e
+    formazione; spunta per il datore di lavoro che svolge i compiti di RSPP (art. 34);
+  - lavoratori con mansione, formazione e idoneità, testi specifici del POS
 - **Archivio** di 27 lavorazioni in 5 categorie (allestimento, nuove costruzioni,
   ristrutturazioni, infrastrutture, restauro) e di 21 macchine, attrezzi e opere
   provvisionali. Ognuna ha i propri rischi, che vengono importati con la fase
@@ -44,6 +53,10 @@ archivi o contenuti di software commerciali.
 - **Valutazioni dei rischi specifici con metodi normati** (non semplici checklist):
   - sollevamento manuale, compito semplice e composto: **NIOSH** (UNI ISO 11228-1), con peso limite
     raccomandato, indice di sollevamento (LI / CLI) e tutti i fattori;
+  - **traino e spinta** (UNI ISO 11228-2, metodo 1): forze iniziali e di mantenimento misurate confrontate
+    con le tavole di Snook e Ciriello (1991) per il 90% della popolazione, più azioni per valutazione;
+  - **trasporto manuale** (UNI ISO 11228-1): massa cumulata al minuto, all'ora e nel turno rispetto ai limiti
+    per distanza, più il confronto di ogni trasporto con le tavole di Snook e Ciriello;
   - movimenti ripetitivi degli arti superiori: **indice OCRA** (UNI ISO 11228-3), più compiti per arto;
   - **rumore** (Titolo VIII Capo II): LEX,8h dalle attività del turno, picco, confronto con i valori
     di azione e limite dell'art. 189, attenuazione dei protettori (metodo SNR della UNI EN 458);
@@ -136,7 +149,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 
 - Archivio delle lavorazioni modificabile dall'utente e archivi dei responsabili ricorrenti
 - DUVRI, PSS, piano di emergenza
-- Altre valutazioni specifiche: traino e spinta, trasporto (ISO 11228-2), rischio chimico
+- Altre valutazioni specifiche: rischio chimico
 - Esportazione dei costi in Excel
 - Modulistica del CSE (verbali di coordinamento e di sopralluogo)
 - Importazione di prezzari regionali per i costi della sicurezza

@@ -10,7 +10,7 @@ from sicurcantiere.db import Progetto
 TABELLE_ELENCO = (
     "soggetti", "imprese", "lavoratori", "fasi", "rischi", "attrezzature",
     "costi", "revisioni", "interventi", "elaborati",
-    "valutazioni", "ponteggi", "verifiche_ponteggio", "sostanze",
+    "valutazioni", "ponteggi", "verifiche_ponteggio", "sostanze", "figure",
 )
 ORDINAMENTO = {
     "fasi": "data_inizio IS NULL, data_inizio, id",

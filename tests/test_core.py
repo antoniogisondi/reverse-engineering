@@ -260,7 +260,8 @@ def _cantiere_completo(repo):
     repo.inserisci("soggetti", ruolo="Committente", nome="Comune di Bari")
     repo.inserisci("soggetti", ruolo="Coordinatore per l'esecuzione (CSE)", nome="Ing. Rossi")
     a = repo.inserisci("imprese", ragione_sociale="Alfa Costruzioni", tipo="Affidataria",
-                       datore_lavoro="Mario Bianchi", rspp="Luca Verdi")
+                       datore_lavoro="Mario Bianchi")
+    repo.inserisci("figure", impresa_id=a, ruolo="RSPP", nome="Luca Verdi")
     repo.inserisci("lavoratori", impresa_id=a, nome="Giuseppe Neri", mansione="Muratore",
                    formazione="Formazione generale e specifica 16 ore")
     f = repo.importa_lavorazione(lav("NC.03"))
@@ -428,3 +429,64 @@ def test_rumore_e_vibrazioni_nel_pos(repo, tmp_path):
     assert "Esito della valutazione del rumore" in testo and "85,0 dB(A)" in testo
     assert "Esito della valutazione delle vibrazioni" in testo and "4,00 m/s²" in testo
     assert "Tra il valore inferiore e il valore superiore di azione" in testo  # 84,99 dB(A)
+
+
+def test_migrazione_figure_da_v4(tmp_path):
+    import sqlite3
+
+    f = tmp_path / "v4.spo"
+    conn = sqlite3.connect(f)
+    conn.executescript(";".join(MIGRAZIONI[:4]) + ";PRAGMA user_version = 4;")
+    conn.execute("INSERT INTO imprese (ragione_sociale, rspp, rls, addetti_emergenze, posizione_inail_inps) "
+                 "VALUES ('Alfa', 'Luca Verdi', '', 'Anna Blu', 'PZ 150413')")
+    conn.commit()
+    conn.close()
+    p = Progetto(f)
+    r = Repository(p)
+    impresa = r.elenco("imprese")[0]
+    assert impresa["inail"] == "PZ 150413"
+    ruoli = {x["ruolo"]: x["nome"] for x in r.elenco("figure", impresa_id=impresa["id"])}
+    assert ruoli == {"RSPP": "Luca Verdi", "Addetto al primo soccorso": "Anna Blu",
+                     "Addetto antincendio ed evacuazione": "Anna Blu"}
+    p.chiudi()
+
+
+def test_committente_responsabile_dei_lavori(repo, tmp_path):
+    from sicurcantiere import anagrafiche
+    from sicurcantiere.documenti.notifica import genera_notifica
+
+    _cantiere_completo(repo)
+    assert not any(s["ruolo"] == "Responsabile dei lavori" for s in anagrafiche.soggetti(repo))
+    repo.aggiorna_cantiere(committente_rl=1)
+    elenco = anagrafiche.soggetti(repo)
+    assert [s["ruolo"] for s in elenco][:2] == ["Committente", "Responsabile dei lavori"]
+    assert elenco[1]["nome"] == "Comune di Bari"
+    doc = Document(genera_notifica(repo, tmp_path / "n.docx"))
+    voce = next(r for r in doc.tables[0].rows if r.cells[0].text.startswith("5."))
+    assert voce.cells[1].text == "Comune di Bari"
+
+
+def test_figure_e_dati_impresa_nel_pos(repo, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.documenti.pos import genera_pos
+
+    a = _cantiere_completo(repo)
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert "Alfa Costruzioni: indicare il rappresentante dei lavoratori per la sicurezza " \
+           "(aziendale o territoriale)." in messaggi
+    assert not any("responsabile del servizio" in m for m in messaggi)
+    repo.aggiorna("imprese", a, inail="BA 123", cassa_edile="Cassa edile di Bari 7236",
+                  ccnl="Edilizia - industria", durc_scadenza="2001-01-01", rspp_datore=1,
+                  tipologia_lavori="Opere strutturali")
+    b = repo.inserisci("imprese", ragione_sociale="Beta Impianti", tipo="Subappaltatrice", affidataria_id=a)
+    repo.inserisci("figure", impresa_id=a, ruolo="RLST", nome="Paolo Gialli")
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert "Alfa Costruzioni: DURC scaduto." in messaggi
+    assert not any(m.startswith("Alfa Costruzioni: indicare il rappresentante") for m in messaggi)
+    testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "BA 123" in testo and "Cassa edile di Bari 7236" in testo and "Edilizia - industria" in testo
+    assert "Beta Impianti" in testo and "Opere strutturali" in testo and "Comune di Bari" in testo
+    # Il datore di lavoro sostituisce l'RSPP inserito come figura.
+    assert "svolti direttamente dal datore di lavoro" in testo and "Luca Verdi" not in testo
+    assert "Paolo Gialli" in testo and "art. 50" in testo
+    assert repo.leggi("imprese", b)["affidataria_id"] == a

@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from sicurcantiere import analisi
+from sicurcantiere import anagrafiche, analisi
 from sicurcantiere.documenti.comune import (
     data_it,
     euro,
@@ -30,7 +30,7 @@ def _soggetto(soggetti: list[dict], ruolo: str) -> str:
 
 def genera_notifica(repo: Repository, destinazione: str | Path) -> Path:
     c = repo.cantiere()
-    soggetti = repo.elenco("soggetti")
+    soggetti = anagrafiche.soggetti(repo)
     imprese = repo.elenco("imprese")
     fasi = repo.elenco("fasi")
     periodo = analisi.periodo_lavori(fasi)

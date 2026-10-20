@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sicurcantiere import analisi
+from sicurcantiere import anagrafiche, analisi
 from sicurcantiere.documenti.comune import (
     data_it,
     euro,
@@ -44,7 +44,7 @@ def genera_fascicolo(repo: Repository, destinazione: str | Path) -> Path:
     doc.add_heading("Soggetti", 3)
     tabella(doc, ["Ruolo", "Nominativo", "Recapiti"], [
         [s["ruolo"], s["nome"], " - ".join(v for v in (s["indirizzo"], s["telefono"], s["email"]) if v)]
-        for s in repo.elenco("soggetti")
+        for s in anagrafiche.soggetti(repo)
     ])
 
     doc.add_heading("Capitolo II - Misure preventive e protettive in dotazione dell'opera e ausiliarie", 1)

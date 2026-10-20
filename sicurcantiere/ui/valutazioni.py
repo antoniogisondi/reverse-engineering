@@ -44,6 +44,10 @@ ESEMPI = {
              "circa 2 sacchi al minuto per 3 ore al giorno, ruotando il busto».",
     "niosh_composto": "«Il magazziniere scarica sacchi da 25 kg dal camion (1 al minuto) e sposta casse "
                       "da 12 kg sugli scaffali (3 al minuto), per 4 ore».",
+    "traino_spinta": "«Il manovale spinge la carriola carica di calcestruzzo per circa 15 m, 20 volte all'ora; "
+                     "col dinamometro forza iniziale 22 kg e di mantenimento 12 kg».",
+    "trasporto": "«Il manovale porta a mano i blocchi da 12 kg dal bancale al piano di lavoro, a 5 m, "
+                 "3 al minuto per 2 ore».",
     "ocra": "«Il ferraiolo lega i ferri con la tenaglia per circa 5 ore, con movimenti rapidi del polso "
             "destro e pause di 10 minuti ogni 2 ore».",
     "rumore": "«Il muratore usa il martello demolitore per 1 ora e mezza, la smerigliatrice per 45 minuti, "

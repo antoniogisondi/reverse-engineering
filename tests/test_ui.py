@@ -23,7 +23,10 @@ from sicurcantiere.ui.pagine import (  # noqa: E402
     PaginaFasi,
     PaginaImprese,
     PaginaInterferenze,
+    PaginaSoggetti,
 )
+
+QDate = QtCore.QDate
 
 
 @pytest.fixture(autouse=True)
@@ -262,8 +265,27 @@ def test_programma_pos(app, tmp_path):
     imprese = _pagina(f, PaginaImprese)
     f.navigazione.setCurrentRow(f.pagine.index(imprese))
     imprese.tabella.seleziona(a)
-    assert imprese.schede.count() == 3
+    assert imprese.schede.count() == 4
     imprese.figure.campi["datore_lavoro"].setText("Mario Bianchi")
+    imprese.figure.campi["rspp_datore"].setChecked(True)
+    imprese.dati.campi["ccnl"].setCurrentText("Edilizia - artigianato")
+    imprese.dati.campi["durc_scadenza"].setDate(QDate(2030, 5, 31))
+    assert imprese.dati.valore("durc_scadenza") == "2030-05-31"
+    imprese.elenco_figure.aggiungi()
+    assert repo.elenco("figure", impresa_id=a)[0]["ruolo"] == "Preposto"
+    b = repo.inserisci("imprese", ragione_sociale="Beta", tipo="Subappaltatrice")
+    imprese.tabella.ricarica()
+    imprese.tabella.seleziona(b)
+    affidataria = imprese.dati.campi["affidataria_id"]
+    affidataria.setCurrentIndex(affidataria.findData(a))
+    assert repo.leggi("imprese", b)["affidataria_id"] == a
+    imprese.tabella.seleziona(a)
+    assert imprese.dati.valore("ccnl") == "Edilizia - artigianato"
+
+    soggetti = _pagina(f, PaginaSoggetti)
+    f.navigazione.setCurrentRow(f.pagine.index(soggetti))
+    soggetti.committente_rl.setChecked(True)
+    assert repo.cantiere()["committente_rl"] == 1
     imprese.testi_pos.editor["rumore"].setPlainText("Sotto 80 dB(A)")
 
     pv = _pagina(f, PaginaValutazioni)
@@ -290,14 +312,16 @@ def test_programma_pos(app, tmp_path):
 
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))
-    assert doc.documenti == ("pos", "sostanze", "dpi") and doc.impresa.count() == 1
+    assert doc.documenti == ("pos", "sostanze", "dpi") and doc.impresa.count() == 2
     messaggi = [doc.controlli.item(i).text() for i in range(doc.controlli.count())]
     assert any("medico competente" in m for m in messaggi)
     assert "error" in f.stato_controlli.text()
     f.close()
     p = Progetto(tmp_path / "v.spo")
     r = Repository(p)
-    assert r.leggi("imprese", a)["datore_lavoro"] == "Mario Bianchi"
+    impresa = r.leggi("imprese", a)
+    assert impresa["datore_lavoro"] == "Mario Bianchi" and impresa["rspp_datore"] == 1
+    assert impresa["ccnl"] == "Edilizia - artigianato" and impresa["durc_scadenza"] == "2030-05-31"
     assert r.testo(chiave_testo(a, "rumore")) == "Sotto 80 dB(A)"
     p.chiudi()
 

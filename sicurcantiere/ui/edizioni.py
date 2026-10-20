@@ -104,7 +104,7 @@ class PaginaCantierePimus(PaginaDatiGenerali):
 class PaginaImpresePimus(PaginaImprese):
     titolo = "Impresa che monta il ponteggio"
     voce = "Impresa"
-    schede_visibili = ("figure",)
+    schede_visibili = ("dati", "figure")
 
 
 def controlla_pimus(repo: Repository) -> list[controlli.Segnalazione]:
