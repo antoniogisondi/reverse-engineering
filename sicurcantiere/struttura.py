@@ -19,7 +19,7 @@ def struttura_fase(repo: Repository, fase_id: int) -> dict[str, Any]:
     provvisionali sono usati dall'addetto.
     """
     fase = repo.leggi("fasi", fase_id) or {}
-    rischi = repo.elenco("rischi", fase_id=fase_id)
+    rischi = repo.rischi(fase_id=fase_id)
     attrezzature = repo.elenco("attrezzature", fase_id=fase_id)
     nomi = {a["nome"] for a in attrezzature}
 

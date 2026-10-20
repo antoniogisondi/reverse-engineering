@@ -550,3 +550,26 @@ def test_attrezzature_suggerite_e_completate_con_ai(app, tmp_path, monkeypatch):
     assert ("Movimenti ripetitivi degli arti superiori", "Avvitatore") in {
         (r["descrizione"], r["fonte"]) for r in repo.elenco("rischi", fase_id=fase)}
     f.close()
+
+
+def test_spunta_rischio_non_presente(app, tmp_path):
+    from sicurcantiere.ui.edizioni import POS, PaginaFasiPOS
+
+    Progetto(tmp_path / "n.spo", crea=True).chiudi()
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "n.spo")
+    pagina = _pagina(f, PaginaFasiPOS)
+    repo = pagina.repo
+    fase = repo.inserisci("fasi", codice="A", descrizione="Getti")
+    rischio = repo.inserisci("rischi", fase_id=fase, descrizione="Rumore")
+    pagina.fasi.ricarica()
+    pagina.fasi.seleziona(fase)
+    tabella = pagina.rischi
+    colonna = next(i for i, c in enumerate(tabella.colonne) if c.campo == "non_presente")
+    item = tabella.vista.item(0, colonna)
+    assert item.checkState() == QtCore.Qt.CheckState.Unchecked
+    item.setCheckState(QtCore.Qt.CheckState.Checked)
+    assert repo.leggi("rischi", rischio)["non_presente"] == 1
+    tabella.vista.item(0, colonna).setCheckState(QtCore.Qt.CheckState.Unchecked)
+    assert repo.leggi("rischi", rischio)["non_presente"] == 0
+    f.close()

@@ -23,7 +23,7 @@ def controlla(repo: Repository) -> list[Segnalazione]:
     c = repo.cantiere()
     imprese = repo.elenco("imprese")
     fasi = repo.elenco("fasi")
-    rischi = repo.elenco("rischi")
+    rischi = repo.rischi()
 
     def errore(sezione: str, messaggio: str) -> None:
         s.append(Segnalazione(ERRORE, sezione, messaggio))
@@ -147,7 +147,11 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
         if not fasi:
             s.append(Segnalazione(ERRORE, "Lavorazioni", f"{nome}: nessuna lavorazione assegnata."))
         for f in fasi:
-            rischi = repo.elenco("rischi", fase_id=f["id"])
+            for r in repo.rischi_esclusi(fase_id=f["id"]):
+                if not r["motivazione"].strip():
+                    s.append(Segnalazione(AVVISO, "Rischi", f"{f['codice']} {f['descrizione']}".strip()
+                                          + f": rischio \"{r['descrizione']}\" non presente senza motivazione."))
+            rischi = repo.rischi(fase_id=f["id"])
             etichetta = f"{f['codice']} {f['descrizione']}".strip() or f"Fase n. {f['id']}"
             if not rischi:
                 s.append(Segnalazione(AVVISO, "Lavorazioni", f"{etichetta}: nessun rischio valutato."))

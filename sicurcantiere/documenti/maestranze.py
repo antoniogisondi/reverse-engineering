@@ -112,7 +112,7 @@ def mansioni_lavoratore(repo: Repository, lavoratore: dict[str, Any]) -> list[di
         usate = [attrezzature[a] for f, a in coppie if f == fase_id and a in attrezzature]
         nomi_fase = {a["nome"] for a in attrezzature.values()}
         nomi_usate = {a["nome"] for a in usate}
-        rischi = [r for r in repo.elenco("rischi", fase_id=fase_id)
+        rischi = [r for r in repo.rischi(fase_id=fase_id)
                   if not usate or r["fonte"] not in nomi_fase or r["fonte"] in nomi_usate]
         risultato.append({"fase": fase, "attrezzature": usate or list(attrezzature.values()), "rischi": rischi})
     return risultato

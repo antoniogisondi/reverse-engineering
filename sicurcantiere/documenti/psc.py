@@ -92,7 +92,7 @@ def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
     imprese = repo.elenco("imprese")
     fasi = repo.elenco("fasi")
     costi = repo.elenco("costi")
-    rischi = repo.elenco("rischi")
+    rischi = repo.rischi()
     nomi_imprese = {i["id"]: i["ragione_sociale"] for i in imprese}
     livelli = analisi.livelli_fasi(rischi)
     elenco_interferenze = analisi.interferenze(fasi, livelli)

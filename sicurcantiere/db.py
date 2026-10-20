@@ -360,6 +360,11 @@ MIGRAZIONI: list[str] = [
     INSERT INTO valutazioni_fasi (valutazione_id, fase_id)
         SELECT id, fase_id FROM valutazioni WHERE fase_id IS NOT NULL AND fase_id IN (SELECT id FROM fasi);
     """,
+    # v0.13: rischio dichiarato non presente nella fase, con la motivazione.
+    """
+    ALTER TABLE rischi ADD COLUMN non_presente INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE rischi ADD COLUMN motivazione TEXT NOT NULL DEFAULT '';
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

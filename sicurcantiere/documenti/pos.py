@@ -138,7 +138,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         raise ValueError("Impresa inesistente")
     fasi = repo.elenco("fasi", impresa_id=impresa_id)
     lavoratori = repo.elenco("lavoratori", impresa_id=impresa_id)
-    rischi = [r for f in fasi for r in repo.elenco("rischi", fase_id=f["id"])]
+    rischi = [r for f in fasi for r in repo.rischi(fase_id=f["id"])]
     attrezzature = [a for f in fasi for a in repo.elenco("attrezzature", fase_id=f["id"])]
     c = repo.cantiere()
     soggetti = anagrafiche.soggetti(repo)
@@ -420,6 +420,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         ], 5.2)
         rischi_fase = [r for r in rischi if r["fase_id"] == f["id"]]
         _icone_dpi(doc, [r["dpi"] for r in struttura["rischi_lavorazione"]], "DPI dell'addetto:")
+        esclusi = repo.rischi_esclusi(fase_id=f["id"])
         if rischi_fase:
             _tabella_rischi(doc, rischi_fase)
             collegate = [v for v in valutazioni if f["id"] in repo.fasi_valutazione(v["id"])]
@@ -430,6 +431,11 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                                     for v in collegate if v["metodo"] in METODI) + ".")
         else:
             testo_o_segnaposto(doc, "")
+        if esclusi:
+            stile.banda(doc, "Rischi valutati come non presenti")
+            stile.tabella_colorata(doc, ["Rischio", "Motivazione"], [
+                [f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"], r["motivazione"] or "-"]
+                for r in esclusi], 8.5, colore_intestazione="6B7B8C", larghezze=[6, 11])
 
     for chiave, lettera in (("integrative", "g"), ("procedure", "h")):
         stile.capitolo(doc, dict(SEZIONI_POS)[chiave], f"punto 3.2.1, lettera {lettera}), Allegato XV del D.Lgs. 81/2008")

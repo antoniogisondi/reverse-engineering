@@ -125,6 +125,15 @@ class Repository:
 
     # --- prescrizioni sulle interferenze (coppie di fasi) ---
 
+    # --- rischi ---
+
+    def rischi(self, **filtro: Any) -> list[dict[str, Any]]:
+        """Rischi effettivamente presenti, esclusi quelli dichiarati non presenti."""
+        return [r for r in self.elenco("rischi", **filtro) if not r["non_presente"]]
+
+    def rischi_esclusi(self, **filtro: Any) -> list[dict[str, Any]]:
+        return [r for r in self.elenco("rischi", **filtro) if r["non_presente"]]
+
     # --- lavorazioni in cui si usa una sostanza ---
 
     def fasi_sostanza(self, sostanza_id: int) -> list[int]:

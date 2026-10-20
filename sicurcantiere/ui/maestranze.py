@@ -55,7 +55,7 @@ def dpi_suggeriti(repo: Repository, lavoratore: dict[str, Any]) -> list[str]:
     fasi = {f for f, _ in repo.mansioni(lavoratore["id"])}
     if not fasi:
         fasi = {f["id"] for f in repo.elenco("fasi", impresa_id=lavoratore["impresa_id"])}
-    return elenco_dpi([r["dpi"] for f in fasi for r in repo.elenco("rischi", fase_id=f)])
+    return elenco_dpi([r["dpi"] for f in fasi for r in repo.rischi(fase_id=f)])
 
 
 class DialogoMansioni(QDialog):

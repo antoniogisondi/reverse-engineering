@@ -11,7 +11,7 @@ from sicurcantiere.repository import Repository
 
 
 def dpi_impresa(repo: Repository, impresa_id: int) -> list[str]:
-    rischi = [r for f in repo.elenco("fasi", impresa_id=impresa_id) for r in repo.elenco("rischi", fase_id=f["id"])]
+    rischi = [r for f in repo.elenco("fasi", impresa_id=impresa_id) for r in repo.rischi(fase_id=f["id"])]
     return elenco_dpi([r["dpi"] for r in rischi])
 
 

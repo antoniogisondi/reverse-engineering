@@ -37,7 +37,7 @@ RUOLO_ID = Qt.ItemDataRole.UserRole
 class Colonna:
     campo: str
     titolo: str
-    # testo | testo_lungo | intero | decimale | data | scelta | calcolata
+    # testo | testo_lungo | intero | decimale | data | scelta | spunta | calcolata
     tipo: str = "testo"
     scelte: Callable[[], list[tuple[Any, str]]] | None = None
     scelta_libera: bool = False  # la combo accetta anche testo non in elenco
@@ -51,6 +51,8 @@ class Colonna:
 def formatta(colonna: Colonna, riga: dict[str, Any]) -> str:
     if colonna.tipo == "calcolata":
         return colonna.calcola(riga) if colonna.calcola else ""
+    if colonna.tipo == "spunta":
+        return ""
     valore = riga.get(colonna.campo)
     if valore is None:
         return ""
@@ -73,7 +75,7 @@ class _Delegato(QStyledItemDelegate):
 
     def createEditor(self, genitore, opzioni, indice):
         col = self.tabella.colonne[indice.column()]
-        if col.tipo == "calcolata":
+        if col.tipo in ("calcolata", "spunta"):
             return None
         if col.tipo == "testo_lungo":
             return QPlainTextEdit(genitore)
@@ -179,6 +181,7 @@ class TabellaCrud(QWidget):
                 self.vista.setColumnWidth(i, c.larghezza)
             elif c.tipo == "testo_lungo":
                 intestazione.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+        self.vista.itemChanged.connect(self._spunta_cambiata)
         self.vista.itemSelectionChanged.connect(
             lambda: self.selezione_cambiata.emit(self.id_selezionato())
         )
@@ -246,9 +249,20 @@ class TabellaCrud(QWidget):
             item = QTableWidgetItem(formatta(col, self._righe[r]))
             if col.tipo == "calcolata":
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            if col.tipo == "spunta":
+                item.setFlags((item.flags() | Qt.ItemFlag.ItemIsUserCheckable) & ~Qt.ItemFlag.ItemIsEditable)
+                item.setCheckState(Qt.CheckState.Checked if self._righe[r].get(col.campo) else Qt.CheckState.Unchecked)
             if col.tipo in ("intero", "decimale", "calcolata"):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.vista.setItem(r, c, item)
+
+    def _spunta_cambiata(self, item: QTableWidgetItem) -> None:
+        r, c = item.row(), item.column()
+        if c >= len(self.colonne) or self.colonne[c].tipo != "spunta" or r >= len(self._righe):
+            return
+        valore = 1 if item.checkState() == Qt.CheckState.Checked else 0
+        if int(self._righe[r].get(self.colonne[c].campo) or 0) != valore:
+            self.salva_cella(r, c, valore)
 
     def data_predefinita(self, r: int, colonna: Colonna) -> QDate:
         # Una data di fine parte dalla data di inizio della stessa riga.

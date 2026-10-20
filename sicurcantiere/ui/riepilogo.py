@@ -27,7 +27,7 @@ def calcola(repo: Repository) -> list[Voce]:
     c = repo.cantiere()
     fasi = repo.elenco("fasi")
     imprese = repo.elenco("imprese")
-    rischi = repo.elenco("rischi")
+    rischi = repo.rischi()
     costi = analisi.totale_costi(repo.elenco("costi"))
     periodo = analisi.periodo_lavori(fasi)
     ug = analisi.uomini_giorno(fasi)
@@ -81,7 +81,7 @@ def calcola_pos(repo: Repository) -> list[Voce]:
     imprese = [i for i in repo.elenco("imprese") if not anagrafiche.autonomo(i)]
     lavoratori = repo.elenco("lavoratori")
     fasi = repo.elenco("fasi")
-    rischi = repo.elenco("rischi")
+    rischi = repo.rischi()
     oggi = date.today().isoformat()
     scadute = [l for l in lavoratori if l["idoneita_scadenza"] and l["idoneita_scadenza"] < oggi]
     alti = [r for r in rischi if analisi.livello_rischio(r["probabilita"], r["danno"]) >= 9]

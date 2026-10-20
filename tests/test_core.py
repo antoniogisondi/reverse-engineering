@@ -771,3 +771,30 @@ def test_valutazioni_automatiche_dai_rischi_e_dalle_attrezzature(repo, tmp_path)
     assert "Valutazione da eseguire" in testo and "A Getti; C Massetti" in testo
     repo.salva_dati_valutazione(valutazioni["niosh"]["id"], {"peso": 10})
     assert not automatiche.da_eseguire(repo, valutazioni["niosh"]["id"])
+
+
+def test_rischio_non_presente_con_motivazione(repo, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.documenti.pos import genera_pos
+    from sicurcantiere.valutazioni import automatiche
+
+    a = _cantiere_completo(repo)
+    fase = repo.inserisci("fasi", codice="T", descrizione="Tagli", impresa_id=a)
+    repo.inserisci("attrezzature", fase_id=fase, tipo="Attrezzo", nome="Flessibile a batteria")
+    automatiche.sincronizza(repo)
+    vibrazioni = next(r for r in repo.elenco("rischi", fase_id=fase) if r["descrizione"].startswith("Vibrazioni"))
+    v = vibrazioni["valutazione_id"]
+    assert fase in repo.fasi_valutazione(v)
+    repo.aggiorna("rischi", vibrazioni["id"], non_presente=1, valutazione_id=None)
+    repo.salva_fasi_valutazione(v, [f for f in repo.fasi_valutazione(v) if f != fase])
+    automatiche.sincronizza(repo)
+    assert fase not in repo.fasi_valutazione(v)  # non viene rimessa
+    assert len([r for r in repo.elenco("rischi", fase_id=fase) if r["descrizione"].startswith("Vibrazioni")]) == 1
+    assert vibrazioni["id"] not in {r["id"] for r in repo.rischi(fase_id=fase)}
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert any("non presente senza motivazione" in m for m in messaggi)
+    repo.aggiorna("rischi", vibrazioni["id"], motivazione="Utensile a basse vibrazioni, uso inferiore a 10 minuti")
+    messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
+    assert not any("non presente senza motivazione" in m for m in messaggi)
+    testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "Rischi valutati come non presenti" in testo and "uso inferiore a 10 minuti" in testo

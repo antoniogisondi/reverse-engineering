@@ -702,6 +702,11 @@ class PaginaFasi(Pagina):
             Colonna("misure", "Misure di prevenzione e protezione", "testo_lungo"),
             Colonna("dpi", "DPI", "testo_lungo"),
             Colonna("valutazione_id", "Valutazione specifica", "scelta", scelte=self._valutazioni, larghezza=200),
+            Colonna("non_presente", "Non presente", "spunta", larghezza=95, suggerimento=(
+                "Spuntare se il rischio, valutato, non è presente nella fase (per esempio macchina "
+                "silenziata o lavorazione che non lo comporta): resta fuori da valutazioni specifiche, "
+                "segnaletica e DPI, e nel POS compare con la motivazione.")),
+            Colonna("motivazione", "Motivazione (se non presente)", "testo_lungo"),
         ])
         self.rischi.modificata.connect(self._aggiorna_gantt)
         suggerisci = QPushButton(icona("ai", "#E8792B"), "Suggerisci rischi con l'AI")
@@ -823,7 +828,7 @@ class PaginaFasi(Pagina):
 
     def _aggiorna_gantt(self) -> None:
         imprese = {i["id"]: i["ragione_sociale"] or f"Impresa {i['id']}" for i in self.repo.elenco("imprese")}
-        self.gantt.imposta_fasi(self.fasi.righe(), analisi.livelli_fasi(self.repo.elenco("rischi")), imprese)
+        self.gantt.imposta_fasi(self.fasi.righe(), analisi.livelli_fasi(self.repo.rischi()), imprese)
 
     def _fase_trascinata(self, id_: int, inizio: str, fine: str) -> None:
         self.repo.aggiorna("fasi", id_, data_inizio=inizio, data_fine=fine)
@@ -1101,7 +1106,7 @@ class PaginaInterferenze(Pagina):
 
     def aggiorna(self) -> None:
         fasi = self.repo.elenco("fasi")
-        elenco = analisi.interferenze(fasi, analisi.livelli_fasi(self.repo.elenco("rischi")))
+        elenco = analisi.interferenze(fasi, analisi.livelli_fasi(self.repo.rischi()))
         prescrizioni = self.repo.prescrizioni()
         self._chiavi = [i.chiave for i in elenco]
         self.vista.blockSignals(True)

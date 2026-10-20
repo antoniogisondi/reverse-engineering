@@ -92,7 +92,7 @@ def da_eseguire(repo: Repository, valutazione_id: int) -> bool:
 def rischi_specifici(repo: Repository) -> dict[str, dict[int, list[dict[str, Any]]]]:
     """Per ogni gruppo, le fasi che presentano il rischio con i rischi corrispondenti."""
     esito: dict[str, dict[int, list[dict[str, Any]]]] = {}
-    for r in repo.elenco("rischi"):
+    for r in repo.rischi():
         g = gruppo_rischio(r["descrizione"])
         if g is not None:
             esito.setdefault(g.chiave, {}).setdefault(r["fase_id"], []).append(r)

@@ -154,7 +154,8 @@ class ArchivioAnagrafiche:
             "addetto": fase["addetto"],
             "attrezzature": [{k: a[k] for k in ("nome", "tipo", "descrizione", "misure", "dpi")}
                              for a in repo.elenco("attrezzature", fase_id=fase_id)],
-            "rischi": [{k: r[k] for k in ("fonte", "descrizione", "probabilita", "danno", "misure", "dpi")}
+            "rischi": [{k: r[k] for k in ("fonte", "descrizione", "probabilita", "danno", "misure", "dpi",
+                                          "non_presente", "motivazione")}
                        for r in repo.elenco("rischi", fase_id=fase_id)],
         }
         nome = " ".join(v for v in (fase["codice"], fase["descrizione"]) if v)
