@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sicurcantiere.ai import ANTHROPIC, AssistenteAI, ErroreAI, schema_metodo
+from sicurcantiere.ai import ANTHROPIC, DEEPSEEK, OPENAI, URL_DEEPSEEK, AssistenteAI, ErroreAI, schema_metodo
 from sicurcantiere.valutazioni import METODI
 
 
@@ -55,7 +55,7 @@ def test_compila_valutazione_openai():
         "peso": 25, "h": 45, "v": 10, "d": 90, "a": 45, "frequenza": 1.5, "presa": "scarsa",
         "ipotesi": ["Altezza di presa stimata: sacchi a terra"],
     })
-    ai = AssistenteAI(client=client)  # OpenAI è il fornitore predefinito
+    ai = AssistenteAI(fornitore=OPENAI, client=client)
     esito = ai.compila_valutazione(METODI["niosh"], "Il manovale carica sacchi da 25 kg in betoniera")
     assert esito.titolo == "Sacchi di cemento" and esito.dati["peso"] == 25
     assert esito.ipotesi == ["Altezza di presa stimata: sacchi a terra"]
@@ -108,7 +108,7 @@ def test_errori():
     with pytest.raises(ErroreAI, match="troncata"):
         AssistenteAI(client=ClientOpenAIFinto({}, finish_reason="length")).scrivi_sezione("x", "y")
     with pytest.raises(ErroreAI, match="non leggibile"):
-        AssistenteAI(client=ClientOpenAIFinto("non json")).scrivi_sezione("x", "y")
+        AssistenteAI(fornitore=OPENAI, client=ClientOpenAIFinto("non json")).scrivi_sezione("x", "y")
     with pytest.raises(ErroreAI, match="non ha potuto"):
         AssistenteAI(fornitore=ANTHROPIC, client=ClientFinto({}, stop_reason="refusal")).scrivi_sezione("x", "y")
     with pytest.raises(ErroreAI, match="troncata"):
@@ -119,7 +119,32 @@ def test_errore_chiave_openai_mancante(monkeypatch):
     # Senza chiave l'SDK OpenAI solleva un errore: deve diventare un messaggio comprensibile.
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(ErroreAI, match="non configurato|non valida"):
+        AssistenteAI(fornitore=OPENAI).scrivi_sezione("x", "y")
+
+
+def test_deepseek(monkeypatch):
+    # DeepSeek è il predefinito: senza chiave un messaggio chiaro, con la chiave l'indirizzo DeepSeek.
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "chiave-openai-da-non-usare")
+    assert AssistenteAI().fornitore == DEEPSEEK
+    with pytest.raises(ErroreAI, match="DEEPSEEK_API_KEY"):
         AssistenteAI().scrivi_sezione("x", "y")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-prova")
+    client = AssistenteAI().client
+    assert str(client.base_url).startswith(URL_DEEPSEEK) and client.api_key == "sk-prova"
+
+    finto = ClientOpenAIFinto({"testo": "Bozza della sezione"})
+    assert AssistenteAI(client=finto).scrivi_sezione("Area", "Cantiere") == "Bozza della sezione"
+    richiesta = finto.richieste[0]
+    assert richiesta["model"] == "deepseek-flash" and richiesta["response_format"] == {"type": "json_object"}
+    assert "json" in richiesta["messages"][0]["content"] and "json" in richiesta["messages"][1]["content"]
+    # Modalità JSON senza schema garantito: le proprietà mancanti sono un errore comprensibile.
+    with pytest.raises(ErroreAI, match="incompleta"):
+        AssistenteAI(client=ClientOpenAIFinto({"altro": 1})).scrivi_sezione("x", "y")
+    vuoto = ClientOpenAIFinto("")
+    with pytest.raises(ErroreAI, match="vuota"):
+        AssistenteAI(client=vuoto).scrivi_sezione("x", "y")
+    assert len(vuoto.richieste) == 2  # un secondo tentativo prima di arrendersi
 
 
 def test_estrai_sds():

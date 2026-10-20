@@ -85,7 +85,7 @@ archivi o contenuti di software commerciali.
     limite dell'art. 201, minuti di utilizzo che portano al valore d'azione per ogni attrezzatura;
   - risultato in tempo reale con classe colorata e **misure suggerite in base ai fattori più penalizzanti**;
   - relazione Word per ogni valutazione e inclusione automatica nel POS dell'impresa
-- **Assistente AI** (OpenAI/ChatGPT predefinito, Claude in alternativa):
+- **Assistente AI** (DeepSeek predefinito, OpenAI/ChatGPT e Claude in alternativa):
   - compila i parametri NIOSH/OCRA dalla descrizione dell'attività, dichiarando le ipotesi fatte;
   - suggerisce rischi, misure e DPI di una fase di lavoro;
   - scrive bozze delle sezioni della relazione del PSC e del PiMUS a partire dai dati del cantiere
@@ -109,15 +109,19 @@ generati (PSC, POS, PiMUS, fascicolo, notifica, relazioni di valutazione) sono f
 
 ## Assistente AI
 
-Menu **Strumenti > Impostazioni assistente AI**: scegliere il fornitore (OpenAI è il
-predefinito), incollare la chiave API e, se si vuole, cambiare modello. Senza chiave nelle
-impostazioni si usa la variabile d'ambiente `OPENAI_API_KEY` (o `ANTHROPIC_API_KEY` per Claude).
+Menu **Strumenti > Impostazioni assistente AI**: scegliere il fornitore (DeepSeek è il
+predefinito, con il modello `deepseek-flash`; in alternativa OpenAI o Claude), incollare la chiave API
+e, se si vuole, cambiare modello. Senza chiave nelle impostazioni si usa la variabile d'ambiente
+`DEEPSEEK_API_KEY` (oppure `OPENAI_API_KEY` o `ANTHROPIC_API_KEY`). Su Windows la variabile si imposta da
+Pannello di controllo > Sistema > Impostazioni di sistema avanzate > Variabili d'ambiente, oppure con
+`setx DEEPSEEK_API_KEY "la-tua-chiave"` dal prompt dei comandi, poi riaprendo il programma.
 L'assistente propone valori e testi: vanno sempre verificati, e le ipotesi fatte vengono
 mostrate e riportate nella relazione.
 
 ## Stabilità
 
-- Salvataggio automatico: ogni modifica è scritta subito sul file in una transazione.
+- Salvataggio automatico: ogni modifica è scritta subito sul file in una transazione; il pulsante
+  **Salva** (Ctrl+S) scrive anche il campo in corso di modifica.
 - All'apertura viene fatta una copia di sicurezza `nomefile.scs.bak`.
 - Schema del file versionato con migrazioni: i progetti vecchi si aggiornano
   da soli; quelli creati con versioni più recenti vengono rifiutati invece di essere danneggiati.

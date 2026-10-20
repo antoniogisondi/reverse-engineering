@@ -6,7 +6,10 @@ valutazione. Le risposte sono vincolate a uno schema JSON (structured
 outputs), così possono essere inserite direttamente nei campi.
 
 Fornitori supportati:
-- OpenAI (ChatGPT), predefinito: chiave nelle impostazioni o variabile OPENAI_API_KEY;
+- DeepSeek, predefinito: chiave nelle impostazioni o variabile DEEPSEEK_API_KEY. L'API è
+  compatibile con OpenAI ma accetta solo la modalità JSON (non lo schema rigido): lo schema
+  viene descritto nelle istruzioni e la risposta controllata dal programma;
+- OpenAI (ChatGPT): chiave nelle impostazioni o variabile OPENAI_API_KEY;
 - Claude (Anthropic): chiave nelle impostazioni, variabile ANTHROPIC_API_KEY o
   profilo `ant auth login`.
 """
@@ -14,13 +17,16 @@ Fornitori supportati:
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import Any
 
 from sicurcantiere.valutazioni.base import Campo, Metodo
 
-OPENAI, ANTHROPIC = "openai", "anthropic"
-FORNITORE_PREDEFINITO = OPENAI
+OPENAI, ANTHROPIC, DEEPSEEK = "openai", "anthropic", "deepseek"
+FORNITORE_PREDEFINITO = DEEPSEEK
+VARIABILI_AMBIENTE = {DEEPSEEK: "DEEPSEEK_API_KEY", OPENAI: "OPENAI_API_KEY", ANTHROPIC: "ANTHROPIC_API_KEY"}
+URL_DEEPSEEK = "https://api.deepseek.com"
 
 
 @dataclass(frozen=True)
@@ -31,6 +37,10 @@ class Fornitore:
 
 
 FORNITORI: dict[str, Fornitore] = {
+    DEEPSEEK: Fornitore("DeepSeek", "deepseek-flash", (
+        ("deepseek-flash", "DeepSeek V4.1 Flash"),
+        ("deepseek-v4-pro", "DeepSeek V4 Pro (più accurato, più lento)"),
+    )),
     OPENAI: Fornitore("OpenAI (ChatGPT)", "gpt-5.5", (
         ("gpt-5.5", "GPT-5.5"),
         ("gpt-5.4-mini", "GPT-5.4 mini (più rapido ed economico)"),
@@ -124,7 +134,15 @@ class AssistenteAI:
     @property
     def client(self) -> Any:
         if self._client is None:
-            if self.fornitore == OPENAI:
+            if self.fornitore == DEEPSEEK:
+                import openai
+
+                chiave = self.api_key or os.environ.get(VARIABILI_AMBIENTE[DEEPSEEK], "")
+                if not chiave:
+                    raise ErroreAI("Chiave API DeepSeek mancante: inserirla in Strumenti > Impostazioni "
+                                   "assistente AI oppure nella variabile d'ambiente DEEPSEEK_API_KEY.")
+                self._client = openai.OpenAI(api_key=chiave, base_url=URL_DEEPSEEK)
+            elif self.fornitore == OPENAI:
                 import openai
 
                 self._client = openai.OpenAI(api_key=self.api_key) if self.api_key else openai.OpenAI()
@@ -135,7 +153,9 @@ class AssistenteAI:
         return self._client
 
     def _richiesta(self, testo: str, schema: dict[str, Any]) -> dict[str, Any]:
-        if self.fornitore == OPENAI:
+        if self.fornitore == DEEPSEEK:
+            testo_risposta = self._richiesta_deepseek(testo, schema)
+        elif self.fornitore == OPENAI:
             testo_risposta = self._richiesta_openai(testo, schema)
         else:
             testo_risposta = self._richiesta_anthropic(testo, schema)
@@ -145,21 +165,39 @@ class AssistenteAI:
             raise ErroreAI("Risposta dell'assistente non leggibile.") from e
         if not isinstance(dati, dict):
             raise ErroreAI("Risposta dell'assistente non leggibile.")
+        mancanti = [k for k in schema.get("required", []) if k not in dati]
+        if mancanti:
+            # Solo in modalità JSON (DeepSeek) lo schema non è garantito dal servizio.
+            raise ErroreAI("Risposta dell'assistente incompleta (mancano: " + ", ".join(mancanti) + "): riprovare.")
         return dati
 
-    def _richiesta_openai(self, testo: str, schema: dict[str, Any]) -> str:
+    def _richiesta_deepseek(self, testo: str, schema: dict[str, Any]) -> str:
+        istruzioni = (SISTEMA + "\n\nRispondi esclusivamente con un oggetto json valido, senza testo prima o "
+                      "dopo, che rispetti questo schema JSON (tutte le proprietà sono obbligatorie):\n"
+                      + json.dumps(schema, ensure_ascii=False))
+        for _ in range(2):  # il servizio può restituire raramente un contenuto vuoto
+            contenuto = self._richiesta_openai(testo + "\n\nRispondi in formato json.", schema, sistema=istruzioni,
+                                               modalita_json=True, nome="DeepSeek")
+            if contenuto.strip():
+                return contenuto
+        raise ErroreAI("L'assistente DeepSeek ha restituito una risposta vuota: riprovare.")
+
+    def _richiesta_openai(self, testo: str, schema: dict[str, Any], sistema: str = SISTEMA,
+                          modalita_json: bool = False, nome: str = "OpenAI") -> str:
         import openai
 
+        formato = {"type": "json_object"} if modalita_json else {
+            "type": "json_schema", "json_schema": {"name": "risposta", "schema": schema, "strict": True}}
+        limite = {"max_tokens": 8000} if modalita_json else {"max_completion_tokens": MAX_TOKEN}
         try:
             risposta = self.client.chat.completions.create(
                 model=self.modello,
-                max_completion_tokens=MAX_TOKEN,
-                messages=[{"role": "system", "content": SISTEMA}, {"role": "user", "content": testo}],
-                response_format={"type": "json_schema",
-                                 "json_schema": {"name": "risposta", "schema": schema, "strict": True}},
+                messages=[{"role": "system", "content": sistema}, {"role": "user", "content": testo}],
+                response_format=formato,
+                **limite,
             )
         except openai.AuthenticationError as e:
-            raise ErroreAI("Chiave API OpenAI non valida o mancante: controllare Strumenti > "
+            raise ErroreAI(f"Chiave API {nome} non valida o mancante: controllare Strumenti > "
                            "Impostazioni assistente AI.") from e
         except openai.PermissionDeniedError as e:
             raise ErroreAI("La chiave API non ha i permessi per questo modello.") from e
@@ -167,7 +205,7 @@ class AssistenteAI:
             raise ErroreAI(f"Modello «{self.modello}» non disponibile per questa chiave: "
                            "sceglierne un altro nelle impostazioni.") from e
         except openai.RateLimitError as e:
-            raise ErroreAI("Limite di richieste o credito esaurito sull'account OpenAI: "
+            raise ErroreAI(f"Limite di richieste o credito esaurito sull'account {nome}: "
                            "riprovare più tardi o controllare il piano.") from e
         except openai.APIConnectionError as e:
             raise ErroreAI("Impossibile contattare il servizio: controllare la connessione a internet.") from e
@@ -178,7 +216,7 @@ class AssistenteAI:
             raise ErroreAI(f"Assistente AI non configurato: {e}") from e
 
         scelta = risposta.choices[0]
-        if scelta.message.refusal:
+        if getattr(scelta.message, "refusal", None):
             raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
         if scelta.finish_reason == "length":
             raise ErroreAI("La risposta è stata troncata: provare con una descrizione più breve.")

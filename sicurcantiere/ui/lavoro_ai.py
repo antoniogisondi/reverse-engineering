@@ -18,10 +18,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sicurcantiere.ai import ANTHROPIC, FORNITORE_PREDEFINITO, FORNITORI, OPENAI, AssistenteAI, ErroreAI
+from sicurcantiere.ai import FORNITORE_PREDEFINITO, FORNITORI, VARIABILI_AMBIENTE, AssistenteAI, ErroreAI
 
 CHIAVE_FORNITORE = "ai/fornitore"
-VARIABILI_AMBIENTE = {OPENAI: "OPENAI_API_KEY", ANTHROPIC: "ANTHROPIC_API_KEY"}
 
 
 def impostazioni_comuni() -> QSettings:

@@ -268,6 +268,9 @@ def test_programma_pos(app, tmp_path):
     imprese.tabella.seleziona(a)
     assert imprese.schede.count() == 5
     imprese.figure.campi["datore_lavoro"].setText("Mario Bianchi")
+    f.salva()  # pulsante Salva: anche il campo ancora in modifica finisce nel file
+    assert repo.leggi("imprese", a)["datore_lavoro"] == "Mario Bianchi"
+    assert f.azione_salva.isEnabled() and "Salvato alle" in f.stato_salvataggio.text()
     imprese.figure.campi["rspp_datore"].setChecked(True)
     imprese.dati.campi["ccnl"].setCurrentText("Edilizia - artigianato")
     imprese.dati.campi["durc_scadenza"].setDate(QDate(2030, 5, 31))

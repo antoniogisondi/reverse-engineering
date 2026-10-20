@@ -49,6 +49,9 @@ _FORME: dict[str, str] = {
     "nuovo": '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M12.5 11v6M9.5 14h6"/>',
     "apri": '<path d="M3 19V5h6l2 2h8v3"/><path d="M3 19l3-9h16l-3 9z"/>',
     "salva": '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/>',
+    # dischetto con matita: salva con nome
+    "salva_con_nome": '<path d="M12 21H4V3h10l3 3v4"/><path d="M7 3v5h6V3"/>'
+                      '<path d="M14 21l1-3 5-5 2 2-5 5z"/>',
     # documento con spunta
     "psc": '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 14l2.5 2.5L16 12"/>',
     "controlli": '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',

@@ -216,6 +216,9 @@ class FinestraPrincipale(QMainWindow):
     def _crea_azioni(self) -> None:
         self.azione_nuovo = self._azione("&Nuovo cantiere...", self.nuovo, QKeySequence.StandardKey.New)
         self.azione_apri = self._azione("&Apri...", self.apri, QKeySequence.StandardKey.Open)
+        self.azione_salva = self._azione(
+            "&Salva", self.salva, QKeySequence.StandardKey.Save,
+            "Salva le modifiche (il programma salva anche da solo ogni modifica)")
         self.azione_salva_con_nome = self._azione(
             "Salva &con nome...", self.salva_con_nome, QKeySequence.StandardKey.SaveAs,
             "Salva una copia del cantiere con un altro nome")
@@ -229,13 +232,14 @@ class FinestraPrincipale(QMainWindow):
         self.azione_info = self._azione("&Informazioni", self._informazioni)
         self.azione_ai = self._azione("Impostazioni assistente &AI...", lambda: DialogoImpostazioniAI(self).exec())
         self.azione_archivio = self._azione("Archivio &anagrafiche...", lambda: archivio_anagrafiche.gestisci(self))
-        self.azioni_progetto = [self.azione_salva_con_nome, self.azione_chiudi,
+        self.azioni_progetto = [self.azione_salva, self.azione_salva_con_nome, self.azione_chiudi,
                                 self.azione_psc, self.azione_controlli]
 
     def _crea_menu(self) -> None:
         menu = self.menuBar().addMenu("&File")
         menu.addAction(self.azione_nuovo)
         menu.addAction(self.azione_apri)
+        menu.addAction(self.azione_salva)
         menu.addAction(self.azione_salva_con_nome)
         self.menu_recenti = menu.addMenu("File &recenti")
         self.menu_recenti.aboutToShow.connect(self._popola_recenti)
@@ -263,7 +267,7 @@ class FinestraPrincipale(QMainWindow):
         barra.setMovable(False)
         barra.setIconSize(QSize(20, 20))
         barra.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        for a in (self.azione_nuovo, self.azione_apri, self.azione_salva_con_nome):
+        for a in (self.azione_nuovo, self.azione_apri, self.azione_salva, self.azione_salva_con_nome):
             barra.addAction(a)
         barra.addSeparator()
         barra.addAction(self.azione_psc)
@@ -293,7 +297,8 @@ class FinestraPrincipale(QMainWindow):
         c = self.colori.icone
         for azione, nome in (
             (self.azione_nuovo, "nuovo"), (self.azione_apri, "apri"),
-            (self.azione_salva_con_nome, "salva"), (self.azione_psc, "psc"),
+            (self.azione_salva, "salva"), (self.azione_salva_con_nome, "salva_con_nome"),
+            (self.azione_psc, "psc"),
             (self.azione_controlli, "controlli"), (self.azione_tema, "tema"),
             (self.azione_info, "info"), (self.azione_ai, "ai"),
         ):
@@ -397,6 +402,16 @@ class FinestraPrincipale(QMainWindow):
             QMessageBox.critical(self, "Salvataggio non riuscito", str(e))
             return
         self.apri_file(percorso)
+
+    def salva(self) -> None:
+        """Scrive subito nel file anche i campi in modifica (il resto è già salvato)."""
+        if not self.progetto:
+            return
+        self._salva_in_sospeso()
+        self.progetto.conn.commit()
+        self._modifiche_viste = self.progetto.conn.total_changes
+        self.stato_salvataggio.setText(f"Salvato alle {datetime.now():%H:%M:%S}")
+        self.statusBar().showMessage("Modifiche salvate nel file del cantiere.", 4000)
 
     def _salva_in_sospeso(self) -> None:
         for pagina in self.pagine:
