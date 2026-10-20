@@ -65,6 +65,13 @@ def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
     app.setApplicationDisplayName(scelta.nome)
     tema.applica(app, QSettings().value("tema_scuro", False, type=bool))
 
+    if "--autoverifica" in argv:
+        # Prova del programma installato: niente finestra, esito su file e nel codice di uscita.
+        from sicurcantiere import autoverifica
+
+        i = argv.index("--autoverifica")
+        return autoverifica.esegui(argv[i + 1] if i + 1 < len(argv) else ".", edizione)
+
     file_log = _configura_log()
     sys.excepthook = _gestore_eccezioni(file_log)
     log.info("Avvio %s %s", scelta.nome, __version__)

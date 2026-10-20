@@ -798,3 +798,16 @@ def test_rischio_non_presente_con_motivazione(repo, tmp_path):
     assert not any("non presente senza motivazione" in m for m in messaggi)
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
     assert "Rischi valutati come non presenti" in testo and "uso inferiore a 10 minuti" in testo
+
+
+def test_autoverifica(tmp_path, monkeypatch):
+    pytest.importorskip("PySide6.QtWidgets")
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+
+    from sicurcantiere import autoverifica
+
+    app = QApplication.instance() or QApplication([])  # noqa: F841
+    assert autoverifica.esegui(tmp_path, "pos") == 0
+    esito = (tmp_path / "autoverifica.txt").read_text(encoding="utf-8")
+    assert "ESITO: OK" in esito and (tmp_path / "prova POS.docx").is_file()

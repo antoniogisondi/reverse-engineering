@@ -501,6 +501,12 @@ SOSTITUITE = {
 
 
 def _carica_moduli() -> None:
+    # Import espliciti: i moduli caricati solo per nome non entrerebbero negli eseguibili di PyInstaller.
+    from sicurcantiere.archivio_dati import (  # noqa: F401
+        aggiunte, allestimento, attrezzi_a, attrezzi_b, coperture, demolizioni, impianti, infrastrutture,
+        interni, macchine, rischi_specifici, scavi, strutture,
+    )
+
     for nome in MODULI_ATTREZZATURE:
         modulo = importlib.import_module(f"sicurcantiere.archivio_dati.{nome}")
         ATTREZZATURE.update(modulo.ATTREZZATURE)

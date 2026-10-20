@@ -1,0 +1,77 @@
+# Compila i programmi per Windows, li prova (eseguibili e installatore) e pubblica
+# l'installatore come versione scaricabile del repository.
+name: Installatore Windows
+
+on:
+  push:
+    branches: [main, claude/dazzling-pasteur-upt4ur]
+    paths-ignore: ["docs/**", "README.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: installatore-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Test, eseguibili e installatore
+        shell: cmd
+        run: scripts\build_windows.bat
+
+      - name: Prova degli eseguibili
+        shell: pwsh
+        run: |
+          foreach ($p in "PSC", "POS", "PiMUS") {
+            $cartella = Join-Path $env:RUNNER_TEMP "prova-$p"
+            $exe = "dist\SicurCantiere $p\SicurCantiere $p.exe"
+            $proc = Start-Process -FilePath $exe -ArgumentList "--autoverifica", "`"$cartella`"" -Wait -PassThru
+            Get-Content (Join-Path $cartella "autoverifica.txt")
+            if ($proc.ExitCode -ne 0) { throw "SicurCantiere ${p}: autoverifica non riuscita" }
+          }
+
+      - name: Prova dell'installatore
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist\SicurCantiere-*-setup.exe | Select-Object -First 1).FullName
+          $proc = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"C:\SicurCantiere`"" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "installazione non riuscita ($($proc.ExitCode))" }
+          $cartella = Join-Path $env:RUNNER_TEMP "prova-installato"
+          $proc = Start-Process -FilePath "C:\SicurCantiere\POS\SicurCantiere POS.exe" -ArgumentList "--autoverifica", "`"$cartella`"" -Wait -PassThru
+          Get-Content (Join-Path $cartella "autoverifica.txt")
+          if ($proc.ExitCode -ne 0) { throw "programma installato: autoverifica non riuscita" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SicurCantiere-setup
+          path: dist/SicurCantiere-*-setup.exe
+
+      - name: Pubblica la versione
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $versione = (Select-String -Path sicurcantiere\__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
+          $tag = "v$versione"
+          $setup = (Get-ChildItem dist\SicurCantiere-*-setup.exe | Select-Object -First 1).FullName
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { gh release delete $tag --yes --cleanup-tag }
+          gh release create $tag $setup --target $env:GITHUB_SHA --title "SicurCantiere $versione" --notes-file docs\installazione.md

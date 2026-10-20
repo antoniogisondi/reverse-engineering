@@ -32,6 +32,8 @@ REM %1 = nome visibile, %2 = chiave dell'edizione
 pyinstaller --noconfirm --clean --windowed --name "SicurCantiere %1" ^
     --icon assets\sicurcantiere-%2.ico ^
     --collect-data docx ^
+    --paths . ^
+    --collect-submodules sicurcantiere ^
     --add-data "sicurcantiere\risorse;sicurcantiere\risorse" ^
     scripts\avvio_%2.py || exit /b 1
 echo Creato dist\SicurCantiere %1\SicurCantiere %1.exe
