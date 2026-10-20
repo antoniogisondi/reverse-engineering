@@ -134,6 +134,7 @@ CATALOGO: dict[str, str] = {
     "Nebulizzatore a bassa pressione": ATTREZZO,
     "Rilevatore di masse metalliche (magnetometro)": ATTREZZO,
     "Taglierina a filo caldo per pannelli isolanti": ATTREZZO,
+    "Accessori di sollevamento (brache, bilancini, ganci)": ATTREZZO,
     "Attrezzatura per scavo di diaframmi (benna mordente o idrofresa)": MACCHINA,
     "Idrodemolitrice (robot ad acqua ad alta pressione)": MACCHINA,
     "Impianto di abbassamento della falda (wellpoint)": ATTREZZO,
