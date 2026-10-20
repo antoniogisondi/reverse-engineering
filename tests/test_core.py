@@ -55,7 +55,7 @@ def test_campi_non_validi_rifiutati(repo):
 
 def test_crud_e_cascata(repo):
     impresa = repo.inserisci("imprese", ragione_sociale="Edil Srl")
-    lavorazione = lav("AL.01")
+    lavorazione = lav("AL.14")
     fase = repo.importa_lavorazione(lavorazione)
     repo.aggiorna("fasi", fase, impresa_id=impresa)
     assert repo.leggi("fasi", fase)["impresa_id"] == impresa
@@ -133,8 +133,8 @@ def test_genera_psc(repo, tmp_path):
     repo.inserisci("soggetti", ruolo="Committente", nome="Comune di Bari")
     a = repo.inserisci("imprese", ragione_sociale="Alfa Costruzioni", tipo="Affidataria")
     b = repo.inserisci("imprese", ragione_sociale="Beta Impianti")
-    f1 = repo.importa_lavorazione(lav("NC.01"))
-    f2 = repo.importa_lavorazione(lav("AL.04"))
+    f1 = repo.importa_lavorazione(lav("MT.01"))
+    f2 = repo.importa_lavorazione(lav("AL.22"))
     repo.aggiorna("fasi", f1, impresa_id=a, data_inizio="2025-10-06", data_fine="2025-10-31")
     repo.aggiorna("fasi", f2, impresa_id=b, data_inizio="2025-10-20", data_fine="2025-11-14")
     repo.inserisci("costi", descrizione="Recinzione", unita="m", quantita=120, prezzo_unitario=12.5)
@@ -264,7 +264,7 @@ def _cantiere_completo(repo):
     repo.inserisci("figure", impresa_id=a, ruolo="RSPP", nome="Luca Verdi")
     repo.inserisci("lavoratori", impresa_id=a, nome="Giuseppe Neri", mansione="Muratore",
                    formazione="Formazione generale e specifica 16 ore")
-    f = repo.importa_lavorazione(lav("NC.03"))
+    f = repo.importa_lavorazione(lav("ST.07"))
     repo.aggiorna("fasi", f, impresa_id=a, data_inizio="2025-10-06", data_fine="2025-10-31", lavoratori=4)
     repo.inserisci("interventi", parte_opera="Copertura", intervento="Pulizia dei canali di gronda",
                    periodicita="Annuale", misure_in_dotazione="Linea vita")
@@ -577,13 +577,13 @@ def test_archivio_tipologie_e_lavorazioni_utente(repo, tmp_path):
         assert gruppi and all(t in l["tipologie"] for v in gruppi.values() for l in v)
     assert "Lavori stradali" not in per_categoria("Restauri")
 
-    fase = repo.importa_lavorazione(lav("NC.03"))
+    fase = repo.importa_lavorazione(lav("ST.07"))
     repo.aggiorna("fasi", fase, descrizione="Pilastri e travi in c.a. (personalizzata)")
     repo.inserisci("rischi", fase_id=fase, descrizione="Rischio aggiunto dall'utente", misure="Misura")
     archivio = ArchivioAnagrafiche(tmp_path / "a.db")
     archivio.salva_lavorazione(repo, fase)
     voce = archivio.elenco(LAVORAZIONE)[0]
-    assert voce["nome"] == "NC.03 Pilastri e travi in c.a. (personalizzata)"
+    assert voce["nome"] == "ST.07 Pilastri e travi in c.a. (personalizzata)"
     altro = Repository(Progetto(tmp_path / "x.spo", crea=True))
     nuova = archivio.inserisci_lavorazione(altro, voce)
     assert altro.leggi("fasi", nuova)["descrizione"].endswith("(personalizzata)")
@@ -599,8 +599,9 @@ def test_struttura_fase_e_schede_d_uso(repo, tmp_path):
     from sicurcantiere.documenti.pos import genera_pos
     from sicurcantiere.struttura import struttura_fase
 
-    assert set(SCHEDE) == set(ATTREZZATURE)
-    assert all(s["prima"] and s["durante"] and s["dopo"] and s["dpi"] for s in SCHEDE.values())
+    assert set(SCHEDE) <= set(ATTREZZATURE)
+    schede = [a["scheda"] for a in ATTREZZATURE.values()]
+    assert all(s["prima"] and s["durante"] and s["dopo"] and s["dpi"] for s in schede)
     a = _cantiere_completo(repo)
     fase = repo.importa_lavorazione(lav("AL.11"))
     repo.aggiorna("fasi", fase, impresa_id=a, modalita="Squadra di due addetti", turni="7.30-16.30")
@@ -622,3 +623,17 @@ def test_struttura_fase_e_schede_d_uso(repo, tmp_path):
     assert "Squadra di due addetti" in testo and "7.30-16.30" in testo
     assert "Macchine utilizzate nelle lavorazioni" in testo and "Prima dell'uso" in testo
     assert "DPI dell'operatore" in testo
+
+
+def test_archivio_esteso_verificato():
+    import importlib
+
+    from sicurcantiere.archivio import MODULI_ATTREZZATURE, MODULI_FASI
+    from sicurcantiere.archivio_dati.base import CATALOGO
+    from sicurcantiere.archivio_dati.verifica import verifica
+
+    for nome in MODULI_ATTREZZATURE + MODULI_FASI:
+        assert verifica(importlib.import_module(f"sicurcantiere.archivio_dati.{nome}")) == [], nome
+    assert set(CATALOGO) <= set(ATTREZZATURE)
+    assert all(l["categoria"] in CATEGORIE for l in LAVORAZIONI)
+    assert all(a in ATTREZZATURE for l in LAVORAZIONI for a in l["attrezzature"])

@@ -71,7 +71,7 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     repo = f.pagine[0].repo
     a = repo.inserisci("imprese", ragione_sociale="Alfa")
     b = repo.inserisci("imprese", ragione_sociale="Beta")
-    repo.importa_lavorazione(next(l for l in LAVORAZIONI if l["codice"] == "AL.01"))  # manodopera 50%
+    repo.importa_lavorazione(next(l for l in LAVORAZIONI if l["codice"] == "AL.21"))  # manodopera 50%
     for i in range(len(f.pagine)):
         f.navigazione.setCurrentRow(i)
         app.processEvents()
@@ -171,7 +171,7 @@ def test_riepilogo(app, tmp_path):
     r.aggiorna_cantiere(importo_lavori=100000)
     a = r.inserisci("imprese", ragione_sociale="A")
     b = r.inserisci("imprese", ragione_sociale="B")
-    f1 = r.importa_lavorazione(LAVORAZIONI[1])  # ponteggio: rischio molto alto
+    f1 = r.importa_lavorazione(next(l for l in LAVORAZIONI if l["codice"] == "AL.29"))  # ponteggio
     f2 = r.inserisci("fasi", codice="X")
     r.aggiorna("fasi", f1, impresa_id=a, data_inizio="2025-10-06", data_fine="2025-10-10", lavoratori=3)
     r.aggiorna("fasi", f2, impresa_id=b, data_inizio="2025-10-08", data_fine="2025-10-09", lavoratori=2)
@@ -448,7 +448,7 @@ def test_dialogo_archivio_lavorazioni(app, tmp_path):
     assert "Lavori stradali" not in nodi
     scelte = d.selezionate()
     assert len(scelte) == 1 and "dati" in scelte[0]
-    d.filtro.setText("gru a torre")
+    d.filtro.setText("ponteggio")
     assert not d.albero.topLevelItem(0).isHidden()
     d.deleteLater()
     p.chiudi()

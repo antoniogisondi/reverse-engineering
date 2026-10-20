@@ -18,6 +18,9 @@ Testi scritti da zero. Fonti consultate per verificare macchine, attrezzi e rife
   (ascensori), Reg. (UE) 2024/573 e D.P.R. 146/2018 (gas fluorurati), CEI EN IEC 62485-2
   (locali batterie), D.M. 37/2008, D.M. 10/07/2002 e D.M. 22/01/2019 (segnaletica e cantieri
   stradali in presenza di traffico).
+NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
+tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
+conoscenze normative. Prima dell'uso professionale vedere docs/verifiche-archivio.md.
 """
 
 from __future__ import annotations

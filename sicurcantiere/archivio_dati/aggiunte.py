@@ -1,32 +1,42 @@
 """Attrezzature richieste dai moduli delle fasi e non previste nel catalogo iniziale.
 
-Rischi generati dall'uso e schede d'uso scritti per questo progetto. Fonti consultate:
-- D.Lgs. 81/2008: artt. 70-73 e Allegati V, VI, VII (attrezzature di lavoro); artt. 80-87
-  (rischio elettrico); Titolo VI e Allegato XXXIII; Titolo VIII Capi II e III (rumore,
-  vibrazioni); Titolo IX Capi I e II (agenti chimici, silice cristallina respirabile);
-- D.P.R. 177/2011 e linee guida INAIL 2013 sugli ambienti sospetti di inquinamento o confinati;
-- CEI 11-27, CEI 64-8 Parte 6, CEI EN 61010-1/-031, CEI EN 61243-3, CEI EN 61557;
-- UNI EN 16228-1/-2/-5 (macchine di perforazione e fondazione, diaframmi), UNI EN ISO 22476-1/-2
-  (prove penetrometriche), UNI EN 1537 e UNI EN ISO 22477-5 (tiranti di ancoraggio);
-- UNI EN 14492-2 (paranchi motorizzati), UNI EN 818, UNI EN 1492, UNI EN 13157, UNI EN 13155
-  (ventose e accessori di sollevamento), UNI EN 795 tipo B, UNI EN 1496, UNI EN 360, UNI EN 361;
-- UNI EN 13020 (macchine per trattamenti superficiali stradali), UNI EN 12001 (macchine per il
-  trasporto e la posa di calcestruzzo e malte), UNI EN 1829-1 (macchine a getto d'acqua ad alta
-  pressione), CEI EN 62841 (utensili portatili), CEI EN 60335-2-69 (aspiratori classe M/H);
-- D.M. 10 luglio 2002 e D.M. 22 gennaio 2019 (segnaletica e cantieri stradali), D.M. 1 ottobre
-  2013 (scavi per infrastrutture a banda larga, minitrincea);
-- schede PuntoSicuro sulle fondazioni speciali, sui tiranti d'ancoraggio e sugli infortuni con
-  getti d'acqua ad alta pressione; documentazione tecnica di fabbricanti (treppiedi EN 795-B con
-  verricello EN 1496, pompe wellpoint, robot di idrodemolizione) e linee guida di settore sulla
-  zona di rispetto dei robot di idrodemolizione.
-I testi vanno sempre confrontati con il manuale d'uso del fabbricante dell'attrezzatura.
+Rischi generati dall'uso e schede d'uso scritti da zero per questo progetto. I testi vanno sempre
+confrontati con il manuale d'uso del fabbricante dell'attrezzatura.
+
+Fonti CONSULTATE ONLINE durante la stesura (ricerche web, ottobre 2026):
+- PuntoSicuro: schede di prevenzione sulle fondazioni speciali e sui fanghi bentonitici; articolo
+  sulla sicurezza nell'esecuzione dei tiranti d'ancoraggio (solo titolo e sintesi); casi di
+  infortunio con getti d'acqua ad alta pressione; bonifica dell'amianto friabile e sicurezza nei
+  cantieri di bonifica (estrattori con filtro HEPA in funzione continua, almeno 4 ricambi/ora);
+- Regione Emilia-Romagna, documento sulla bonifica dei materiali contenenti amianto friabile
+  (confinamento statico e dinamico, collaudo con fumogeni e manometro differenziale);
+- testo dell'art. 153-154 D.Lgs. 81/2008 (Brocardi, Certifico): canali di scarico delle macerie;
+- schede di fabbricanti: treppiedi UNI EN 795 tipo B con verricello UNI EN 1496 (Tractel, Delta
+  Plus), pompe wellpoint (Atlas Copco, Infobuild), taglierine a filo caldo (temperatura del filo);
+- scheda di valutazione dei rischi della Sapienza e istruzioni del Politecnico di Milano sull'uso
+  del filo caldo (ustioni, fumi, aspirazione accesa durante il taglio);
+- guide di settore nordamericane sui robot di idrodemolizione (zona di rispetto di circa 10 m,
+  secondo addetto che può arrestare la pompa).
+
+Riferimenti scritti A MEMORIA, non riletti sul testo durante la stesura (da verificare):
+- D.Lgs. 81/2008: artt. 70-73, 80-87, 91, 104 e Allegati V, VI, VII, IX, XXXIII, XLII; Titoli VI,
+  VIII (Capi II e III) e IX (Capi I, II, III); D.P.R. 177/2011; D.M. 6 settembre 1994 (punti
+  diversi da quelli sopra); D.M. 82/2015 (bonifica bellica); D.M. 10 luglio 2002, D.M. 22 gennaio
+  2019, D.M. 1 ottobre 2013;
+- norme CEI 11-27, CEI 64-8 Parte 6, CEI EN 61010-1/-031, CEI EN 61243-3, CEI EN 61557,
+  CEI EN 62841, CEI EN 60335-2-69, CEI EN 60309;
+- norme UNI EN 16228-1/-2/-5, UNI EN ISO 22476-1/-2, UNI EN 1537, UNI EN ISO 22477-5,
+  UNI EN 14492-2, UNI EN 818, UNI EN 1492, UNI EN 13414, UNI EN 1677, UNI EN 13155, UNI EN 360, UNI EN 361, UNI EN 1822
+  (classi dei filtri HEPA), UNI EN 13020, UNI EN 12001, UNI EN 1829-1;
+- valori numerici non trovati nelle fonti: temperature dell'emulsione, pressione e rumore
+  dell'idrodemolizione, tensioni delle prove di isolamento, distanze dell'Allegato IX.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from sicurcantiere.archivio_dati.base import ATTREZZO, DPI_BASE, MACCHINA, attrezzatura, r, scheda
+from sicurcantiere.archivio_dati.base import ATTREZZO, DPI_BASE, MACCHINA, OPERA, attrezzatura, r, scheda
 
 # --- rischi ricorrenti ---------------------------------------------------------------------
 
@@ -146,7 +156,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     ], scheda_uso=scheda(
         "Paranco con motore elettrico e catena calibrata, appeso a un gancio o a una trave, usato per "
         "sollevare guide, cabine, contrappesi e macchinari nei vani ascensore e in spazi ristretti.",
-        ["verificare targa, portata, data dell'ultima verifica trimestrale di funi e catene (Allegato VII)",
+        ["verificare targa, portata, data dell'ultima verifica trimestrale di funi e catene (Allegato VI, punto 3.1.2)",
          "controllare il punto di sospensione e la sua portata dichiarata",
          "provare a vuoto finecorsa, freno e pulsante di arresto d'emergenza",
          "controllare catena, gancio e chiusura di sicurezza, scartando gli elementi usurati o deformati",
@@ -711,4 +721,237 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
          "annotare anomalie e manutenzioni"],
         ["casco", "stivali di sicurezza", "guanti in lattice o nitrile", "occhiali a maschera",
          "facciale filtrante FFP2", "indumenti impermeabili", "otoprotettori"])),
+
+    # =============================== RICHIESTE SUCCESSIVE ================================
+    "Canale di scarico delle macerie": attrezzatura(OPERA, rischi=[
+        r("Caduta dall'alto", 2, 4,
+          "Imboccatura superiore costruita in modo che nessuno possa cadervi accidentalmente (art. 153, "
+          "comma 3): tramoggia di carico con parapetto o sponde alte e apertura ridotta; caricamento dal "
+          "piano protetto, senza sporgersi; aperture di solaio o di facciata chiuse attorno all'imbocco.",
+          DPI_BASE + ", casco con sottogola"),
+        r("Caduta di materiale dall'alto o a livello", 3, 3,
+          "Macerie mai gettate dall'alto ma convogliate nel canale (art. 153, comma 1), con estremo inferiore "
+          "a non più di 2 m dal piano di raccolta; zona di sbocco recintata e segnalata; accesso allo sbocco "
+          "per il carico solo dopo la sospensione dello scarico dall'alto (art. 154); pezzi pesanti o "
+          "ingombranti calati con mezzi di sollevamento (art. 153, comma 4).",
+          DPI_BASE + ", casco con sottogola"),
+        r("Crollo o ribaltamento di strutture", 2, 4,
+          "Tronchi imboccati l'uno nell'altro e collegati con catene o funi di sostegno, con i raccordi "
+          "rinforzati (art. 153, comma 2); ancoraggio al ponteggio o all'edificio come da istruzioni del "
+          "fabbricante e, se appeso al ponteggio, carico considerato nel progetto o nello schema del "
+          "ponteggio; controllo dei sostegni a inizio turno."),
+        r("Polveri e fibre", 3, 2,
+          "Macerie bagnate prima dello scarico; sbocco in cassone coperto con telo o in contenitore chiuso; "
+          "canale integro senza fessure; nessuno scarico di materiali contenenti amianto.",
+          DPI_BASE + ", facciale filtrante FFP2"),
+        r("Rumore", 2, 2,
+          "Tronchi in polietilene o con rivestimento interno smorzante; caricamento a piccole quantità; "
+          "otoprotettori per chi lavora allo sbocco durante lo scarico.", DPI_BASE + ", otoprotettori"),
+        r("Movimentazione manuale dei carichi", 3, 2,
+          "Carriole e contenitori portati fino alla tramoggia su percorsi piani; tronchi montati in due o "
+          "con argano; peso dei tronchi riportato dal fabbricante (Allegato XXXIII)."),
+    ], scheda_uso=scheda(
+        "Condotto verticale formato da tronchi tronco-conici in plastica o metallo imboccati l'uno "
+        "nell'altro, con tramoggia di carico ai piani, che convoglia le macerie di demolizione fino a un "
+        "cassone o a un'area di raccolta.",
+        ["verificare con il fabbricante il sistema di sostegno e i punti di ancoraggio",
+         "montare i tronchi collegandoli con le catene e controllare i raccordi",
+         "posizionare l'estremo inferiore a non più di 2 m dal piano di raccolta, sopra il cassone",
+         "proteggere l'imboccatura con tramoggia e parapetto",
+         "recintare e segnalare la zona di sbocco"],
+        ["caricare piccole quantità alla volta, senza pezzi più grandi della sezione del canale",
+         "bagnare le macerie per limitare la polvere",
+         "sospendere lo scarico prima di accedere allo sbocco per caricare o spostare il cassone",
+         "in caso di intasamento fermare il carico e liberare il canale dall'alto, mai da sotto"],
+        ["svuotare il canale e smontarlo dall'alto verso il basso",
+         "pulire e controllare tronchi, catene e ganci prima del deposito",
+         "rimuovere la recinzione solo a canale smontato"],
+        ["casco con sottogola", "facciale filtrante FFP2", "otoprotettori", "guanti",
+         "calzature di sicurezza"])),
+
+    "Estrattore d'aria con filtro assoluto HEPA (depressore)": attrezzatura(ATTREZZO, rischi=[
+        r("Esposizione ad amianto", 2, 4,
+          "Confinamento dinamico secondo il D.M. 6/9/1994: estrattori con filtro assoluto HEPA in funzione "
+          "continua per tutta la bonifica, con capacità di almeno 4 ricambi d'aria all'ora del volume "
+          "confinato; depressione controllata con manometro differenziale e registrata; collaudo "
+          "dell'area con fumogeni prima dell'inizio; macchina di riserva o alimentazione di emergenza; "
+          "sostituzione dei prefiltri e del filtro HEPA solo dall'interno dell'area o in condizioni di "
+          "confinamento, con filtri insaccati e smaltiti come rifiuto contenente amianto.",
+          "Maschera con filtro specifico, tuta monouso, guanti, calzature di sicurezza"),
+        _elettrocuzione(1, 4, "Alimentazione su linea dedicata, con cavi che attraversano il confinamento "
+                              "senza comprometterne la tenuta."),
+        _rumore(3, 2, "Estrattori in funzione continua: posizionarli dove non disturbano le postazioni "
+                      "e silenziare lo scarico."),
+        r("Movimentazione manuale dei carichi", 2, 2,
+          "Macchina su ruote; condotti e filtri movimentati in due nei tratti in quota; posizionamento con "
+          "carrello o mezzo di sollevamento."),
+        r("Ambienti confinati o sospetti di inquinamento", 1, 3,
+          "Scarico dell'aria filtrata all'esterno, lontano da prese d'aria, finestre e persone; mai verso "
+          "spazi chiusi occupati."),
+    ], scheda_uso=scheda(
+        "Unità di estrazione con ventilatore, prefiltri e filtro assoluto HEPA che mantiene in depressione "
+        "l'area confinata di bonifica dell'amianto friabile e filtra l'aria espulsa all'esterno.",
+        ["verificare il certificato del filtro HEPA e il corretto montaggio delle guarnizioni",
+         "calcolare il numero di estrattori necessario per il volume dell'area confinata",
+         "installare il manometro differenziale con le sonde all'interno e all'esterno dell'area",
+         "collaudare il confinamento con fumogeni e prova di depressione",
+         "predisporre l'estrattore di riserva o la fonte di energia di emergenza"],
+        ["tenere gli estrattori in funzione continua, anche fuori dall'orario di lavoro",
+         "controllare e registrare più volte al giorno la depressione",
+         "sospendere la rimozione se la depressione cala o scatta l'allarme",
+         "sostituire i prefiltri quando aumenta la perdita di carico"],
+        ["mantenere gli estrattori accesi fino alla restituibilità dell'area",
+         "rimuovere i filtri in condizioni di confinamento e insaccarli come rifiuto contenente amianto",
+         "decontaminare la macchina e sigillarne le aperture prima di trasportarla"],
+        ["maschera con filtro specifico", "tuta monouso", "guanti", "calzature di sicurezza",
+         "otoprotettori"])),
+
+    "Nebulizzatore a bassa pressione": attrezzatura(ATTREZZO, rischi=[
+        r("Esposizione ad amianto", 2, 4,
+          "Bagnatura e impregnazione dei materiali con acqua o incapsulante a bassa pressione, come previsto "
+          "dal D.M. 6/9/1994 che esclude getti in pressione su materiali contenenti amianto; ugello "
+          "regolato a nebbia e avvicinato senza colpire il materiale; impregnazione completata prima "
+          "della rimozione.",
+          "Maschera con filtro specifico, tuta monouso, guanti, calzature di sicurezza"),
+        r("Rischio chimico", 2, 2,
+          "Incapsulanti e fissativi usati secondo la scheda di sicurezza (Titolo IX, Capo I); prodotti a "
+          "base acqua preferiti; ventilazione o confinamento attivo; nessuna nebulizzazione verso il viso.",
+          DPI_BASE + ", guanti in lattice o nitrile, occhiali a maschera"),
+        r("Getti e schizzi", 2, 2,
+          "Pressione regolata sul valore minimo efficace; lancia chiusa e pressione scaricata prima di "
+          "cambiare ugelli o tubi; tubi integri e raccordi serrati.",
+          DPI_BASE + ", occhiali a maschera"),
+        r("Scivolamenti e cadute a livello", 3, 2,
+          "Quantità di liquido dosata per non formare ristagni; teli del confinamento puliti; calzature "
+          "con suola antiscivolo.",
+          DPI_BASE.replace("calzature di sicurezza", "stivali di sicurezza")),
+        _elettrocuzione(1, 4, "Pompa elettrica lontana dalle zone bagnate o alimentata a bassissima tensione."),
+    ], scheda_uso=scheda(
+        "Pompa manuale, elettrica o airless regolata a bassa pressione, con lancia e ugello a nebbia, per "
+        "bagnare e impregnare con acqua o incapsulante i materiali contenenti amianto prima e durante la "
+        "rimozione.",
+        ["consultare la scheda di sicurezza dell'incapsulante e preparare la miscela secondo il fabbricante",
+         "verificare tubi, raccordi, ugello e regolatore di pressione",
+         "regolare la pressione al valore minimo e provare il getto a nebbia fuori dal materiale"],
+        ["nebulizzare senza colpire direttamente il materiale e senza staccarne parti",
+         "attendere l'impregnazione completa prima di iniziare la rimozione",
+         "mantenere bagnati i materiali e i rifiuti per tutta la lavorazione",
+         "non usare mai acqua in pressione per pulire o staccare i materiali"],
+        ["scaricare la pressione e lavare la pompa all'interno dell'area di lavoro",
+         "decontaminare il nebulizzatore prima di portarlo fuori dall'area",
+         "smaltire residui e acque come previsto dal piano di lavoro"],
+        ["maschera con filtro specifico", "tuta monouso", "guanti in lattice o nitrile",
+         "occhiali a maschera", "stivali di sicurezza"])),
+
+    "Rilevatore di masse metalliche (magnetometro)": attrezzatura(ATTREZZO, rischi=[
+        r("Incendio ed esplosione", 1, 4,
+          "Lo strumento è usato solo da personale brevettato di impresa iscritta all'albo per la bonifica "
+          "bellica (art. 104, comma 4-bis; D.M. 82/2015), secondo le prescrizioni dell'autorità militare; "
+          "taratura e prova su massa campione all'inizio di ogni giornata; ricerca per strisce delimitate; "
+          "anomalie segnalate con picchetti e scoperte a mano; nessuna sonda spinta in foro oltre lo "
+          "strato già verificato."),
+        r("Posture incongrue", 3, 2,
+          "Strumento con asta e bracciolo regolabili e cinghia a tracolla per il peso dell'elettronica; "
+          "alternanza tra ricerca e altre attività; pause regolari."),
+        r("Microclima", 3, 2,
+          "Lavoro prolungato all'aperto: pause all'ombra, acqua, indumenti adatti alla stagione; "
+          "sospensione in caso di temporale con fulmini, anche per lo strumento metallico tenuto in mano.",
+          DPI_BASE + ", copricapo"),
+        r("Scivolamenti e cadute a livello", 2, 2,
+          "Strisce di ricerca liberate dalla vegetazione; attenzione allo strumento e al terreno insieme; "
+          "calzature prive di parti metalliche che non disturbino la lettura, con suola profonda.",
+          DPI_BASE.replace("calzature di sicurezza", "stivali di sicurezza")),
+        r("Rischio biologico", 2, 2,
+          "Indumenti chiusi a maniche lunghe, repellenti contro zecche e insetti, controllo della pelle a "
+          "fine turno; vaccinazione antitetanica.", DPI_BASE),
+    ], scheda_uso=scheda(
+        "Magnetometro o gradiometro portatile, con sonda di superficie o sonda da calare nei fori, che "
+        "rileva le masse ferrose sepolte nella ricerca di ordigni bellici in superficie e in profondità.",
+        ["verificare carica delle batterie, integrità di sonde e cavi",
+         "tarare lo strumento e provarlo su una massa campione",
+         "togliere oggetti metallici dagli indumenti che possano disturbare la misura",
+         "delimitare con picchetti le strisce di ricerca"],
+        ["procedere a velocità costante tenendo la sonda alla distanza indicata dal terreno",
+         "segnalare ogni anomalia senza colpire il terreno con attrezzi",
+         "in profondità calare la sonda solo in fori eseguiti in strati già verificati",
+         "sospendere la ricerca e allontanarsi se si individua un ordigno, avvisando il preposto"],
+        ["registrare le anomalie sulla planimetria della bonifica",
+         "pulire lo strumento e riporlo nella custodia con le batterie cariche"],
+        ["casco", "guanti", "stivali di sicurezza", "indumenti ad alta visibilità", "copricapo"])),
+
+    "Taglierina a filo caldo per pannelli isolanti": attrezzatura(ATTREZZO, rischi=[
+        r("Ustioni", 3, 2,
+          "Filo incandescente non protetto durante il taglio: mani lontane dal filo, pannello spinto con "
+          "guide o battute; taglierina spenta e filo raffreddato prima di regolarlo o sostituirlo; "
+          "appoggio su supporto stabile e non infiammabile.", DPI_BASE),
+        r("Rischio chimico", 2, 2,
+          "Il taglio termico di EPS e XPS libera fumi con stirene e prodotti di decomposizione: "
+          "temperatura del filo regolata sul minimo che permette il taglio; postazione all'aperto o "
+          "con aspirazione localizzata accesa per tutto il taglio; nessun taglio di pannelli vecchi senza "
+          "conoscerne la composizione (possibile presenza di ritardanti di fiamma alogenati); scheda di "
+          "sicurezza dei pannelli consultata (Titolo IX, Capo I).",
+          DPI_BASE + ", maschera con filtro specifico"),
+        r("Incendio ed esplosione", 2, 3,
+          "Polistirene combustibile: taglierina lontana da sfridi accumulati, colle a solvente e bombole; "
+          "spegnimento a fine uso e nelle pause; estintore nella postazione."),
+        _elettrocuzione(1, 3, "Trasformatore e telaio integri; filo alimentato a bassa tensione come da "
+                              "fabbricante."),
+        r("Punture, tagli e abrasioni", 2, 1,
+          "Filo teso che può rompersi: tensionatore regolato secondo il fabbricante; fili di ricambio "
+          "maneggiati con guanti.", DPI_BASE),
+    ], scheda_uso=scheda(
+        "Attrezzo da banco o manuale con un filo metallico teso, riscaldato elettricamente, che taglia "
+        "per fusione i pannelli in polistirene espanso o estruso per cappotti e isolamenti.",
+        ["posizionare la taglierina in piano, all'aperto o sotto aspirazione localizzata",
+         "verificare cavo, trasformatore, tensione del filo e guide di taglio",
+         "allontanare sfridi, colle e materiali infiammabili dalla postazione",
+         "consultare la scheda tecnica del pannello per la temperatura di taglio consigliata"],
+        ["regolare la temperatura al minimo che consente un taglio regolare",
+         "accompagnare il pannello lungo le guide senza avvicinare le mani al filo",
+         "non respirare i fumi di taglio e mantenere l'aspirazione accesa",
+         "spegnere la taglierina nelle pause e non lasciarla accesa incustodita"],
+        ["spegnere e scollegare la taglierina e lasciare raffreddare il filo",
+         "raccogliere gli sfridi in sacchi per il recupero o lo smaltimento",
+         "pulire il filo dai residui fusi quando è freddo"],
+        ["guanti", "occhiali protettivi", "maschera con filtro specifico", "calzature di sicurezza"])),
+
+    "Accessori di sollevamento (brache, bilancini, ganci)": attrezzatura(ATTREZZO, rischi=[
+        r("Caduta di materiale dall'alto o a livello", 2, 4,
+          "Accessori marcati CE con portata e identificazione leggibili: brache di fune d'acciaio "
+          "UNI EN 13414, brache di catena UNI EN 818, brache tessili piatte e tonde UNI EN 1492 (con "
+          "etichetta e colore della portata), ganci e componenti UNI EN 1677, bilancini UNI EN 13155; "
+          "portata scelta tenendo conto del modo di imbracatura e dell'angolo tra i bracci (angolo al "
+          "vertice non oltre 120°); ganci con chiusura di sicurezza; verifica trimestrale di funi e "
+          "catene registrata (Allegato VI, punto 3.1.2); scarto degli accessori con fili rotti, maglie "
+          "allungate, tagli o etichetta illeggibile.", DPI_BASE + ", casco con sottogola"),
+        r("Urti, colpi, impatti e compressioni", 2, 3,
+          "Carico guidato con funi e mai con le mani; imbracatore fuori dalla traiettoria e mai tra "
+          "carico e ostacoli fissi; carico sollevato di pochi centimetri per verificarne l'equilibrio "
+          "prima della movimentazione."),
+        r("Cesoiamenti e stritolamenti", 2, 3,
+          "Mani tolte dalle brache prima della messa in tiro; brache sfilate solo con il carico appoggiato "
+          "su spessori stabili; nessun aggancio di persone ai carichi."),
+        r("Punture, tagli e abrasioni", 3, 2,
+          "Funi d'acciaio con fili spezzati maneggiate con guanti; brache tessili protette sugli spigoli "
+          "vivi con paraspigoli o guaine; nessuna braca annodata.",
+          DPI_BASE.replace("guanti", "guanti antitaglio")),
+        r("Movimentazione manuale dei carichi", 2, 2,
+          "Bilancini e brache di catena pesanti movimentati con il gancio dell'apparecchio di "
+          "sollevamento; deposito su rastrelliere a portata di mano."),
+    ], scheda_uso=scheda(
+        "Brache di fune, catena o tessili, bilancini, grilli, ganci e anelli che collegano il carico al "
+        "gancio della gru o di altri apparecchi di sollevamento.",
+        ["controllare marcatura, portata e data dell'ultima verifica trimestrale",
+         "esaminare a vista ogni accessorio e scartare quelli danneggiati o senza etichetta",
+         "scegliere il tipo e la portata in base al peso del carico, al modo di imbracatura e "
+         "all'angolo dei bracci",
+         "predisporre paraspigoli e spessori per l'appoggio del carico"],
+        ["imbracare il carico in modo equilibrato, con i ganci chiusi e i bracci in tensione uniforme",
+         "comunicare con il manovratore con i gesti convenzionali dell'Allegato XXXII o via radio",
+         "allontanarsi dal carico prima del sollevamento e non sostare sotto di esso",
+         "non trascinare le brache sotto il carico appoggiato"],
+        ["riporre gli accessori puliti e asciutti su rastrelliere, al riparo da sole e agenti chimici",
+         "segnalare e togliere dall'uso gli accessori danneggiati",
+         "aggiornare il registro delle verifiche di funi e catene"],
+        ["casco con sottogola", "guanti", "calzature di sicurezza", "indumenti ad alta visibilità"])),
 }

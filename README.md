@@ -45,13 +45,13 @@ archivi o contenuti di software commerciali.
 - **Archivio anagrafiche** comune a tutti i cantieri e ai tre programmi: persone (committenti,
   coordinatori, RSPP, medici, preposti...) e imprese con figure e maestranze si salvano una volta e si
   riprendono con «Dall'archivio...» (menu Strumenti > Archivio anagrafiche per consultarlo)
-- **Archivio** di 36 fasi di lavoro e 25 macchine, attrezzi e opere provvisionali, filtrabile per
-  tipologia di intervento (nuove costruzioni, ristrutturazioni, opere infrastrutturali, restauri) e
-  ordinato per categoria e lavorazione (per esempio «Preparazione delle aree di cantiere» con le sue fasi)
-  (allestimento, demolizioni, movimento terra, strutture, copertura, facciata,
-  opere interne, impianti, urbanizzazione, ripristini). Ogni voce ha i propri rischi, importati con la
-  fase. Nodo **UTENTE** con le lavorazioni personalizzate salvate da un cantiere («Salva nell'archivio
-  utente») e riutilizzabili negli altri
+- **Archivio** di **268 fasi di lavoro** in 99 lavorazioni e 18 categorie (allestimento e smobilizzo,
+  demolizioni, bonifiche, movimento terra, fondazioni speciali, strutture, murature, coperture, facciate,
+  opere interne, impianti, rinnovabili, reti, strade, pubblica illuminazione, aree verdi, restauri, tagli
+  e perforazioni), filtrabili per tipologia di intervento, e di **116 macchine, attrezzi e opere
+  provvisionali** con rischi e scheda d'uso. Contenuti scritti da zero dalla normativa: i punti da far
+  verificare a un coordinatore sono in [docs/verifiche-archivio.md](docs/verifiche-archivio.md). Nodo
+  **UTENTE** con le lavorazioni personalizzate salvate da un cantiere e riutilizzabili negli altri
 - **Fasi di lavoro** con descrizione dell'attività, addetto, modalità organizzative, turni, procedure richieste
   dal PSC, vista **Struttura** (lavoratori, attrezzi, macchine, rischi, misure, DPI) e collegamento di ogni
   rischio alla sua valutazione specifica

@@ -25,6 +25,9 @@ Testi redatti per questo progetto. Fonti consultate (solo come riferimento, ness
   UNI EN ISO 20471 (alta visibilità), D.Lgs. 150/2012 (prodotti fitosanitari), Accordo
   Stato-Regioni 22/02/2012 (abilitazione degli operatori di PLE).
 Contenuti da verificare e adattare dal coordinatore al cantiere specifico.
+NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
+tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
+conoscenze normative. Prima dell'uso professionale vedere docs/verifiche-archivio.md.
 """
 
 from __future__ import annotations

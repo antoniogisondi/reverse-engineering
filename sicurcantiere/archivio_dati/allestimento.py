@@ -12,6 +12,9 @@ INAIL e PuntoSicuro (infortuni nello smontaggio dei ponteggi, tagliatrici a filo
 troncatrici a disco), linee guida della Regione Emilia-Romagna (impianti elettrici di cantiere,
 buone pratiche in edilizia), opuscoli AUSL/ANCE sulla silice cristallina in edilizia.
 I contenuti vanno sempre verificati e adattati dal coordinatore al cantiere specifico.
+NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
+tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
+conoscenze normative. Prima dell'uso professionale vedere docs/verifiche-archivio.md.
 """
 
 from __future__ import annotations

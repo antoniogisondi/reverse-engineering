@@ -27,6 +27,9 @@ Testi redatti da zero per questo progetto. Fonti consultate come riferimento (no
   tecniche di malte R4, passivanti, sistemi FRP/FRCM) per le sequenze operative.
 
 Contenuti da verificare e adattare dal coordinatore al cantiere specifico.
+NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
+tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
+conoscenze normative. Prima dell'uso professionale vedere docs/verifiche-archivio.md.
 """
 
 from __future__ import annotations

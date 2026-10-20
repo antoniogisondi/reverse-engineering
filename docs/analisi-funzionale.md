@@ -24,7 +24,7 @@ SicurCantiere le realizza.
 | Redazione di POS (Allegato XV 3.2.1) | `documenti/pos.py`, con dati di impresa e lavoratori | v0.2 |
 | Fascicolo dell'opera (Allegato XVI) | `documenti/fascicolo.py`, schede I, II e III | v0.2 |
 | Notifica preliminare (Allegato XII) | `documenti/notifica.py`, campi ricavati dal progetto | v0.2 |
-| Archivio delle fasi di lavoro per tipologia di intervento e categoria, con lavorazioni personalizzate dell'utente | `archivio.py` (tipologie e categorie), nodo UTENTE in `archivio_utente.py` | v0.8 |
+| Archivio delle fasi di lavoro per tipologia di intervento e categoria (268 fasi, 116 attrezzature in `archivio_dati/`), con lavorazioni personalizzate dell'utente | `archivio.py` (tipologie e categorie), nodo UTENTE in `archivio_utente.py` | v0.8 |
 | Archivio di macchine e attrezzi con i loro rischi | `archivio.py`, `ATTREZZATURE`: i rischi della macchina vengono importati insieme alla fase | v0.2 |
 | Personalizzazione delle lavorazioni (rischi, misure, attrezzature) | Tabelle modificabili nella pagina Fasi | v0.2 |
 | Gantt analitico: importo, incidenza della manodopera, squadra → durata | `analisi.durata_stimata`, pulsante "Calcola durata" | v0.2 |

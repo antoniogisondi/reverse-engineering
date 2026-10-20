@@ -18,6 +18,9 @@ Testi scritti da zero per questo progetto. Fonti consultate (solo come riferimen
   per calcestruzzo), UNI 10520/10521 e UNI 9737 (saldatura del polietilene), EN ISO 5172 e
   EN ISO 5175 (cannelli e dispositivi di sicurezza per gas).
 Le misure vanno sempre adattate alle istruzioni del fabbricante dell'attrezzo usato.
+NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
+tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
+conoscenze normative. Prima dell'uso professionale vedere docs/verifiche-archivio.md.
 """
 
 from __future__ import annotations

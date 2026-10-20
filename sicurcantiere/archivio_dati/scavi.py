@@ -18,6 +18,9 @@ Testi scritti da zero. Fonti consultate (solo come riferimento tecnico):
   (campionamento) e UNI EN ISO 22476 (prove in sito); UNI 9916 (vibrazioni sugli edifici).
 - D.P.R. 120/2017 (terre e rocce da scavo), D.Lgs. 152/2006 parte IV (rifiuti), D.I. 22/01/2019
   (segnaletica per attività in presenza di traffico veicolare).
+NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
+tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
+conoscenze normative. Prima dell'uso professionale vedere docs/verifiche-archivio.md.
 """
 
 from __future__ import annotations

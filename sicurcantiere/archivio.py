@@ -489,8 +489,9 @@ for _l in LAVORAZIONI:
 # --- Archivio esteso: moduli per categoria in archivio_dati ---
 
 # Moduli attivi: si aggiungono qui man mano che sono completi e verificati.
-MODULI_ATTREZZATURE: tuple[str, ...] = ()
-MODULI_FASI: tuple[str, ...] = ()
+MODULI_ATTREZZATURE: tuple[str, ...] = ("macchine", "attrezzi_a", "attrezzi_b", "aggiunte")
+MODULI_FASI: tuple[str, ...] = ("allestimento", "demolizioni", "scavi", "strutture", "coperture", "interni",
+                                "impianti", "infrastrutture")
 # Fasi generiche delle prime versioni, sostituite dalle fasi più dettagliate dei moduli.
 SOSTITUITE = {
     "AL.01", "AL.02", "AL.03", "AL.04", "SM.01",

@@ -9,6 +9,9 @@ Rischi generati dall'uso e schede d'uso, scritti per questo progetto. Fonti cons
 - quaderni tecnici INAIL sui lavori in quota (reti di sicurezza, parapetti provvisori,
   sistemi di ancoraggio), schede PuntoSicuro sui ponti su cavalletti, testo del D.M. 6/9/1994.
 I testi vanno sempre confrontati con il manuale del fabbricante dell'attrezzatura.
+NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
+tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
+conoscenze normative. Prima dell'uso professionale vedere docs/verifiche-archivio.md.
 """
 
 from __future__ import annotations
