@@ -32,6 +32,7 @@ from sicurcantiere.repository import Repository
 from sicurcantiere.ui import aggiornamenti, archivio_anagrafiche, tema
 from sicurcantiere.ui.edizioni import ESTENSIONI, PSC, Edizione
 from sicurcantiere.ui.icone import icona, icona_applicazione
+from sicurcantiere.ui.guida import DialogoGuida
 from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI
 from sicurcantiere.ui.pagine import Pagina, primario
 
@@ -307,6 +308,8 @@ class FinestraPrincipale(QMainWindow):
         self.azione_tema.setCheckable(True)
         self.azione_tema.setChecked(self.scuro)
         self.azione_info = self._azione("&Informazioni", self._informazioni)
+        self.azione_guida = self._azione("&Guida rapida", lambda: DialogoGuida(
+            self.edizione.nome.split()[-1], self).exec(), QKeySequence.StandardKey.HelpContents)
         self.azione_aggiornamenti = self._azione(
             "Controlla &aggiornamenti...", lambda: aggiornamenti.controlla(self, manuale=True))
         self.azione_ai = self._azione("Impostazioni assistente &AI...", lambda: DialogoImpostazioniAI(self).exec())
@@ -338,7 +341,9 @@ class FinestraPrincipale(QMainWindow):
         vista.addAction(self.azione_tema)
 
         aiuto = self.menuBar().addMenu("&Aiuto")
+        aiuto.addAction(self.azione_guida)
         aiuto.addAction(self.azione_aggiornamenti)
+        aiuto.addSeparator()
         aiuto.addAction(self.azione_info)
 
     def _crea_barra_strumenti(self) -> None:
@@ -418,9 +423,11 @@ class FinestraPrincipale(QMainWindow):
     def _informazioni(self) -> None:
         QMessageBox.about(
             self, "Informazioni",
-            f"<b>{self.edizione.nome} {__version__}</b><br>"
+            f"<b>{self.edizione.nome}</b> versione {__version__}<br>"
             f"{self.edizione.sottotitolo}, secondo il D.Lgs. 81/2008.<br><br>"
-            "I contenuti generati vanno sempre verificati dal coordinatore.",
+            "I documenti generati vanno riletti e firmati da chi ne risponde: il programma è uno "
+            "strumento di redazione.<br><br>"
+            "Caratteri IBM Plex (SIL Open Font License).",
         )
 
     # --- gestione progetto ---

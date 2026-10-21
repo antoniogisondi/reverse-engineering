@@ -136,7 +136,9 @@ class PaginaPonteggi(Pagina):
 
     def _contesto_ai(self) -> str:
         p = self.repo.leggi("ponteggi", self.id_) if self.id_ is not None else {}
-        ponteggio = "\n".join(f"{k}: {v}" for k, v in (p or {}).items() if k not in ("id", "impresa_id") and v)
+        # Senza nominativi (progettista, preposto, squadra): all'assistente non vanno dati personali.
+        esclusi = ("id", "impresa_id", "progettista", "preposto", "squadra")
+        ponteggio = "\n".join(f"{k}: {v}" for k, v in (p or {}).items() if k not in esclusi and v)
         return f"{contesto_cantiere(self.repo)}\n\nPonteggio oggetto del PiMUS:\n{ponteggio}"
 
     def _testi_base(self) -> None:

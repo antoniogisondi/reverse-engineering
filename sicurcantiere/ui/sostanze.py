@@ -27,7 +27,7 @@ from sicurcantiere import anagrafiche, sds, sostanze
 from sicurcantiere.documenti.comune import nome_fase
 from sicurcantiere.documenti.sostanze import lavorazioni_sostanza
 from sicurcantiere.repository import Repository
-from sicurcantiere.ui.lavoro_ai import esegui_ai
+from sicurcantiere.ui.lavoro_ai import ai_attiva, esegui_ai
 from sicurcantiere.ui.pagine import ModuloRecord, Pagina, primario
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
 
@@ -261,6 +261,10 @@ class PaginaSostanze(Pagina):
         )
         self.tabella.ricarica()
         self.tabella.seleziona(id_)
+        if not ai_attiva():
+            QMessageBox.information(self, "Scheda importata",
+                                    f"Dal PDF sono state lette {len(dati.codici_h)} indicazioni di pericolo.")
+            return
         risposta = QMessageBox.question(
             self, "Scheda importata",
             f"Dal PDF sono state lette {len(dati.codici_h)} indicazioni di pericolo.\n"

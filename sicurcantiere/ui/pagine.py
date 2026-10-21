@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
@@ -54,7 +55,7 @@ from sicurcantiere.relazione import SEZIONI
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui import archivio_anagrafiche, tema
 from sicurcantiere.ui.icone import icona
-from sicurcantiere.ui.lavoro_ai import esegui_ai
+from sicurcantiere.ui.lavoro_ai import esegui_ai, registra_pulsante_ai
 from sicurcantiere.ui.maestranze import PannelloLavoratori
 from sicurcantiere.ui.modulo import ModuloRecord
 from sicurcantiere.ui.struttura import StrutturaFase
@@ -83,7 +84,9 @@ def primario(pulsante: QPushButton) -> QPushButton:
 def pulsante_ai(testo: str) -> QPushButton:
     """Pulsante che chiede qualcosa all'assistente AI (viola, come gli avvisi dell'assistente)."""
     pulsante = QPushButton(icona("ai", tema.correnti()["ai"]), testo)
-    return tema.imposta_variante(pulsante, "ai")
+    tema.imposta_variante(pulsante, "ai")
+    registra_pulsante_ai(pulsante)  # nascosto finché l'assistente è spento
+    return pulsante
 
 
 def _riquadro(titolo: str, widget: QWidget) -> QGroupBox:
@@ -92,21 +95,30 @@ def _riquadro(titolo: str, widget: QWidget) -> QGroupBox:
     return g
 
 
+AVVISO_RESPONSABILITA = ("Il documento va riletto, completato dove serve e firmato da chi ne risponde "
+                         "(datore di lavoro per il POS, coordinatore per il PSC): il programma è uno strumento "
+                         "di redazione e non sostituisce la valutazione dei rischi.")
+
+
 def contesto_cantiere(repo: Repository) -> str:
-    """Riepilogo testuale del progetto da passare all'assistente AI."""
+    """Riepilogo del progetto da passare all'assistente AI.
+
+    Senza dati personali: niente nomi di soggetti, imprese o lavoratori, niente indirizzo
+    preciso; solo ruoli, tipologie, lavorazioni e il comune (vedi DialogoImpostazioniAI).
+    """
     c = repo.cantiere()
-    imprese = {i["id"]: i["ragione_sociale"] for i in repo.elenco("imprese")}
+    imprese = {i["id"]: i["tipo"] or "impresa" for i in repo.elenco("imprese")}
     righe = [
-        f"Opera: {c['nome']}", f"Natura: {c['natura_opera']}",
-        f"Indirizzo: {c['indirizzo']} {c['comune']} {c['provincia']}".strip(),
+        f"Natura dell'opera: {c['natura_opera']}",
+        f"Comune: {c['comune']} {c['provincia']}".strip(),
         f"Importo lavori: {c['importo_lavori']:.0f} euro",
         f"Descrizione: {c['descrizione']}",
-        "Soggetti: " + "; ".join(f"{s['ruolo']}: {s['nome']}" for s in anagrafiche.soggetti(repo)),
-        "Imprese: " + "; ".join(f"{i['ragione_sociale']} ({i['tipo']})" for i in repo.elenco("imprese")),
+        "Soggetti presenti: " + "; ".join(sorted({s["ruolo"] for s in anagrafiche.soggetti(repo)})),
+        "Imprese: " + "; ".join(imprese.values()),
         "Fasi di lavoro:",
     ]
     for f in repo.elenco("fasi"):
-        righe.append(f"- {f['codice']} {f['descrizione']}, impresa {imprese.get(f['impresa_id'], 'da definire')}, "
+        righe.append(f"- {f['codice']} {f['descrizione']}, {imprese.get(f['impresa_id'], 'impresa da definire')}, "
                      f"dal {f['data_inizio'] or '?'} al {f['data_fine'] or '?'}, zona {f['zona'] or '-'}")
     return "\n".join(righe)
 
@@ -512,12 +524,13 @@ class PaginaImprese(Pagina):
             return contesto_cantiere(self.repo)
         fasi = self.repo.elenco("fasi", impresa_id=id_)
         lavoratori = self.repo.elenco("lavoratori", impresa_id=id_)
+        mansioni = Counter(l["mansione"] or "mansione non indicata" for l in lavoratori)
         righe = [
-            f"Impresa che redige il POS: {impresa['ragione_sociale']} ({impresa['tipo']})",
+            f"Impresa che redige il POS: {impresa['tipo'] or 'impresa esecutrice'}",
             f"Orario di lavoro: {impresa['orario_lavoro'] or 'non indicato'}",
             f"Tipologia dei lavori: {impresa['tipologia_lavori'] or 'non indicata'}",
             "Lavorazioni dell'impresa: " + "; ".join(f"{f['codice']} {f['descrizione']}" for f in fasi),
-            "Lavoratori: " + "; ".join(f"{anagrafiche.nominativo(l)} ({l['mansione']})" for l in lavoratori),
+            f"Lavoratori: {len(lavoratori)} (" + ", ".join(f"{n} {m}" for m, n in mansioni.items()) + ")",
         ]
         return contesto_cantiere(self.repo) + "\n\n" + "\n".join(righe)
 
@@ -1317,6 +1330,10 @@ class PaginaDocumenti(Pagina):
             b.clicked.connect(lambda _=False, k=chiave: self.genera(k))
             layout.addWidget(b)
         layout.addStretch()
+        avviso = QLabel(AVVISO_RESPONSABILITA)
+        avviso.setObjectName("hint")
+        avviso.setWordWrap(True)
+        layout.addWidget(avviso)
 
         self.controlli = QListWidget()
         self.controlli.setSpacing(2)
@@ -1391,7 +1408,9 @@ class PaginaDocumenti(Pagina):
         except PermissionError:
             QMessageBox.warning(self, "Errore", "Impossibile scrivere il file: è aperto in Word?")
             return
-        risposta = QMessageBox.question(self, "Documento generato", f"Creato {Path(file).name}.\nAprirlo ora?")
+        risposta = QMessageBox.question(
+            self, "Documento generato",
+            f"Creato {Path(file).name}.\n\n{AVVISO_RESPONSABILITA}\n\nAprirlo ora?")
         if risposta == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 

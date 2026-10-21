@@ -445,6 +445,7 @@ def test_pagina_sostanze(app, tmp_path, monkeypatch):
     monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(scheda), ""))
     chiamate = []
     monkeypatch.setattr(ui_sostanze, "esegui_ai", lambda *a: chiamate.append(a))
+    monkeypatch.setattr(ui_sostanze, "ai_attiva", lambda: True)
     pagina._importa_pdf()
     s = repo.elenco("sostanze")[0]
     assert s["nome"] == "Cemento CEM II" and s["impresa_id"] == a
@@ -667,3 +668,45 @@ def test_nuovo_tema_navigazione_e_controlli(app, tmp_path):
     colonna = next(i for i, c in enumerate(fasi.rischi.colonne) if c.campo == "livello")
     assert isinstance(fasi.rischi.vista.itemDelegateForColumn(colonna), tema.DelegatoLivello)
     f.close()
+
+
+def test_assistente_ai_spento_di_serie(app, monkeypatch):
+    from sicurcantiere.ui import lavoro_ai
+    from sicurcantiere.ui.pagine import pulsante_ai
+
+    stato = {"attiva": False}
+    monkeypatch.setattr(lavoro_ai, "ai_attiva", lambda: stato["attiva"])
+    pulsante = pulsante_ai("Suggerisci")
+    assert pulsante.isHidden()  # spento: il pulsante non compare
+    stato["attiva"] = True
+    lavoro_ai.aggiorna_pulsanti_ai()
+    assert not pulsante.isHidden()
+    stato["attiva"] = False
+    chiamate = []
+    lavoro_ai.esegui_ai(None, "x", lambda ai: chiamate.append(ai), lambda r: None)
+    assert chiamate == []  # niente parte verso il fornitore
+    assert "Stati Uniti" in lavoro_ai.SEDI["openai"] and "Cina" in lavoro_ai.SEDI["deepseek"]
+
+
+def test_contesto_ai_senza_dati_personali(tmp_path):
+    from sicurcantiere.ui.pagine import contesto_cantiere
+
+    p = Progetto(tmp_path / "c.spo", crea=True)
+    r = Repository(p)
+    r.aggiorna_cantiere(nome="Casa Rossi", indirizzo="Via Verdi 3", comune="Bari", natura_opera="Ristrutturazione")
+    r.inserisci("soggetti", ruolo="Committente", nome="Mario Rossi")
+    r.inserisci("imprese", ragione_sociale="Edil Bianchi di Luigi Bianchi", tipo="Affidataria")
+    testo = contesto_cantiere(r)
+    assert "Mario Rossi" not in testo and "Bianchi" not in testo and "Via Verdi" not in testo
+    assert "Committente" in testo and "Affidataria" in testo and "Bari" in testo
+    p.chiudi()
+
+
+def test_guida_e_avviso_responsabilita(app):
+    from sicurcantiere.ui.guida import DialogoGuida
+    from sicurcantiere.ui.pagine import AVVISO_RESPONSABILITA
+
+    d = DialogoGuida("POS")
+    testo = d.findChild(QtWidgets.QTextBrowser).toPlainText()
+    assert "Come si compila un POS" in testo and "spento di serie" in testo
+    assert "firmato" in AVVISO_RESPONSABILITA

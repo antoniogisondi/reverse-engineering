@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import weakref
 from typing import Any, Callable
 
 from PySide6.QtCore import QCoreApplication, QObject, QRunnable, QSettings, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -18,9 +20,59 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sicurcantiere.ai import FORNITORE_PREDEFINITO, FORNITORI, VARIABILI_AMBIENTE, AssistenteAI, ErroreAI
+from sicurcantiere.ai import (
+    ANTHROPIC,
+    DEEPSEEK,
+    FORNITORE_PREDEFINITO,
+    FORNITORI,
+    OPENAI,
+    VARIABILI_AMBIENTE,
+    AssistenteAI,
+    ErroreAI,
+)
 
 CHIAVE_FORNITORE = "ai/fornitore"
+CHIAVE_ATTIVO = "ai/attivo"
+
+# Dove il fornitore tratta i dati (dalle informative dei fornitori): da dire a chi attiva l'assistente.
+SEDI = {
+    DEEPSEEK: "in Cina, fuori dall'Unione europea",
+    OPENAI: "negli Stati Uniti, fuori dall'Unione europea",
+    ANTHROPIC: "negli Stati Uniti, fuori dall'Unione europea",
+}
+
+DATI_INVIATI = (
+    "<b>Cosa viene inviato</b>, solo quando premi un pulsante dell'assistente:"
+    "<ul><li>le descrizioni di lavorazioni, rischi, macchine e attrezzature;</li>"
+    "<li>i dati generali dell'opera (natura, comune, importo, descrizione) e i testi del POS di cui chiedi la bozza;</li>"
+    "<li>la descrizione dell'attività da valutare;</li>"
+    "<li>il testo della scheda di sicurezza che importi.</li></ul>"
+    "<b>Cosa non viene inviato</b>: nomi, dati e idoneità dei lavoratori, nominativi di committente, "
+    "coordinatori e imprese, indirizzo del cantiere. Non scrivere dati personali nelle descrizioni."
+)
+
+# Pulsanti dell'assistente, nascosti quando è spento.
+_pulsanti_ai: "weakref.WeakSet[QWidget]" = weakref.WeakSet()
+
+
+def ai_attiva() -> bool:
+    """Assistente spento di serie; acceso se l'utente lo ha attivato (o aveva già una chiave salvata)."""
+    impostazioni = impostazioni_comuni()
+    valore = impostazioni.value(CHIAVE_ATTIVO, None)
+    if valore is None:
+        return any(impostazioni.value(_chiave_api(f), "", type=str) for f in FORNITORI)
+    return str(valore).lower() in ("1", "true")
+
+
+def registra_pulsante_ai(pulsante: QWidget) -> None:
+    _pulsanti_ai.add(pulsante)
+    pulsante.setVisible(ai_attiva())
+
+
+def aggiorna_pulsanti_ai() -> None:
+    attiva = ai_attiva()
+    for pulsante in list(_pulsanti_ai):
+        pulsante.setVisible(attiva)
 
 
 def impostazioni_comuni() -> QSettings:
@@ -69,24 +121,47 @@ class DialogoImpostazioniAI(QDialog):
         self._carica_fornitore(self._corrente)
         self.fornitore.currentIndexChanged.connect(self._cambia_fornitore)
 
-        nota = QLabel(
-            "L'assistente propone valori e testi che vanno sempre verificati prima dell'uso. "
-            "Le descrizioni inviate vengono elaborate dal fornitore scelto: non inserire dati "
-            "personali non necessari. Le chiavi vengono salvate nelle impostazioni di questo computer."
-        )
+        self.attiva = QCheckBox("Usa l'assistente AI")
+        self.attiva.setChecked(ai_attiva())
+        self.attiva.toggled.connect(self._mostra_stato)
+        spiegazione = QLabel("L'assistente è spento di serie: finché non lo attivi, i suoi pulsanti non compaiono "
+                             "e nessun dato lascia questo computer.")
+        spiegazione.setWordWrap(True)
+        spiegazione.setObjectName("hint")
+        self.destinazione = QLabel()
+        self.destinazione.setWordWrap(True)
+        self.destinazione.setObjectName("warningMessage")
+        dati = QLabel(DATI_INVIATI)
+        dati.setWordWrap(True)
+        nota = QLabel("L'assistente propone valori e testi che vanno sempre verificati prima dell'uso. "
+                      "Le chiavi vengono salvate nelle impostazioni di questo computer.")
         nota.setWordWrap(True)
-        nota.setObjectName("pageSubtitle")
+        nota.setObjectName("hint")
         modulo = QFormLayout()
         modulo.addRow("Fornitore", self.fornitore)
         modulo.addRow("Chiave API", self.chiave)
         modulo.addRow("Modello", self.modello)
+        self.campi_ai = QWidget()
+        lay_campi = QVBoxLayout(self.campi_ai)
+        lay_campi.setContentsMargins(0, 0, 0, 0)
+        lay_campi.addLayout(modulo)
+        lay_campi.addWidget(self.destinazione)
+        lay_campi.addWidget(dati)
+        lay_campi.addWidget(nota)
         pulsanti = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         pulsanti.accepted.connect(self._salva)
         pulsanti.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
-        layout.addLayout(modulo)
-        layout.addWidget(nota)
+        layout.addWidget(self.attiva)
+        layout.addWidget(spiegazione)
+        layout.addWidget(self.campi_ai)
         layout.addWidget(pulsanti)
+        self._mostra_stato()
+
+    def _mostra_stato(self) -> None:
+        self.campi_ai.setEnabled(self.attiva.isChecked())
+        f = FORNITORI[self._corrente]
+        self.destinazione.setText(f"I dati vanno a {f.nome}, che li elabora {SEDI.get(self._corrente, '')}.")
 
     def _carica_fornitore(self, fornitore: str) -> None:
         f = FORNITORI[fornitore]
@@ -113,6 +188,7 @@ class DialogoImpostazioniAI(QDialog):
         self._valori[self._corrente] = (self.chiave.text().strip(), self._modello_scelto())
         self._corrente = self.fornitore.currentData()
         self._carica_fornitore(self._corrente)
+        self._mostra_stato()
 
     def _salva(self) -> None:
         self._valori[self._corrente] = (self.chiave.text().strip(), self._modello_scelto())
@@ -120,6 +196,8 @@ class DialogoImpostazioniAI(QDialog):
             self.impostazioni.setValue(_chiave_api(fornitore), chiave)
             self.impostazioni.setValue(_chiave_modello(fornitore), modello)
         self.impostazioni.setValue(CHIAVE_FORNITORE, self._corrente)
+        self.impostazioni.setValue(CHIAVE_ATTIVO, self.attiva.isChecked())
+        aggiorna_pulsanti_ai()
         self.accept()
 
 
@@ -152,6 +230,10 @@ _in_corso: set[_Lavoro] = set()
 def esegui_ai(genitore: QWidget, messaggio: str, funzione: Callable[[AssistenteAI], Any],
               al_termine: Callable[[Any], None]) -> None:
     """Esegue `funzione(assistente)` in un thread separato mostrando un'attesa."""
+    if not ai_attiva():
+        QMessageBox.information(genitore, "Assistente AI", "L'assistente AI non è attivo: si attiva da "
+                                "Strumenti > Impostazioni assistente AI, dove è spiegato quali dati vengono inviati.")
+        return
     attesa = QProgressDialog(messaggio, "", 0, 0, genitore)
     attesa.setWindowTitle("Assistente AI")
     attesa.setCancelButton(None)
