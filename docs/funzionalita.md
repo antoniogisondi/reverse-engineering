@@ -102,6 +102,27 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   coordinatore.
 - Costi della sicurezza, fascicolo dell'opera e notifica preliminare.
 
+### Dal PSC al POS
+- **PSC fatto con SicurCantiere PSC**: nella pagina Imprese, «Prepara il POS dell'impresa...» crea il
+  file `.spo` dell'impresa. Contiene cantiere, soggetti, l'impresa, le sue lavorazioni con rischi,
+  macchine, valutazioni e sostanze, e per ogni fase le interferenze con le altre imprese e le
+  prescrizioni del coordinatore. Non serve l'AI.
+- **PSC fatto con qualsiasi altro programma** (PDF o Word): in SicurCantiere POS, «Nuovo POS da un
+  PSC...».
+  - **Lettura**: l'assistente AI legge il PSC una volta sola e trova cantiere, soggetti, imprese,
+    fasi con rischi e prescrizioni, interferenze e procedure richieste ai POS.
+  - **Scelta**: si spuntano le imprese di cui preparare il POS e, se il PSC non le assegna, le fasi
+    che ciascuna svolge.
+  - **Risultato**: per ogni impresa nasce un file `.spo` da completare. Le fasi riconosciute
+    nell'archivio portano con sé macchine, attrezzi, rischi e misure; le altre riportano i rischi
+    del PSC da valutare.
+  - **Consumo contenuto**: il testo viene ripulito in locale prima dell'invio (intestazioni,
+    numeri di pagina, indice). Prima dell'invio il programma mostra la stima dei token e chiede
+    conferma. Per esempio, un PSC di 126 pagine richiede circa 65 mila token in 6 richieste.
+  - **Verifiche future**: la lettura del PSC resta salvata nel file del POS, per controllare in
+    seguito che il POS risponda a ogni richiesta del PSC.
+- In entrambi i casi il POS non si genera subito: prima si completa il file in SicurCantiere POS.
+
 ### PiMUS
 - Dati del ponteggio, testi base per tutte le sezioni e verifiche prima del montaggio e durante
   l'uso.
@@ -189,8 +210,8 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 2. **Sito di vendita**: presentazione, prezzi, acquisto della licenza e download.
 3. **SicurCantiere DVR.**
 4. **Idee per distinguersi**, da scegliere:
-   - dal PSC al POS: si importa il PSC del coordinatore, si compila in anticipo il POS e si
-     verifica che risponda a ogni richiesta;
+   - verifica automatica, punto per punto, che il POS risponda alle richieste del PSC letto (la
+     lettura è già salvata nel file);
    - verifica dei POS ricevuti da parte del coordinatore (art. 92), con il verbale di verifica;
    - più documenti dagli stessi dati: nomine, richiesta della documentazione dell'Allegato XVII,
      verbali di coordinamento, informativa ai lavoratori;

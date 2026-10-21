@@ -442,6 +442,19 @@ class AssistenteAI:
                          "Migliora e completa il testo attuale mantenendone le informazioni."
         return str(self._richiesta(richiesta, schema).get("testo", "")).strip()
 
+    def analizza_psc(self, testo: str, avanzamento=None) -> Any:
+        """Legge un PSC (testo già ripulito) a parti e ne unisce i dati: una sola lettura per documento."""
+        from sicurcantiere import importa_psc
+
+        pezzi = importa_psc.parti(testo)
+        parziali = []
+        for n, pezzo in enumerate(pezzi, 1):
+            if avanzamento:
+                avanzamento(n, len(pezzi))
+            parziali.append(self._richiesta(importa_psc.ISTRUZIONI.format(n=n, totale=len(pezzi), testo=pezzo),
+                                            importa_psc.SCHEMA))
+        return importa_psc.unisci(parziali)
+
     def estrai_sds(self, testo_scheda: str) -> dict[str, Any]:
         """Dati principali di una scheda di dati di sicurezza, dal suo testo."""
         campi = {

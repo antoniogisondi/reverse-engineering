@@ -114,7 +114,8 @@ class PulsanteGrande(QPushButton):
         layout.setSpacing(14)
         layout.addWidget(immagine)
         layout.addLayout(testi, 1)
-        layout.addWidget(_etichetta(scorciatoia, "kbd"), 0, Qt.AlignmentFlag.AlignVCenter)
+        if scorciatoia:
+            layout.addWidget(_etichetta(scorciatoia, "kbd"), 0, Qt.AlignmentFlag.AlignVCenter)
         self.setMinimumHeight(70)
 
 
@@ -182,6 +183,12 @@ class Benvenuto(QWidget):
         apri.setEnabled(stato.utilizzabile)
         pulsanti.addWidget(nuovo, 1)
         pulsanti.addWidget(apri, 1)
+        if edizione.chiave == "pos":
+            da_psc = PulsanteGrande("psc", "Nuovo POS da un PSC...", "Dal PSC del coordinatore, in PDF o Word",
+                                    "", False)
+            da_psc.clicked.connect(finestra.nuovo_da_psc)
+            da_psc.setEnabled(stato.utilizzabile)
+            pulsanti.addWidget(da_psc, 1)
         colonna.addLayout(pulsanti)
 
         passi = QFrame()
@@ -330,6 +337,9 @@ class FinestraPrincipale(QMainWindow):
             "Salva &con nome...", self.salva_con_nome, QKeySequence.StandardKey.SaveAs,
             "Salva una copia del cantiere con un altro nome")
         self.azione_chiudi = self._azione("C&hiudi cantiere", self._chiudi_progetto)
+        self.azione_da_psc = self._azione("Nuovo POS da un &PSC...", self.nuovo_da_psc,
+                                          suggerimento="Legge il PSC del coordinatore (PDF o Word) e prepara il "
+                                                       "file del POS delle imprese scelte")
         self.azione_psc = self._azione(self.edizione.azione_principale, self._genera_principale, "Ctrl+P")
         self.azione_controlli = self._azione("&Controlli", self._vai_ai_controlli, "F7",
                                              "Mostra i controlli di completezza")
@@ -350,6 +360,8 @@ class FinestraPrincipale(QMainWindow):
     def _crea_menu(self) -> None:
         menu = self.menuBar().addMenu("&File")
         menu.addAction(self.azione_nuovo)
+        if self.edizione.chiave == "pos":
+            menu.addAction(self.azione_da_psc)
         menu.addAction(self.azione_apri)
         menu.addAction(self.azione_salva)
         menu.addAction(self.azione_salva_con_nome)
@@ -531,6 +543,12 @@ class FinestraPrincipale(QMainWindow):
         percorso, _ = QFileDialog.getOpenFileName(self, "Apri cantiere", self._cartella_iniziale(), self.filtro)
         if percorso:
             self.apri_file(percorso)
+
+    def nuovo_da_psc(self) -> None:
+        from sicurcantiere.ui import importa_psc
+
+        if licenza_ui.stato_corrente(self.edizione.chiave).utilizzabile:
+            importa_psc.avvia(self)
 
     def apri_file(self, percorso: str | Path) -> None:
         if not licenza_ui.consenti_cantiere(self, self.edizione.chiave, Path(percorso)):

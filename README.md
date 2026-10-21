@@ -67,6 +67,10 @@ L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e d
   prescrizioni del coordinatore per ogni coppia di fasi
 - **Costi della sicurezza** con totale
 - **Relazione** del PSC (sezioni dell'Allegato XV)
+- **Dal PSC al POS**: nel PSC, «Prepara il POS dell'impresa...» crea il file `.spo` dell'impresa con
+  le sue lavorazioni e le prescrizioni sulle interferenze. Nel POS, «Nuovo POS da un PSC...» legge con
+  l'assistente AI un PSC in PDF o Word fatto con qualsiasi programma e prepara i file delle imprese
+  scelte (vedi [docs/funzionalita.md](docs/funzionalita.md))
 - **Fascicolo dell'opera**: interventi di manutenzione e documentazione di supporto
 - **Documenti Word**: PSC, POS per impresa, fascicolo dell'opera, notifica preliminare,
   con tabella delle **revisioni** nel frontespizio

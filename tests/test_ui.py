@@ -773,3 +773,30 @@ def test_licenza_prova_e_programma_non_incluso(app, tmp_path, monkeypatch):
     assert "Non incluso nella tua licenza" in testi
     assert any("PSC non è incluso" in t for t in testi)
     f.close()
+
+
+def test_nuovo_pos_da_psc(app, tmp_path, monkeypatch):
+    from sicurcantiere.ui import importa_psc as ui_psc
+    from sicurcantiere.ui.edizioni import POS
+    from tests.test_importa_psc import _analisi
+
+    analisi = _analisi()
+    dialogo = ui_psc.DialogoImpresePSC(analisi)
+    assert dialogo.imprese.count() == 2 and dialogo.fasi.count() == 2
+    assert dialogo.fasi.item(0).checkState() == QtCore.Qt.CheckState.Checked  # assegnata dal PSC
+    dialogo.imprese.item(1).setCheckState(QtCore.Qt.CheckState.Checked)
+    dialogo.impresa_fasi.setCurrentIndex(1)
+    dialogo.fasi.item(0).setCheckState(QtCore.Qt.CheckState.Checked)  # aggiunta a mano a Beta Gru
+    scelte = dialogo.scelte()
+    assert [i["ragione_sociale"] for i, _ in scelte] == ["Beta Gru"]
+    assert len(scelte[0][1]) == 2
+
+    f = FinestraPrincipale(POS)
+    assert "Nuovo POS da un &PSC..." in [a.text() for a in f.menuBar().actions()[0].menu().actions()]
+    # senza assistente AI attivo spiega cosa fare, senza chiedere il file
+    mostrati = []
+    monkeypatch.setattr(ui_psc.lavoro_ai, "ai_attiva", lambda: False)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", lambda *a: mostrati.append(a[2]))
+    f.nuovo_da_psc()
+    assert "Prepara il POS dell'impresa" in mostrati[0]
+    f.close()
