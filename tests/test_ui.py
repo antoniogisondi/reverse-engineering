@@ -800,3 +800,24 @@ def test_nuovo_pos_da_psc(app, tmp_path, monkeypatch):
     f.nuovo_da_psc()
     assert "Prepara il POS dell'impresa" in mostrati[0]
     f.close()
+
+
+def test_lettura_in_background_senza_bloccare(app):
+    import time
+
+    from sicurcantiere.ui import importa_psc as ui_psc
+
+    risultati, passi = [], []
+
+    def lavoro(avanzamento):
+        for n in range(1, 4):
+            avanzamento(n, 3, f"pagina {n}")
+            passi.append(n)
+        return "fatto"
+
+    ui_psc.in_background(None, "Prova", "Lettura...", lavoro, risultati.append)
+    limite = time.time() + 10
+    while not risultati and time.time() < limite:
+        app.processEvents()  # la finestra resta reattiva mentre il lavoro procede
+        time.sleep(0.01)
+    assert risultati == ["fatto"] and passi == [1, 2, 3]

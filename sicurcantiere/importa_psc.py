@@ -40,7 +40,8 @@ class ErroreImportazione(Exception):
 
 # --- testo del documento ---
 
-def estrai_testo(percorso: str | Path) -> str:
+def estrai_testo(percorso: str | Path, avanzamento=None) -> str:
+    """Testo del PDF o del Word; `avanzamento(pagina, pagine)` viene chiamata a ogni pagina del PDF."""
     percorso = Path(percorso)
     estensione = percorso.suffix.lower()
     if estensione == ".pdf":
@@ -48,7 +49,12 @@ def estrai_testo(percorso: str | Path) -> str:
         from pypdf.errors import PdfReadError
 
         try:
-            pagine = [p.extract_text() or "" for p in PdfReader(str(percorso)).pages]
+            lettore = PdfReader(str(percorso))
+            pagine = []
+            for n, pagina in enumerate(lettore.pages, 1):
+                if avanzamento:
+                    avanzamento(n, len(lettore.pages))
+                pagine.append(pagina.extract_text() or "")
         except (PdfReadError, OSError, ValueError) as e:
             raise ErroreImportazione(f"Il PDF non si può leggere: {e}") from e
         testo = "\f".join(pagine)

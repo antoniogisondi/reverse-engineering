@@ -186,3 +186,30 @@ def test_suggerisci_e_completa_attrezzature():
     scheda = AssistenteAI(client=client).completa_attrezzatura("Mola", "Attrezzo", "Tagli", ["rumore"])
     assert scheda["nome"] == "Mola" and scheda["tipo"] == "Attrezzo"
     assert [r["descrizione"] for r in scheda["rischi"]] == ["Vibrazioni al sistema mano-braccio"]
+
+
+def test_credito_esaurito_spiegato():
+    import anthropic
+    import httpx2 as httpx
+    import openai
+
+    def risposta(stato):
+        return httpx.Response(stato, request=httpx.Request("POST", "https://api.example.com"))
+
+    def solleva(errore):
+        def create(**_):
+            raise errore
+        return create
+
+    claude = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=solleva(anthropic.BadRequestError(
+        "Your credit balance is too low to access the Anthropic API.", response=risposta(400), body=None)))))
+    with pytest.raises(ErroreAI, match="Credito esaurito sull'account Claude.*console.anthropic.com"):
+        AssistenteAI(fornitore=ANTHROPIC, client=claude).scrivi_sezione("Area", "Cantiere")
+    deepseek = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=solleva(openai.APIStatusError(
+        "Insufficient Balance", response=risposta(402), body=None)))))
+    with pytest.raises(ErroreAI, match="Credito esaurito sull'account DeepSeek.*platform.deepseek.com"):
+        AssistenteAI(fornitore=DEEPSEEK, client=deepseek).scrivi_sezione("Area", "Cantiere")
+    altro = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=solleva(anthropic.BadRequestError(
+        "max_tokens troppo alto", response=risposta(400), body=None)))))
+    with pytest.raises(ErroreAI, match=r"Errore del servizio AI \(400\)"):
+        AssistenteAI(fornitore=ANTHROPIC, client=altro).scrivi_sezione("Area", "Cantiere")

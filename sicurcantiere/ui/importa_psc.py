@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -14,20 +15,106 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QProgressDialog,
     QVBoxLayout,
     QWidget,
 )
 
 from sicurcantiere import importa_psc
-from sicurcantiere.ai import FORNITORI
+from sicurcantiere.ai import FORNITORI, ErroreAI
 from sicurcantiere.ui import lavoro_ai
+
+
+class Annullato(Exception):
+    """L'utente ha premuto Annulla durante un lavoro in background."""
+
+
+class _Segnali(QObject):
+    progresso = Signal(int, int, str)
+    completato = Signal(object)
+    fallito = Signal(str)
+
+
+class _Lavoro(QRunnable):
+    """Esegue `funzione(avanzamento)` in un thread; `avanzamento(n, totale, testo)` aggiorna la barra."""
+
+    def __init__(self, funzione: Callable):
+        super().__init__()
+        self.funzione = funzione
+        self.segnali = _Segnali()
+        self.annullato = False
+
+    def _avanzamento(self, n: int, totale: int, testo: str = "") -> None:
+        if self.annullato:
+            raise Annullato()
+        self.segnali.progresso.emit(n, totale, testo)
+
+    def run(self) -> None:
+        try:
+            risultato = self.funzione(self._avanzamento)
+        except Annullato:
+            self.segnali.fallito.emit("")
+        except (ErroreAI, importa_psc.ErroreImportazione) as e:
+            self.segnali.fallito.emit(str(e))
+        except Exception as e:  # noqa: BLE001 - qualsiasi errore va mostrato all'utente
+            self.segnali.fallito.emit(f"Errore imprevisto: {e}")
+        else:
+            self.segnali.completato.emit(risultato)
+
+
+_in_corso: set[_Lavoro] = set()
+
+
+def in_background(genitore: QWidget, titolo: str, messaggio: str, funzione: Callable,
+                  al_termine: Callable[[Any], None]) -> None:
+    """Lavoro lungo senza bloccare la finestra: barra di avanzamento e pulsante Annulla."""
+    attesa = QProgressDialog(messaggio, "Annulla", 0, 0, genitore)
+    attesa.setWindowTitle(titolo)
+    attesa.setWindowModality(Qt.WindowModality.WindowModal)
+    attesa.setMinimumDuration(0)
+    attesa.setMinimumWidth(420)
+    attesa.show()
+    lavoro = _Lavoro(funzione)
+    _in_corso.add(lavoro)
+
+    def progresso(n: int, totale: int, testo: str) -> None:
+        attesa.setMaximum(totale)
+        attesa.setValue(n)
+        if testo:
+            attesa.setLabelText(testo)
+
+    def fine() -> None:
+        attesa.close()
+        _in_corso.discard(lavoro)
+
+    def ok(risultato: Any) -> None:
+        fine()
+        al_termine(risultato)
+
+    def errore(testo: str) -> None:
+        fine()
+        if testo:  # vuoto: annullato dall'utente
+            QMessageBox.warning(genitore, titolo, testo)
+
+    def annulla() -> None:
+        lavoro.annullato = True
+        attesa.setLabelText("Annullamento in corso...")
+
+    attesa.canceled.connect(annulla)
+    lavoro.segnali.progresso.connect(progresso, Qt.ConnectionType.QueuedConnection)
+    lavoro.segnali.completato.connect(ok, Qt.ConnectionType.QueuedConnection)
+    lavoro.segnali.fallito.connect(errore, Qt.ConnectionType.QueuedConnection)
+    QThreadPool.globalInstance().start(lavoro)
+
+
+TITOLO = "Nuovo POS da un PSC"
 
 
 def avvia(finestra) -> None:
     """Sceglie il PSC, lo fa leggere all'assistente (una volta) e crea i file del POS."""
     if not lavoro_ai.ai_attiva():
         QMessageBox.information(
-            finestra, "Nuovo POS da un PSC",
+            finestra, TITOLO,
             "Per leggere un PSC fatto con un altro programma serve l'assistente AI: si attiva da "
             "Strumenti > Impostazioni assistente AI.\n\nSe il PSC è stato fatto con SicurCantiere PSC non serve: "
             "basta aprirlo in SicurCantiere PSC e usare «Prepara il POS dell'impresa...» nella pagina Imprese.")
@@ -36,35 +123,43 @@ def avvia(finestra) -> None:
                                               "PSC (*.pdf *.docx)")
     if not percorso:
         return
-    try:
-        testo = importa_psc.pulisci_testo(importa_psc.estrai_testo(percorso))
-    except importa_psc.ErroreImportazione as e:
-        QMessageBox.warning(finestra, "Nuovo POS da un PSC", str(e))
-        return
+
+    def leggi_file(avanzamento):
+        grezzo = importa_psc.estrai_testo(
+            percorso, lambda n, tot: avanzamento(n, tot, f"Lettura del documento: pagina {n} di {tot}..."))
+        return importa_psc.pulisci_testo(grezzo)
+
+    in_background(finestra, TITOLO, "Lettura del documento...", leggi_file,
+                  lambda testo: _conferma_e_analizza(finestra, percorso, testo))
+
+
+def _conferma_e_analizza(finestra, percorso: str, testo: str) -> None:
     ai = lavoro_ai.assistente()
     fornitore = FORNITORI[ai.fornitore].nome
     token = importa_psc.stima_token(testo)
+    n_parti = len(importa_psc.parti(testo))
     if QMessageBox.question(
-            finestra, "Nuovo POS da un PSC",
+            finestra, TITOLO,
             f"Il PSC verrà letto dall'assistente {fornitore} ({lavoro_ai.SEDI[ai.fornitore]}), in "
-            f"{len(importa_psc.parti(testo))} richieste per circa {token:,} token in tutto".replace(",", ".")
+            f"{n_parti} richieste per circa {token:,} token in tutto".replace(",", ".")
             + ". La lettura si fa una volta sola e serve per i POS di tutte le imprese del PSC.\n\n"
             "Il PSC contiene nomi e recapiti dei soggetti e delle imprese: verranno inviati al fornitore insieme "
             "al resto del testo.\n\nContinuare?") != QMessageBox.StandardButton.Yes:
         return
 
-    def leggi(assistente):
-        analisi = assistente.analizza_psc(testo)
+    def analizza(avanzamento):
+        analisi = ai.analizza_psc(testo, lambda n, tot: avanzamento(
+            n - 1, tot, f"Lettura del PSC con l'assistente {fornitore}: parte {n} di {tot}..."))
         analisi.file = percorso
         return analisi
 
-    lavoro_ai.esegui_ai(finestra, "Lettura del PSC in corso: può richiedere qualche minuto...", leggi,
-                        lambda analisi: _scegli_e_crea(finestra, analisi))
+    in_background(finestra, TITOLO, f"Lettura del PSC con l'assistente {fornitore}...", analizza,
+                  lambda analisi: _scegli_e_crea(finestra, analisi))
 
 
 def _scegli_e_crea(finestra, analisi: importa_psc.Analisi) -> None:
     if not analisi.imprese and not analisi.fasi:
-        QMessageBox.warning(finestra, "Nuovo POS da un PSC", "Nel documento non sono state trovate imprese né "
+        QMessageBox.warning(finestra, TITOLO, "Nel documento non sono state trovate imprese né "
                                                               "lavorazioni: è davvero un PSC?")
         return
     dialogo = DialogoImpresePSC(analisi, finestra)

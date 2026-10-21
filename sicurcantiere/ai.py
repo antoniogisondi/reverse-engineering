@@ -70,6 +70,21 @@ class ErroreAI(Exception):
     """Errore comprensibile all'utente durante una richiesta all'assistente."""
 
 
+SITI_CREDITO = {DEEPSEEK: "platform.deepseek.com", OPENAI: "platform.openai.com", ANTHROPIC: "console.anthropic.com"}
+
+
+def _credito_esaurito(fornitore: str, stato: int | None, messaggio: str) -> ErroreAI | None:
+    """Errore chiaro quando l'account del fornitore non ha più credito (402, o 400/429 con quel motivo)."""
+    testo = (messaggio or "").lower()
+    if stato == 402 or any(p in testo for p in ("credit balance", "insufficient balance", "insufficient_quota",
+                                                 "exceeded your current quota", "billing")):
+        return ErroreAI(f"Credito esaurito sull'account {FORNITORI[fornitore].nome}: le chiavi API si pagano a "
+                        f"consumo, separatamente da eventuali abbonamenti. Ricaricare il credito su "
+                        f"{SITI_CREDITO[fornitore]} oppure scegliere un altro fornitore in Strumenti > "
+                        "Impostazioni assistente AI.")
+    return None
+
+
 @dataclass(frozen=True)
 class Compilazione:
     titolo: str
@@ -212,12 +227,13 @@ class AssistenteAI:
             raise ErroreAI(f"Modello «{self.modello}» non disponibile per questa chiave: "
                            "sceglierne un altro nelle impostazioni.") from e
         except openai.RateLimitError as e:
-            raise ErroreAI(f"Limite di richieste o credito esaurito sull'account {nome}: "
-                           "riprovare più tardi o controllare il piano.") from e
+            raise (_credito_esaurito(self.fornitore, 429, str(e)) or ErroreAI(
+                f"Troppe richieste in poco tempo sull'account {nome}: riprovare tra qualche istante.")) from e
         except openai.APIConnectionError as e:
             raise ErroreAI("Impossibile contattare il servizio: controllare la connessione a internet.") from e
         except openai.APIStatusError as e:
-            raise ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}") from e
+            raise (_credito_esaurito(self.fornitore, e.status_code, str(e))
+                   or ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}")) from e
         except openai.OpenAIError as e:
             # Es. nessuna chiave configurata.
             raise ErroreAI(f"Assistente AI non configurato: {e}") from e
@@ -248,11 +264,13 @@ class AssistenteAI:
         except anthropic.PermissionDeniedError as e:
             raise ErroreAI("La chiave API non ha i permessi per questo modello.") from e
         except anthropic.RateLimitError as e:
-            raise ErroreAI("Troppe richieste in poco tempo: riprovare tra qualche istante.") from e
+            raise (_credito_esaurito(ANTHROPIC, 429, str(e))
+                   or ErroreAI("Troppe richieste in poco tempo: riprovare tra qualche istante.")) from e
         except anthropic.APIConnectionError as e:
             raise ErroreAI("Impossibile contattare il servizio: controllare la connessione a internet.") from e
         except anthropic.APIStatusError as e:
-            raise ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}") from e
+            raise (_credito_esaurito(ANTHROPIC, e.status_code, str(e))
+                   or ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}")) from e
         except anthropic.AnthropicError as e:
             raise ErroreAI(f"Assistente AI non configurato: {e}") from e
 
