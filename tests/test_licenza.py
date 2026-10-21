@@ -32,7 +32,12 @@ def test_firma_e_verifica(chiavi):
     assert letta == _licenza() and letta.nome_piano == "POS" and letta.programmi == {"pos"}
     # una lettera cambiata nei dati o nella firma rende il codice non valido
     dati, firma = codice[4:].split(".")
-    for falso in (f"SC1-{dati[:-2]}AA.{firma}", f"SC1-{dati}.{firma[:-2]}AA", "SC1-abc", "XYZ"):
+
+    def cambia(testo):  # una lettera a metà (le ultime possono portare solo bit di riempimento)
+        i = len(testo) // 2
+        return testo[:i] + ("B" if testo[i] == "A" else "A") + testo[i + 1:]
+
+    for falso in (f"SC1-{cambia(dati)}.{firma}", f"SC1-{dati}.{cambia(firma)}", "SC1-abc", "XYZ"):
         with pytest.raises(licenza.ErroreLicenza):
             licenza.leggi(falso)
     # firmata con un'altra chiave
