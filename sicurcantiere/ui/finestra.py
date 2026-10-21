@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -256,6 +259,10 @@ class FinestraPrincipale(QMainWindow):
         self.scuro = self.impostazioni.value("tema_scuro", False, type=bool)
         self.colori = tema.colori(self.scuro, edizione.chiave)
         self._modifiche_viste = 0
+        # Modifiche dall'ultimo «Salva» (o dall'apertura): il file si aggiorna già a ogni modifica, ma
+        # chi chiude senza salvare può tornare alla copia fatta in quel momento.
+        self._salvato_a = 0
+        self._istantanea: Path | None = None
 
         # Barra laterale: cantiere aperto ed elenco numerato delle pagine, con i problemi di ognuna.
         self.navigazione = QListWidget()
@@ -336,7 +343,7 @@ class FinestraPrincipale(QMainWindow):
         self.azione_salva_con_nome = self._azione(
             "Salva &con nome...", self.salva_con_nome, QKeySequence.StandardKey.SaveAs,
             "Salva una copia del cantiere con un altro nome")
-        self.azione_chiudi = self._azione("C&hiudi cantiere", self._chiudi_progetto)
+        self.azione_chiudi = self._azione("C&hiudi cantiere", self.chiudi_cantiere)
         self.azione_da_psc = self._azione("Nuovo POS da un &PSC...", self.nuovo_da_psc,
                                           suggerimento="Legge il PSC del coordinatore (PDF o Word) e prepara il "
                                                        "file del POS delle imprese scelte")
@@ -499,6 +506,8 @@ class FinestraPrincipale(QMainWindow):
         return str(Path(recenti[0]).parent) if recenti else str(Path.home())
 
     def nuovo(self) -> None:
+        if not self.conferma_chiusura():
+            return
         # Niente conferma di sovrascrittura di Windows: scegliere un cantiere esistente qui di
         # solito vuol dire volerlo aprire, e «Sì» lo sostituirebbe con uno vuoto.
         percorso, _ = QFileDialog.getSaveFileName(
@@ -551,7 +560,9 @@ class FinestraPrincipale(QMainWindow):
         if licenza_ui.stato_corrente(self.edizione.chiave).utilizzabile:
             importa_psc.avvia(self)
 
-    def apri_file(self, percorso: str | Path) -> None:
+    def apri_file(self, percorso: str | Path, chiedi: bool = True) -> None:
+        if chiedi and not self.conferma_chiusura():
+            return
         if not licenza_ui.consenti_cantiere(self, self.edizione.chiave, Path(percorso)):
             return
         try:
@@ -582,7 +593,8 @@ class FinestraPrincipale(QMainWindow):
         except OSError as e:
             QMessageBox.critical(self, "Salvataggio non riuscito", str(e))
             return
-        self.apri_file(percorso)
+        self._salvato_a = self.progetto.conn.total_changes  # tutto è nella copia appena salvata
+        self.apri_file(percorso, chiedi=False)
 
     def salva(self) -> None:
         """Scrive subito nel file anche i campi in modifica (il resto è già salvato)."""
@@ -591,6 +603,7 @@ class FinestraPrincipale(QMainWindow):
         self._salva_in_sospeso()
         self.progetto.conn.commit()
         self._modifiche_viste = self.progetto.conn.total_changes
+        self._segna_salvato()
         self.stato_salvataggio.setText(f"Salvato alle {datetime.now():%H:%M:%S}")
         self.statusBar().showMessage("Modifiche salvate nel file del cantiere.", 4000)
 
@@ -598,10 +611,71 @@ class FinestraPrincipale(QMainWindow):
         for pagina in self.pagine:
             pagina.salva_in_sospeso()
 
+    # --- modifiche non salvate ---
+
+    def _segna_salvato(self) -> None:
+        """Punto di ritorno per «Non salvare»: copia del cantiere com'è adesso."""
+        self._togli_istantanea()
+        if not self.progetto:
+            return
+        self._salvato_a = self.progetto.conn.total_changes
+        try:
+            descrittore, nome = tempfile.mkstemp(prefix="sicurcantiere-", suffix=self.progetto.percorso.suffix)
+            os.close(descrittore)
+            Path(nome).unlink()
+            self.progetto.salva_con_nome(nome)
+            self._istantanea = Path(nome)
+        except OSError:
+            self._istantanea = None  # senza copia «Non salvare» non è possibile: resta solo Salva
+
+    def _togli_istantanea(self) -> None:
+        if self._istantanea is not None:
+            self._istantanea.unlink(missing_ok=True)
+            self._istantanea = None
+
+    def modifiche_non_salvate(self) -> bool:
+        if not self.progetto:
+            return False
+        self._salva_in_sospeso()
+        return self.progetto.conn.total_changes != self._salvato_a
+
+    def conferma_chiusura(self) -> bool:
+        """Prima di chiudere il cantiere: se ci sono modifiche non salvate chiede cosa fare.
+
+        Restituisce False se l'utente annulla. «Non salvare» riporta il file all'ultimo salvataggio.
+        """
+        if not self.modifiche_non_salvate():
+            return True
+        pulsanti = QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Cancel
+        if self._istantanea is not None:
+            pulsanti |= QMessageBox.StandardButton.Discard
+        nome = self.progetto.percorso.name
+        domanda = QMessageBox(QMessageBox.Icon.Warning, "Modifiche non salvate",
+                              f"Le modifiche al cantiere «{nome}» non sono state salvate.", pulsanti, self)
+        domanda.setInformativeText("Vuoi salvarle prima di chiudere?")
+        domanda.setDefaultButton(QMessageBox.StandardButton.Save)
+        domanda.button(QMessageBox.StandardButton.Save).setText("Salva")
+        domanda.button(QMessageBox.StandardButton.Cancel).setText("Annulla")
+        if self._istantanea is not None:
+            domanda.button(QMessageBox.StandardButton.Discard).setText("Non salvare")
+        risposta = domanda.exec()
+        if risposta in (QMessageBox.StandardButton.Save, QMessageBox.StandardButton.Yes):
+            self.salva()
+            return True
+        if risposta == QMessageBox.StandardButton.Discard:
+            self._ripristina = True
+            return True
+        return False
+
+    def chiudi_cantiere(self) -> None:
+        if self.conferma_chiusura():
+            self._chiudi_progetto()
+
     def _carica(self, progetto: Progetto) -> None:
         self._chiudi_progetto()
         self.progetto = progetto
         self._modifiche_viste = progetto.conn.total_changes
+        self._segna_salvato()
         repo = Repository(progetto)
         benvenuto = self.contenitore.widget(0)
         self.contenitore.removeWidget(benvenuto)
@@ -644,8 +718,17 @@ class FinestraPrincipale(QMainWindow):
         self.pagine = []
         self._mostra_benvenuto()
         if self.progetto:
+            percorso = self.progetto.percorso
             self.progetto.chiudi()
             self.progetto = None
+            if getattr(self, "_ripristina", False) and self._istantanea is not None:
+                try:  # «Non salvare»: il file torna com'era all'ultimo salvataggio
+                    shutil.copyfile(self._istantanea, percorso)
+                except OSError as e:
+                    QMessageBox.warning(self, "Modifiche non annullate",
+                                        f"Non è stato possibile ripristinare il cantiere: {e}")
+        self._ripristina = False
+        self._togli_istantanea()
         self._popola_navigazione()
         self.navigazione.setEnabled(False)
         self.nome_cantiere.hide()
@@ -755,6 +838,9 @@ class FinestraPrincipale(QMainWindow):
                 item.setData(Qt.ItemDataRole.UserRole + 2, len(proprie))
 
     def closeEvent(self, evento) -> None:
+        if not self.conferma_chiusura():
+            evento.ignore()
+            return
         self._chiudi_progetto()
         self.impostazioni.setValue("geometria", self.saveGeometry())
         super().closeEvent(evento)

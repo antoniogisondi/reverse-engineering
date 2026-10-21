@@ -8,7 +8,7 @@ import traceback
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QLocale, QSettings, QStandardPaths
+from PySide6.QtCore import QEvent, QLibraryInfo, QLocale, QSettings, QStandardPaths, QTranslator
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from sicurcantiere import __version__
@@ -39,6 +39,18 @@ def _gestore_eccezioni(file_log: Path):
     return gestisci
 
 
+def traduci_in_italiano(app: QApplication) -> bool:
+    """Pulsanti e menu standard di Qt in italiano (Sì/No/Annulla/Salva, Copia/Incolla...)."""
+    cartella = QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+    caricate = False
+    for nome in ("qtbase_it", "qt_it"):
+        traduttore = QTranslator(app)
+        if traduttore.load(nome, cartella):
+            app.installTranslator(traduttore)
+            caricate = True
+    return caricate
+
+
 def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
     """Avvia un programma della famiglia: psc (predefinito), pos o pimus.
 
@@ -54,6 +66,7 @@ def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
     app.setOrganizationName("SicurCantiere")
     app.setApplicationVersion(__version__)
     QLocale.setDefault(QLocale(QLocale.Language.Italian, QLocale.Country.Italy))
+    traduci_in_italiano(app)
 
     from sicurcantiere.ui import tema
 

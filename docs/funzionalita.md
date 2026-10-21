@@ -182,6 +182,9 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   da solo.
 - **Interfaccia**: tema chiaro e scuro, colore per programma, barra laterale con i problemi di
   ogni pagina, guida rapida (F1).
+- **Chiusura con modifiche non salvate**: il programma chiede "Salva / Non salvare / Annulla".
+  "Non salvare" riporta il cantiere all'ultimo salvataggio (o all'apertura).
+- **Tutto in italiano**, compresi i pulsanti e i menu standard (Sì/No/Annulla, Copia/Incolla).
 - **Sicurezza dei dati**: salvataggio automatico a ogni modifica e copie di sicurezza all'apertura.
   I file dei progetti vecchi si aggiornano da soli.
 

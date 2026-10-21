@@ -37,6 +37,7 @@ def senza_dialoghi(monkeypatch):
     monkeypatch.setattr(mb, "critical", lambda *a, **k: mb.StandardButton.Ok)
     monkeypatch.setattr(mb, "question", lambda *a, **k: mb.StandardButton.Yes)
     monkeypatch.setattr(mb, "information", lambda *a, **k: mb.StandardButton.Ok)
+    monkeypatch.setattr(mb, "exec", lambda self: mb.StandardButton.Save)  # «Modifiche non salvate»: Salva
 
 
 @pytest.fixture(scope="module")
@@ -931,3 +932,40 @@ def test_codice_fase_automatico_e_licenza_nascosta(app, tmp_path):
     d.mostra.setChecked(True)
     assert d.codice.echoMode() == QtWidgets.QLineEdit.EchoMode.Normal
     d.close()
+
+
+def test_chiusura_con_modifiche_non_salvate(app, tmp_path, monkeypatch):
+    from sicurcantiere.app import traduci_in_italiano
+    from sicurcantiere.ui.edizioni import POS
+
+    mb = QtWidgets.QMessageBox
+    file = tmp_path / "c.spo"
+    Progetto(file, crea=True).chiudi()
+    f = FinestraPrincipale(POS)
+    f.apri_file(file)
+    assert not f.modifiche_non_salvate()  # appena aperto e solo guardato: niente domanda
+    f.pagine[0].salva_in_sospeso()
+    assert not f.modifiche_non_salvate()
+
+    f.pagine[0].campi["nome"].setText("Scuola")  # modifica fatta dall'utente nella pagina
+    assert f.modifiche_non_salvate()
+    monkeypatch.setattr(mb, "exec", lambda self: mb.StandardButton.Cancel)
+    assert not f.conferma_chiusura() and f.progetto is not None  # Annulla: resta aperto
+    monkeypatch.setattr(mb, "exec", lambda self: mb.StandardButton.Discard)
+    f.chiudi_cantiere()  # Non salvare: il file torna com'era all'apertura
+    assert f.progetto is None
+    p = Progetto(file)
+    assert Repository(p).cantiere()["nome"] == ""
+    p.chiudi()
+
+    f.apri_file(file)
+    f.pagine[0].campi["nome"].setText("Scuola")
+    monkeypatch.setattr(mb, "exec", lambda self: mb.StandardButton.Save)
+    f.close()  # Salva: le modifiche restano
+    p = Progetto(file)
+    assert Repository(p).cantiere()["nome"] == "Scuola"
+    p.chiudi()
+
+    assert traduci_in_italiano(app)  # pulsanti standard di Qt in italiano
+    pulsanti = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+    assert pulsanti.buttons()[0].text() == "Annulla"

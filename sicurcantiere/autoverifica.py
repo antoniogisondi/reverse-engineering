@@ -52,6 +52,12 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     tema.carica_caratteri()
     righe.append(f"tema: {len(foglio)} caratteri, carattere {tema._corrente['sans']}")
     righe.append(_prova_licenza())
+    from PySide6.QtWidgets import QApplication
+
+    from sicurcantiere.app import traduci_in_italiano
+
+    assert traduci_in_italiano(QApplication.instance()), "traduzioni italiane di Qt mancanti"
+    righe.append("pulsanti e menu di Qt in italiano")
     from sicurcantiere import licenza
 
     # La prova non deve far partire la prova gratuita né fermarsi sui suoi messaggi.
@@ -79,6 +85,8 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     finestra.apri_file(file)
     assert finestra.pagine, "pagine non create"
     righe.append(f"finestra: {len(finestra.pagine)} pagine")
+    finestra.salva()  # senza modifiche in sospeso la chiusura non chiede di salvare (niente finestre in attesa)
+    assert not finestra.modifiche_non_salvate(), "modifiche non salvate dopo Salva"
     finestra.close()
     finestra.deleteLater()
     return righe

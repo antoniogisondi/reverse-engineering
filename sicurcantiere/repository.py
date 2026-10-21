@@ -45,6 +45,8 @@ class Repository:
     def aggiorna_cantiere(self, **valori: Any) -> None:
         self._verifica("cantiere", valori.keys())
         valori.pop("id", None)
+        attuale = self.cantiere()
+        valori = {k: v for k, v in valori.items() if attuale.get(k) != v}  # si scrive solo ciò che cambia
         if not valori:
             return
         assegnazioni = ", ".join(f"{c} = ?" for c in valori)
@@ -97,6 +99,9 @@ class Repository:
 
     def aggiorna(self, tabella: str, id_: int, **valori: Any) -> None:
         self._verifica(tabella, valori.keys())
+        attuale = self.leggi(tabella, id_) or {}
+        # si scrive solo ciò che cambia: così «modifiche non salvate» vuol dire modifiche vere
+        valori = {k: v for k, v in valori.items() if k not in attuale or attuale[k] != v}
         if not valori:
             return
         assegnazioni = ", ".join(f"{c} = ?" for c in valori)
