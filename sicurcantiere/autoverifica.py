@@ -151,13 +151,18 @@ class _registra_processi:
 
 
 class _registra_finestre_native:
-    """Su Windows: finestre visibili di qualsiasi programma comparse durante l'apertura (anche non di Qt)."""
+    """Su Windows: finestre visibili comparse durante l'apertura, anche per un istante e anche non di
+    Qt. Un thread separato le cerca ogni pochi millesimi di secondo (Python passa da un thread
+    all'altro anche mentre il programma è occupato), poi si risale all'elemento di Qt che le ha create."""
 
     def __init__(self, principale, elenco: list[str]):
         self.principale, self.elenco = principale, elenco
-        self.timer = None
+        self.trovate: dict[int, str] = {}
+        self.attivo = False
+        self.filo = None
 
-    def _visibili(self) -> dict[int, str]:
+    @staticmethod
+    def _visibili() -> dict[int, str]:
         import ctypes
         from ctypes import wintypes
 
@@ -173,33 +178,61 @@ class _registra_finestre_native:
                 user32.GetClassNameW(hwnd, classe, 256)
                 pid = wintypes.DWORD()
                 user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-                trovate[hwnd] = f"pid {pid.value} classe {classe.value!r} titolo {titolo.value!r}"
+                r = wintypes.RECT()
+                user32.GetWindowRect(hwnd, ctypes.byref(r))
+                trovate[int(hwnd)] = (f"pid {pid.value} classe {classe.value!r} titolo {titolo.value!r} "
+                                      f"posizione {r.left},{r.top} dimensioni {r.right - r.left}x{r.bottom - r.top}")
             return True
 
         user32.EnumWindows(una, 0)
         return trovate
 
-    def _controlla(self) -> None:
-        for hwnd, descrizione in self._visibili().items():
-            if hwnd not in self.iniziali and hwnd != int(self.principale.winId()) and descrizione not in self.elenco:
-                self.elenco.append(descrizione)
+    def _cerca(self) -> None:
+        import time
+
+        while self.attivo:
+            for hwnd, descrizione in self._visibili().items():
+                if hwnd not in self.iniziali and hwnd != self.principale_hwnd:
+                    self.trovate.setdefault(hwnd, descrizione)
+            time.sleep(0.002)
 
     def __enter__(self):
         import sys
+        import threading
 
         if sys.platform != "win32":
             return self
-        from PySide6.QtCore import QTimer
-
+        self.principale_hwnd = int(self.principale.winId())
         self.iniziali = set(self._visibili())
-        self.timer = QTimer(interval=5)
-        self.timer.timeout.connect(self._controlla)
-        self.timer.start()
+        self.attivo = True
+        self.filo = threading.Thread(target=self._cerca, daemon=True)
+        self.filo.start()
         return self
 
     def __exit__(self, *_):
-        if self.timer is not None:
-            self.timer.stop()
+        if self.filo is None:
+            return False
+        self.attivo = False
+        self.filo.join(2)
+        from PySide6.QtWidgets import QApplication
+
+        # di quale elemento di Qt è la finestra (se esiste ancora)
+        per_hwnd = {}
+        for w in QApplication.allWidgets():
+            try:
+                if w.internalWinId():
+                    per_hwnd[int(w.internalWinId())] = w
+            except RuntimeError:
+                continue
+        for hwnd, descrizione in self.trovate.items():
+            w = per_hwnd.get(hwnd)
+            if w is not None:
+                catena, x = [], w
+                while x is not None and len(catena) < 6:
+                    catena.append(f"{type(x).__name__}({x.objectName()!r})")
+                    x = x.parentWidget()
+                descrizione += " widget " + " < ".join(catena)
+            self.elenco.append(descrizione)
         return False
 
 
@@ -217,6 +250,9 @@ def _apri_e_sfoglia(finestra, file: Path) -> None:
     for i in range(len(finestra.pagine)):
         finestra.navigazione.setCurrentRow(i)
         attendi(300)
+    finestra.salva()
+    finestra.apri_file(file)  # riapertura con un cantiere già aperto (cantieri recenti, Apri...)
+    attendi(1500)
 
 
 def _finestre_comparse(principale, azione) -> list[str]:
