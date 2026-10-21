@@ -28,7 +28,7 @@ GIORNI_PROVA = 30
 
 # Chiave pubblica Ed25519 (32 byte in base64) del gestionale delle licenze. Vuota = controllo
 # delle licenze non ancora attivo: tutto funziona come prima. La variabile d'ambiente serve ai test.
-CHIAVE_PUBBLICA = ""
+CHIAVE_PUBBLICA = "eVLM3oO/y/MFku5Um+VBAb0JiqiOar2Q8JvCUBsIEeY="
 
 # Contatti mostrati a chi non ha la licenza per un programma («Come acquistarlo»).
 CONTATTO_ACQUISTO = ""
