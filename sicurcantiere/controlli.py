@@ -117,12 +117,33 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
             s.append(Segnalazione(AVVISO, "Impresa", f"{nome}: posizione INAIL non indicata."))
         if i["durc_scadenza"] and i["durc_scadenza"] < oggi:
             s.append(Segnalazione(ERRORE, "Impresa", f"{nome}: DURC scaduto."))
-        ruoli = {f["ruolo"] for f in anagrafiche.figure(repo, i) if f["nome"].strip()}
+        elenco_figure = anagrafiche.figure(repo, i)
+        ruoli = {anagrafiche.ruolo_riconosciuto(f["ruolo"]) for f in elenco_figure if f["nome"].strip()}
+        ruoli |= {r for r, _ in anagrafiche.figure_non_presenti(i)}
+        for f in elenco_figure:
+            if f["ruolo"].strip() and not f["nome"].strip():
+                s.append(Segnalazione(AVVISO, "Figure della sicurezza",
+                                      f"{nome}: «{f['ruolo']}» senza nominativo (la riga non viene stampata)."))
+            if f.get("formazione_scadenza") and f["formazione_scadenza"] < oggi:
+                s.append(Segnalazione(AVVISO, "Figure della sicurezza",
+                                      f"{nome}: {f['nome'] or f['ruolo']}, aggiornamento della formazione scaduto."))
+        if i["rspp_datore"] and any(f["ruolo"] == anagrafiche.RSPP and f["nome"].strip()
+                                    for f in repo.elenco("figure", impresa_id=i["id"])):
+            s.append(Segnalazione(AVVISO, "Figure della sicurezza",
+                                  f"{nome}: è spuntato «il datore di lavoro svolge i compiti di RSPP» ma c'è anche "
+                                  "un RSPP nell'elenco, che non viene stampato. Togliere la spunta o la riga."))
         for richiesti, etichetta, grave in anagrafiche.FIGURE_OBBLIGATORIE:
             if not ruoli & set(richiesti):
                 s.append(Segnalazione(ERRORE if grave else AVVISO, "Figure della sicurezza",
                                       f"{nome}: indicare {etichetta}."))
         lavoratori = repo.elenco("lavoratori", impresa_id=i["id"])
+        dipendenti = sum(1 for l in lavoratori if not l["autonomo"])
+        da_soli = [r for r in anagrafiche.ruoli_datore(i) if r in anagrafiche.NOTE_RUOLI_DATORE]
+        if da_soli and dipendenti > anagrafiche.LIMITE_ART_34:
+            s.append(Segnalazione(AVVISO, "Figure della sicurezza",
+                                  f"{nome}: con più di {anagrafiche.LIMITE_ART_34} lavoratori il datore di lavoro "
+                                  "non può svolgere da solo i compiti di primo soccorso e antincendio (art. 34 "
+                                  "c. 1-bis): designare gli addetti."))
         if not lavoratori:
             s.append(Segnalazione(ERRORE, "Lavoratori", f"{nome}: nessun lavoratore indicato."))
         if anagrafiche.affidataria(i) and not i["incaricato_97"].strip():

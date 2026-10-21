@@ -365,6 +365,13 @@ MIGRAZIONI: list[str] = [
     ALTER TABLE rischi ADD COLUMN non_presente INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE rischi ADD COLUMN motivazione TEXT NOT NULL DEFAULT '';
     """,
+    # v0.16: ruoli svolti di persona dal datore di lavoro e figure dichiarate non presenti
+    # (elenchi separati da «;»).
+    """
+    ALTER TABLE imprese ADD COLUMN ruoli_datore TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN figure_non_presenti TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN figure_motivazione TEXT NOT NULL DEFAULT '';
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

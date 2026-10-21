@@ -45,32 +45,17 @@ def ombreggia(cella, colore: str) -> None:
 
 
 def tabella(doc, intestazioni: list[str], righe: list[list[str]], dimensione: float | None = None):
-    t = doc.add_table(rows=1, cols=len(intestazioni))
-    t.style = "Table Grid"
-    for cella, testo in zip(t.rows[0].cells, intestazioni):
-        cella.text = testo
-        for run in cella.paragraphs[0].runs:
-            run.bold = True
-        ombreggia(cella, "D9D9D9")
-    for riga in righe:
-        celle = t.add_row().cells
-        for cella, testo in zip(celle, riga):
-            cella.text = testo
-    if dimensione:
-        for r in t.rows:
-            for cella in r.cells:
-                for p in cella.paragraphs:
-                    for run in p.runs:
-                        run.font.size = Pt(dimensione)
-    return t
+    """Tabella con l'impostazione grafica dei documenti (intestazione ripetuta, filetti sottili)."""
+    from sicurcantiere.documenti import stile
+
+    return stile.tabella_colorata(doc, intestazioni, [[str(v) for v in r] for r in righe], dimensione or 8.5)
 
 
-def tabella_voci(doc, voci: list[tuple[str, str]]):
-    t = tabella(doc, ["Voce", "Valore"], [[v, x or "-"] for v, x in voci])
-    for r in t.rows[1:]:
-        for run in r.cells[0].paragraphs[0].runs:
-            run.bold = True
-    return t
+def tabella_voci(doc, voci: list[tuple[str, str]]) -> None:
+    """Dati etichetta-valore; le voci vuote non si stampano."""
+    from sicurcantiere.documenti import stile
+
+    stile.scheda(doc, voci)
 
 
 def testo_o_segnaposto(doc, testo: str) -> None:

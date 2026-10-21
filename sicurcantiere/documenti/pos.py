@@ -7,18 +7,11 @@ from datetime import date
 from pathlib import Path
 
 from docx import Document
-from docx.shared import Cm, Pt
+from docx.shared import Cm
 
 from sicurcantiere import anagrafiche, analisi, segnaletica
 from sicurcantiere.documenti import stile
-from sicurcantiere.documenti.comune import (
-    data_it,
-    euro,
-    firma,
-    indirizzo_cantiere,
-    nome_fase,
-    testo_o_segnaposto,
-)
+from sicurcantiere.documenti.comune import data_it, euro, indirizzo_cantiere, nome_fase
 from sicurcantiere.documenti.sostanze import aggiungi_sostanze, sostanze_impresa
 from sicurcantiere.documenti.valutazione import aggiungi_valutazione, lavorazioni_valutazione, valutazioni_impresa
 from sicurcantiere.repository import Repository
@@ -100,19 +93,27 @@ def _foto_cantiere(repo: Repository) -> list[str]:
     return [r for r in repo.testo("foto_cantiere").splitlines() if r.strip()]
 
 
+def _descrizione_rischio(r: dict) -> str:
+    return f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"]
+
+
 def _tabella_rischi(doc, rischi: list[dict]) -> None:
+    """Rischi della fase: probabilità, danno e livello colorato, misure e DPI del rischio."""
     righe = []
     for r in rischi:
         livello = analisi.livello_rischio(r["probabilita"], r["danno"])
-        descrizione = f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"]
-        righe.append([descrizione, f"{livello} - {analisi.classe_rischio(livello)}", r["misure"]])
-    if righe:
-        t = stile.tabella_colorata(doc, ["Rischio", "Livello", "Misure preventive e protettive"], righe, 8.5,
-                                   larghezze=[5.2, 2.4, 9.4])
-        for riga, r in zip(t.rows[1:], rischi):
-            livello = analisi.livello_rischio(r["probabilita"], r["danno"])
-            colore = "F4B6B6" if livello >= 9 else "F9D3A6" if livello >= 6 else "FFF2B3" if livello >= 3 else "D5EFD8"
-            stile.ombreggia_cella(riga.cells[1], colore)
+        misure = r["misure"].strip()
+        if r["dpi"].strip():
+            misure = f"{misure}\nDPI: {r['dpi'].strip()}".strip()
+        righe.append([_descrizione_rischio(r),
+                      f"P{r['probabilita']} × D{r['danno']} = {livello}\n{analisi.classe_rischio(livello)}", misure])
+    if not righe:
+        return
+    t = stile.tabella_colorata(doc, ["Rischio", "Valutazione", "Misure preventive e protettive"], righe, 8.5,
+                               larghezze=[5.0, 2.6, 9.8])
+    for riga, r in zip(t.rows[1:], rischi):
+        livello = analisi.livello_rischio(r["probabilita"], r["danno"])
+        stile.colora_livello(riga.cells[1], 3 if livello >= 9 else 2 if livello >= 6 else 1 if livello >= 3 else 0)
 
 
 def _esito_breve(repo: Repository, valutazione: dict) -> list[str]:
@@ -123,13 +124,40 @@ def _esito_breve(repo: Repository, valutazione: dict) -> list[str]:
     return [e.indice_testo, e.classe]
 
 
-def _icone_dpi(doc, testi: list[str], etichetta: str) -> None:
-    icone = segnaletica.icone_dpi(testi)
-    if not icone:
+def _dpi_con_icone(doc, testi: list[str], etichetta: str) -> None:
+    """DPI in chiaro e, dove c'è, il cartello di obbligo corrispondente."""
+    voci = elenco_dpi(testi)
+    if not voci:
         return
     p = doc.add_paragraph()
-    p.add_run(f"{etichetta}  ").bold = True
-    stile.icone_in_riga(p, [segnaletica.SEGNALI[i].file for i in icone], 0.85)
+    stile._run(p, f"{etichetta} ", 8.5, stile.TESTO3)
+    p.add_run("; ".join(voci) + ".")
+    icone = segnaletica.icone_dpi(voci)
+    if icone:
+        stile.icone_in_riga(doc.add_paragraph(), [segnaletica.SEGNALI[i].file for i in icone], 0.8)
+
+
+def _schede_attrezzature(attrezzature: list[dict]) -> dict[str, dict]:
+    """Una scheda per attrezzatura: se la stessa compare in più fasi i testi si uniscono senza doppioni."""
+    schede: dict[str, dict] = {}
+    for a in attrezzature:
+        nome = a["nome"].strip()
+        if not nome:
+            continue
+        s = schede.setdefault(nome, {"nome": nome, "tipo": a["tipo"], "descrizione": [], "misure": [], "dpi": [],
+                                     "fasi": []})
+        for campo in ("descrizione", "misure"):
+            for riga in a[campo].split("\n"):
+                if riga.strip() and riga.strip() not in s[campo]:
+                    s[campo].append(riga.strip())
+        if a["dpi"].strip():
+            s["dpi"].append(a["dpi"])
+        if a["fase_id"] not in s["fasi"]:
+            s["fasi"].append(a["fase_id"])
+    return schede
+
+
+TIPI_ATTREZZATURA = ("Macchina", "Attrezzo", "Opera provvisionale", "Impianto")
 
 
 def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> Path:
@@ -137,6 +165,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     if impresa is None:
         raise ValueError("Impresa inesistente")
     fasi = repo.elenco("fasi", impresa_id=impresa_id)
+    nomi_fasi = {f["id"]: nome_fase(f) for f in fasi}
     lavoratori = repo.elenco("lavoratori", impresa_id=impresa_id)
     rischi = [r for f in fasi for r in repo.rischi(fase_id=f["id"])]
     attrezzature = [a for f in fasi for a in repo.elenco("attrezzature", fase_id=f["id"])]
@@ -145,95 +174,113 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     committente = next((s for s in soggetti if s["ruolo"] == anagrafiche.COMMITTENTE), None)
     periodo = analisi.periodo_lavori(fasi)
     sezioni = {chiave: repo.testo(chiave_testo(impresa_id, chiave)) for chiave, _ in SEZIONI_POS}
-    figure = [{"ruolo": anagrafiche.DATORE, "nome": impresa["datore_lavoro"], "qualifica": "Datore di lavoro",
-               "telefono": impresa["telefono"], "email": impresa["email"], "codice_fiscale": "",
-               "formazione": ""}] + anagrafiche.figure(repo, impresa)
+    datore = impresa["datore_lavoro"].strip()
+    figure = [f for f in anagrafiche.figure(repo, impresa) if f["nome"].strip()]
+    non_presenti = anagrafiche.figure_non_presenti(impresa)
+    revisioni = repo.elenco("revisioni", documento=f"POS:{impresa_id}")
+    ultima = revisioni[-1] if revisioni else None
+    data_documento = data_it(ultima["data"]) if ultima and ultima["data"] else data_it(date.today())
+    valutazioni = valutazioni_impresa(repo, impresa_id)
+    sostanze_elenco = sostanze_impresa(repo, impresa_id)
+    schede = _schede_attrezzature(attrezzature)
+    ponteggi = repo.elenco("ponteggi", impresa_id=impresa_id)
 
     doc = Document()
     stile.imposta_stili(doc)
     comune = f"{c['comune']} ({c['provincia']})" if c["provincia"] else c["comune"]
-    stile.imposta_pagina(doc, " - ".join(v for v in (c["nome"], comune) if v))
+    revisione = f"Rev. {ultima['numero']} del {data_documento}" if ultima else f"Emissione del {data_documento}"
+    stile.imposta_pagina(doc, " · ".join(v for v in (c["nome"], comune) if v),
+                         (f"Piano operativo di sicurezza · {impresa['ragione_sociale']}".strip(" ·"), revisione))
 
     # --- copertina ---
-    rspp = next((f for f in figure if f["ruolo"] == anagrafiche.RSPP and f["nome"]), None)
-    firme = [("L'impresa - il datore di lavoro", f"{impresa['ragione_sociale']} - {impresa['datore_lavoro']}".strip(" -"))]
-    if rspp and rspp["nome"] != impresa["datore_lavoro"]:
-        firme.append(("Il responsabile del servizio di prevenzione e protezione", rspp["nome"]))
+    rspp = next((f for f in figure if f["ruolo"] == anagrafiche.RSPP), None)
+    firme_copertina = [("Il datore di lavoro", datore)]
+    if rspp and rspp["nome"] != datore:
+        firme_copertina.append(("Il responsabile del servizio di prevenzione e protezione", rspp["nome"]))
     stile.copertina(
         doc,
-        comune=f"Comune di {c['comune']}" if c["comune"] else "",
-        titolo="PIANO OPERATIVO DI SICUREZZA",
-        riferimento="art. 89 c. 1 lett. h), art. 96 e Allegato XV punto 3.2 del D.Lgs. 9 aprile 2008, n. 81",
-        voci=[("Oggetto", c["nome"] or c["descrizione"]),
+        comune=comune,
+        titolo="Piano operativo di sicurezza",
+        riferimento="D.Lgs. 9 aprile 2008, n. 81 · art. 89 c. 1 lett. h), art. 96 e Allegato XV punto 3.2",
+        voci=[("Cantiere", indirizzo_cantiere(c)), ("Opera", c["nome"] or c["descrizione"]),
               ("Committente", committente["nome"] if committente else ""),
-              ("Cantiere", indirizzo_cantiere(c))],
-        data_luogo=f"{c['comune'] or ''}, {data_it(date.today())}".strip(", "),
-        firme=firme,
+              ("Lavori affidati", impresa["tipologia_lavori"])],
+        data_luogo=f"{c['comune'] or ''}, {data_documento}".strip(", "),
+        firme=firme_copertina,
         impresa=[impresa["ragione_sociale"], anagrafiche.sede(impresa),
-                 " - ".join(v for v in (f"Tel. {impresa['telefono']}" if impresa["telefono"] else "",
+                 " · ".join(v for v in (f"tel. {impresa['telefono']}" if impresa["telefono"] else "",
                                         impresa["pec"] or impresa["email"]) if v)],
         logo=impresa["logo"],
+        revisione=revisione,
     )
 
     # --- indice e revisioni ---
     stile.indice(doc)
-    revisioni = repo.elenco("revisioni", documento=f"POS:{impresa_id}")
+    stile.banda(doc, "Revisioni del documento")
     if revisioni:
-        stile.banda(doc, "Revisioni del documento")
         stile.tabella_colorata(doc, ["Rev.", "Data", "Descrizione"], [
-            [str(r["numero"]), data_it(r["data"]), r["descrizione"]] for r in revisioni])
+            [str(r["numero"]), data_it(r["data"]), r["descrizione"]] for r in revisioni], larghezze=[1.2, 2.6, 13.6])
+    else:
+        doc.add_paragraph(f"Prima emissione del {data_documento}.")
 
-    # --- a) dati generali ---
-    stile.capitolo(doc, "Lavoro", "punto 3.2.1, lettera a), punto 1, Allegato XV del D.Lgs. 81/2008")
-    stile.banda(doc, "Caratteristiche generali dell'opera")
+    # ===== Parte 1 =====
+    stile.parte(doc, "1", "Il cantiere e l'impresa",
+                "Dati del lavoro, soggetti coinvolti, impresa esecutrice, organizzazione della sicurezza e "
+                "lavoratori (Allegato XV punto 3.2.1, lettere a e b).")
+
+    stile.capitolo(doc, "Dati generali del lavoro", "Allegato XV punto 3.2.1, lettera a), punto 1")
     stile.scheda(doc, [
+        ("Opera", c["nome"]),
         ("Natura dell'opera", c["natura_opera"]),
-        ("Oggetto", c["nome"]),
+        ("Indirizzo del cantiere", indirizzo_cantiere(c)),
+        ("CAP", c["cap"]),
         ("Titolo abilitativo", c["titolo_abilitativo"]),
         ("Importo presunto dei lavori", euro(c["importo_lavori"]) if c["importo_lavori"] else ""),
-        ("Data di inizio dei lavori", data_it(periodo[0]) if periodo else ""),
-        ("Data di fine dei lavori (presunta)", data_it(periodo[1]) if periodo else ""),
+        ("Inizio dei lavori", data_it(periodo[0]) if periodo else (data_it(impresa["data_inizio"])
+                                                                  if impresa["data_inizio"] else "")),
+        ("Fine dei lavori (presunta)", data_it(periodo[1]) if periodo else (data_it(impresa["data_fine"])
+                                                                           if impresa["data_fine"] else "")),
     ])
     if c["descrizione"].strip():
         stile.banda(doc, "Descrizione sintetica dell'opera")
-        testo_o_segnaposto(doc, c["descrizione"])
-    stile.banda(doc, "Dati del cantiere")
-    stile.scheda(doc, [("Indirizzo", c["indirizzo"]), ("CAP", c["cap"]), ("Città", comune)])
+        stile.testo(doc, c["descrizione"])
     for n, foto in enumerate(_foto_cantiere(repo), 1):
         stile.immagine(doc, foto, 11, f"Foto {n} - area del cantiere")
 
-    stile.capitolo(doc, "Committente e soggetti con compiti di sicurezza",
-                   "punto 3.2.1, lettera a), Allegato XV del D.Lgs. 81/2008")
-    for s in soggetti:
-        stile.banda(doc, s["ruolo"])
-        if s.get("nota"):
-            stile.nota(doc, s["nota"])
-        stile.scheda(doc, [
-            ("Nominativo / ragione sociale", s["nome"]), ("Nella persona di", s["rappresentante"]),
-            ("Qualifica", s["qualifica"]), ("Indirizzo", s["indirizzo"]), ("Telefono", s["telefono"]),
-            ("Email", s["email"]), ("PEC", s["pec"]), ("Codice fiscale", s["codice_fiscale"]),
-            ("Partita IVA", s["partita_iva"]),
-        ])
-    if not soggetti:
-        testo_o_segnaposto(doc, "")
+    stile.capitolo(doc, "Committente e soggetti con compiti di sicurezza", "Allegato XV punto 3.2.1, lettera a)")
+    soggetti_validi = [s for s in soggetti if s["nome"].strip()]
+    if soggetti_validi:
+        for s in soggetti_validi:
+            stile.banda(doc, s["ruolo"])
+            if s.get("nota"):
+                stile.nota(doc, s["nota"])
+            stile.scheda(doc, [
+                ("Nominativo / ragione sociale", s["nome"]), ("Nella persona di", s["rappresentante"]),
+                ("Qualifica", s["qualifica"]), ("Indirizzo", s["indirizzo"]),
+                ("Telefono", s["telefono"]), ("Email", s["email"]), ("PEC", s["pec"]),
+                ("Codice fiscale", s["codice_fiscale"]), ("Partita IVA", s["partita_iva"]),
+            ])
+    else:
+        stile.testo(doc, "", "Committente e coordinatori da indicare nella pagina «Committente e CSE».")
 
-    stile.capitolo(doc, "Dati identificativi dell'impresa esecutrice",
-                   "punto 3.2.1, lettera a), punto 1, Allegato XV del D.Lgs. 81/2008")
+    stile.capitolo(doc, "Impresa esecutrice", "Allegato XV punto 3.2.1, lettera a), punto 1")
     affidataria = repo.leggi("imprese", impresa["affidataria_id"]) if impresa["affidataria_id"] else None
-    stile.banda(doc, "Dati dell'impresa")
-    stile.scheda(doc, [
-        ("Tipologia nel cantiere", impresa["tipo"]),
+    stile.scheda(doc, titolo="Dati identificativi", voci=[
         ("Ragione sociale", impresa["ragione_sociale"]),
+        ("Ruolo nel cantiere", impresa["tipo"]),
         ("Forma giuridica", impresa["forma_giuridica"]),
-        ("Datore di lavoro", impresa["datore_lavoro"]),
+        ("Datore di lavoro", datore),
+        ("Referente", impresa["referente"]),
         ("Sede legale", anagrafiche.sede(impresa)),
-        ("Telefono / fax", " - ".join(v for v in (impresa["telefono"], impresa["fax"]) if v)),
-        ("Email / PEC", " - ".join(v for v in (impresa["email"], impresa["pec"]) if v)),
-        ("Ufficio o recapito in cantiere", impresa["recapito_cantiere"]),
+        ("Telefono / fax", " · ".join(v for v in (impresa["telefono"], impresa["fax"]) if v)),
+        ("Email / PEC", " · ".join(v for v in (impresa["email"], impresa["pec"]) if v)),
+        ("Recapito in cantiere", impresa["recapito_cantiere"]),
         ("Codice fiscale", impresa["codice_fiscale"]),
         ("Partita IVA", impresa["partita_iva"]),
         ("Registro imprese / CCIAA", impresa["cciaa"]),
         ("Codice ATECO", impresa["ateco"]),
+    ])
+    stile.scheda(doc, titolo="Posizioni assicurative, contratto e qualificazione", voci=[
         ("Posizione INAIL", impresa["inail"]),
         ("Matricola INPS", impresa["inps"]),
         ("Cassa edile", impresa["cassa_edile"]),
@@ -244,300 +291,344 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         ("Attestazione SOA", impresa["soa"]),
         ("Certificazioni", impresa["certificazioni"]),
     ])
-    stile.banda(doc, "Dati dei lavori")
-    stile.scheda(doc, [
+    stile.scheda(doc, titolo="Lavori affidati", voci=[
         ("Impresa affidataria", affidataria["ragione_sociale"] if affidataria else ""),
         ("Autorizzazione al subappalto", impresa["aut_subappalto"]),
         ("Tipologia dei lavori affidati", impresa["tipologia_lavori"]),
         ("Importo dei lavori da eseguire", euro(impresa["importo_lavori"]) if impresa["importo_lavori"] else ""),
-        ("Inizio e fine dei lavori dell'impresa", _periodo(impresa, periodo)),
+        ("Periodo dei lavori dell'impresa", _periodo(impresa, periodo)),
         ("Orario di lavoro", impresa["orario_lavoro"]),
-        ("Soggetto incaricato (art. 97)", " - ".join(v for v in (impresa["incaricato_97"],
-                                                                 impresa["incaricato_97_mansione"]) if v)),
+        ("Soggetto incaricato dei compiti dell'impresa affidataria (art. 97)",
+         " · ".join(v for v in (impresa["incaricato_97"], impresa["incaricato_97_mansione"]) if v)),
     ])
     subaffidatari = repo.elenco("imprese", affidataria_id=impresa_id)
     if subaffidatari:
         stile.banda(doc, "Imprese subappaltatrici e lavoratori autonomi")
-        stile.tabella_colorata(doc, ["Ragione sociale", "Tipologia", "P. IVA", "Lavori affidati"], [
-            [i["ragione_sociale"], i["tipo"], i["partita_iva"], i["tipologia_lavori"]] for i in subaffidatari])
+        stile.tabella_colorata(doc, ["Ragione sociale", "Ruolo", "P. IVA", "Lavori affidati"], [
+            [i["ragione_sociale"], i["tipo"], i["partita_iva"], i["tipologia_lavori"]] for i in subaffidatari],
+            larghezze=[5, 3.4, 3, 6])
 
-    stile.capitolo(doc, "Responsabili e figure della sicurezza",
-                   "punto 3.2.1, lettera a), punti 3, 4, 5 e 6, Allegato XV del D.Lgs. 81/2008")
+    stile.capitolo(doc, "Organizzazione della sicurezza",
+                   "Allegato XV punto 3.2.1, lettera a), punti 3-6, e lettera b)")
+    doc.add_paragraph("Il datore di lavoro e le figure della sicurezza dell'impresa per questo cantiere, con le "
+                      "specifiche mansioni inerenti la sicurezza svolte da ciascuno. Una stessa persona può "
+                      "ricoprire più ruoli, nei limiti previsti dal D.Lgs. 81/2008.")
+    righe_figure = []
+    if datore:
+        righe_figure.append([anagrafiche.DATORE, datore, " · ".join(v for v in (impresa["telefono"],
+                                                                                 impresa["email"]) if v), ""])
     for f in figure:
-        stile.banda(doc, f["ruolo"])
-        if f.get("nota"):
-            stile.nota(doc, f["nota"])
-        stile.scheda(doc, [("Nome e cognome", f["nome"]), ("Qualifica", f["qualifica"]),
-                           ("Telefono", f["telefono"]), ("Email", f.get("email", "")),
-                           ("Codice fiscale", f.get("codice_fiscale", "")), ("Formazione", f["formazione"])])
+        formazione = f["formazione"]
+        if f.get("formazione_scadenza"):
+            formazione = f"{formazione}\naggiornamento entro il {data_it(f['formazione_scadenza'])}".strip()
+        righe_figure.append([f["ruolo"], f["nome"] + (f"\n{f['qualifica']}" if f["qualifica"] and
+                                                       f["qualifica"] != anagrafiche.DATORE else ""),
+                             " · ".join(v for v in (f["telefono"], f.get("email", ""), f.get("codice_fiscale", ""))
+                                        if v), formazione])
+    if righe_figure:
+        stile.tabella_colorata(doc, ["Ruolo", "Nominativo", "Recapiti", "Formazione"], righe_figure,
+                               larghezze=[4.2, 4.2, 4.4, 4.6])
+    for ruolo, motivazione in non_presenti:
+        stile.nota(doc, f"{ruolo}: figura non presente. {motivazione}")
+    stile.sezione(doc, "Specifiche mansioni inerenti la sicurezza")
+    ruoli = ([anagrafiche.DATORE] if datore else []) + list(dict.fromkeys(f["ruolo"] for f in figure))
+    for ruolo in ruoli:
+        nomi = [datore] if ruolo == anagrafiche.DATORE else list(dict.fromkeys(
+            f["nome"] for f in figure if f["ruolo"] == ruolo))
+        p = doc.add_paragraph()
+        stile._spaziatura(p, 6, 1)
+        p.paragraph_format.keep_with_next = True
+        stile._run(p, ruolo, grassetto=True)
+        stile._run(p, f" · {', '.join(nomi)}", colore=stile.TESTO2)
+        p = doc.add_paragraph(anagrafiche.compiti(ruolo) or "Compiti secondo l'incarico ricevuto.")
+        p.paragraph_format.left_indent = Cm(0.4)
+        for nota_ruolo in dict.fromkeys(f["nota"] for f in figure if f["ruolo"] == ruolo and f.get("nota")):
+            q = doc.add_paragraph()
+            q.paragraph_format.left_indent = Cm(0.4)
+            stile._run(q, nota_ruolo, 8.5, stile.TESTO2, corsivo=True)
 
-    stile.capitolo(doc, "Numero e relative qualifiche dei lavoratori dipendenti e autonomi",
-                   "punto 3.2.1, lettera a), punto 7, Allegato XV del D.Lgs. 81/2008")
+    stile.capitolo(doc, "Lavoratori dipendenti e autonomi", "Allegato XV punto 3.2.1, lettera a), punto 7")
     dipendenti = [l for l in lavoratori if not l["autonomo"]]
     autonomi = [l for l in lavoratori if l["autonomo"]]
     if dipendenti:
         stile.banda(doc, f"Lavoratori dipendenti: {len(dipendenti)}")
-        stile.tabella_colorata(doc, ["N.", "Qualifica", "Cognome", "Nome", "Matricola", "Idoneità fino al"], [
-            [str(n), l["mansione"], l["cognome"], l["nome"], l["matricola"],
+        stile.tabella_colorata(doc, ["N.", "Cognome e nome", "Qualifica", "Matricola", "Assunto il",
+                                     "Idoneità fino al"], [
+            [str(n), anagrafiche.nominativo(l), l["mansione"], l["matricola"],
+             data_it(l["data_assunzione"]) if l["data_assunzione"] else "",
              data_it(l["idoneita_scadenza"]) if l["idoneita_scadenza"] else ""]
-            for n, l in enumerate(dipendenti, 1)])
+            for n, l in enumerate(dipendenti, 1)], larghezze=[0.9, 4.6, 3.6, 2.4, 2.4, 2.6])
     if autonomi:
         stile.banda(doc, f"Lavoratori autonomi: {len(autonomi)}")
-        stile.tabella_colorata(doc, ["N.", "Qualifica", "Nominativo", "C.F. / P. IVA", "Periodo"], [
-            [str(n), l["mansione"], anagrafiche.nominativo(l), l["partita_iva"] or l["codice_fiscale"],
-             f"{data_it(l['data_inizio'])} - {data_it(l['data_fine'])}"] for n, l in enumerate(autonomi, 1)])
+        stile.tabella_colorata(doc, ["N.", "Nominativo", "Qualifica", "C.F. / P. IVA", "Sede", "Periodo"], [
+            [str(n), anagrafiche.nominativo(l), l["mansione"], l["partita_iva"] or l["codice_fiscale"],
+             l["indirizzo"], " - ".join(data_it(d) for d in (l["data_inizio"], l["data_fine"]) if d)]
+            for n, l in enumerate(autonomi, 1)], larghezze=[0.9, 3.6, 3, 3, 3.6, 3.3])
     if not lavoratori:
-        testo_o_segnaposto(doc, "")
+        stile.testo(doc, "", "Lavoratori da indicare nella scheda «Maestranze» dell'impresa.")
 
-    stile.capitolo(doc, "Specifiche mansioni inerenti la sicurezza",
-                   "punto 3.2.1, lettera b), Allegato XV del D.Lgs. 81/2008")
-    for ruolo in dict.fromkeys(f["ruolo"] for f in figure):
-        nomi = ", ".join(f["nome"] for f in figure if f["ruolo"] == ruolo and f["nome"])
-        stile.banda(doc, f"{ruolo}{f' - {nomi}' if nomi else ''}")
-        p = doc.add_paragraph()
-        r = p.add_run("Specifiche mansioni inerenti la sicurezza: ")
-        r.font.color.rgb = stile.BLU
-        p.add_run(anagrafiche.compiti(ruolo) or "compiti secondo l'incarico ricevuto.")
-        nota_ruolo = next((f.get("nota") for f in figure if f["ruolo"] == ruolo and f.get("nota")), None)
-        if nota_ruolo:
-            p.add_run(" " + nota_ruolo).italic = True
+    # ===== Parte 2 =====
+    stile.parte(doc, "2", "Attività e valutazione dei rischi",
+                "Lavorazioni svolte, modalità organizzative, macchine e opere provvisionali, sostanze, rumore "
+                "e rischi specifici (Allegato XV punto 3.2.1, lettere a2, c, d, e, f).")
 
-    stile.capitolo(doc, "Specifiche attività e singole lavorazioni svolte in cantiere",
-                   "punto 3.2.1, lettera a), punto 2, Allegato XV del D.Lgs. 81/2008")
-    lavorazione_corrente = None
-    for f in fasi:
-        if f["lavorazione"] and f["lavorazione"] != lavorazione_corrente:
-            lavorazione_corrente = f["lavorazione"]
-            p = doc.add_paragraph()
-            p.paragraph_format.space_before = Pt(6)
-            p.add_run(f"- {lavorazione_corrente}").bold = True
-        p = doc.add_paragraph()
-        p.paragraph_format.left_indent = Cm(0.8 if f["lavorazione"] else 0)
-        p.paragraph_format.space_after = Pt(0)
-        p.add_run(f"- {nome_fase(f)}").bold = not f["lavorazione"]
-    if not fasi:
-        testo_o_segnaposto(doc, "")
-    stile.nota(doc, f"Se non diversamente specificato, le attività e le lavorazioni indicate sono svolte "
-                    f"dall'impresa esecutrice «{impresa['ragione_sociale']}».")
-
-    # --- documentazione ---
-    stile.capitolo(doc, "Documentazione")
-    stile.banda(doc, "Telefoni e indirizzi utili")
-    stile.scheda(doc, [(nome, f"tel. {numero}") for nome, numero in NUMERI_EMERGENZA])
-    if sezioni["telefoni"].strip():
-        testo_o_segnaposto(doc, sezioni["telefoni"])
-    stile.banda(doc, "Documentazione da custodire in cantiere")
-    doc.add_paragraph("Presso il cantiere o gli uffici di cantiere l'impresa tiene a disposizione degli "
-                      "organi di vigilanza e del coordinatore la seguente documentazione:")
-    for voce in DOCUMENTI_IN_CANTIERE:
-        doc.add_paragraph(voce, style="List Bullet")
-
-    # --- d) opere provvisionali, macchine, impianti ---
-    stile.capitolo(doc, "Elenco delle opere provvisionali, macchine e impianti utilizzati in cantiere",
-                   "punto 3.2.1, lettera d), Allegato XV del D.Lgs. 81/2008")
-    per_tipo: dict[str, list[str]] = {}
-    for a in attrezzature:
-        per_tipo.setdefault(a["tipo"], [])
-        if a["nome"] not in per_tipo[a["tipo"]]:
-            per_tipo[a["tipo"]].append(a["nome"])
-    if per_tipo:
-        doc.add_paragraph().add_run("AD USO ESCLUSIVO DELL'IMPRESA").bold = True
-        for tipo in ("Macchina", "Attrezzo", "Opera provvisionale"):
-            if tipo in per_tipo:
-                p = doc.add_paragraph()
-                p.add_run({"Macchina": "Macchine:", "Attrezzo": "Attrezzi:",
-                           "Opera provvisionale": "Opere provvisionali:"}[tipo]).bold = True
-                for n, nome in enumerate(sorted(per_tipo[tipo]), 1):
-                    q = doc.add_paragraph(f"{n})  {nome};")
-                    q.paragraph_format.left_indent = Cm(0.6)
-                    q.paragraph_format.space_after = Pt(0)
+    stile.capitolo(doc, "Attività di cantiere, modalità organizzative e turni di lavoro",
+                   "Allegato XV punto 3.2.1, lettera a), punto 2, e lettera c)")
+    stile.testo(doc, sezioni["attivita"], "Descrivere le attività, le modalità organizzative e i turni nei "
+                                          "«Testi del POS» dell'impresa.")
+    if fasi:
+        stile.banda(doc, "Lavorazioni e fasi svolte dall'impresa")
+        righe, corrente = [], object()
+        for f in fasi:
+            righe.append([" " if f["lavorazione"] == corrente else (f["lavorazione"] or "—"), nome_fase(f),
+                          f["addetto"]])
+            corrente = f["lavorazione"]
+        stile.tabella_colorata(doc, ["Lavorazione", "Fase", "Addetto"], righe, larghezze=[5.4, 7, 5])
     else:
-        testo_o_segnaposto(doc, "")
+        stile.testo(doc, "", "Nessuna lavorazione assegnata all'impresa.")
 
-    # --- e) sostanze ---
-    stile.capitolo(doc, "Elenco delle sostanze e miscele pericolose",
-                   "punto 3.2.1, lettera e), Allegato XV del D.Lgs. 81/2008")
-    doc.add_heading("Sostanze e miscele pericolose e relative schede di sicurezza", 2)
-    aggiungi_sostanze(doc, repo, sostanze_impresa(repo, impresa_id), livello=3)
-    if sezioni["sostanze"].strip():
-        testo_o_segnaposto(doc, sezioni["sostanze"])
-
-    # --- f) rumore e vibrazioni ---
-    valutazioni = valutazioni_impresa(repo, impresa_id)
-    for metodo, titolo in (("rumore", dict(SEZIONI_POS)["rumore"]),
-                           ("vibrazioni", "Esito della valutazione delle vibrazioni")):
-        elenco = [v for v in valutazioni if v["metodo"] == metodo]
-        if metodo == "vibrazioni" and not elenco:
-            continue
-        stile.capitolo(doc, titolo, "punto 3.2.1, lettera f), Allegato XV del D.Lgs. 81/2008" if metodo == "rumore"
-                       else "Titolo VIII, Capo III del D.Lgs. 81/2008")
-        if elenco:
-            stile.tabella_colorata(doc, ["Mansione / gruppo omogeneo", "Esposizione", "Esito"], [
-                [v["mansione"] or v["titolo"], *_esito_breve(repo, v)] for v in elenco])
-            stile.nota(doc, "Il dettaglio dei calcoli e delle misure è riportato nel capitolo delle "
-                            "valutazioni dei rischi specifici.")
-        if metodo == "rumore" and (sezioni["rumore"].strip() or not elenco):
-            testo_o_segnaposto(doc, sezioni["rumore"])
-
-    # --- segnaletica ---
-    stile.capitolo(doc, "Segnaletica prevista nel cantiere", "Titolo V e Allegati XXIV-XXXII del D.Lgs. 81/2008")
-    stile.cartello_testo(doc, "Vietato l'accesso ai non addetti ai lavori")
-    doc.add_paragraph()
-    cartelli = segnaletica.segnali_cantiere([r["descrizione"] for r in rischi],
-                                            [r["dpi"] for r in rischi] + [a["dpi"] for a in attrezzature])
-    stile.griglia_immagini(doc, [(s.file, s.testo) for s in cartelli], colonne=4, lato_cm=2.8)
-    stile.nota(doc, "Rappresentazione indicativa: i cartelli posati in cantiere sono conformi alla UNI EN ISO 7010 "
-                    "e collocati in prossimità dei pericoli e degli accessi.")
-
-    # --- c), g), h) attività, misure, procedure per lavorazione e fase ---
-    stile.capitolo(doc, "Descrizione delle attività di cantiere, delle modalità organizzative e dei turni di lavoro",
-                   "punto 3.2.1, lettere c), g) e h), Allegato XV del D.Lgs. 81/2008")
-    testo_o_segnaposto(doc, sezioni["attivita"])
-    lavorazione_corrente = None
+    lavorazione_corrente = object()
+    mansioni = {l["id"]: repo.mansioni(l["id"]) for l in lavoratori}
+    nomi_attrezzature = {a["id"]: a["nome"] for a in attrezzature}
     for f in fasi:
         if f["lavorazione"] != lavorazione_corrente:
             lavorazione_corrente = f["lavorazione"]
+            gruppo = [g for g in fasi if g["lavorazione"] == lavorazione_corrente]
+            stile.riquadro(doc, lavorazione_corrente or "Altre fasi di lavoro", "lavorazione")
             if lavorazione_corrente:
-                stile.riquadro(doc, lavorazione_corrente)
-                gruppo = [g for g in fasi if g["lavorazione"] == lavorazione_corrente]
                 p = doc.add_paragraph()
-                p.add_run("La lavorazione è suddivisa nelle seguenti fasi: ").bold = True
+                stile._run(p, "La lavorazione è suddivisa nelle seguenti fasi: ", grassetto=True)
                 p.add_run("; ".join(nome_fase(g) for g in gruppo) + ".")
-        doc.add_heading(nome_fase(f) + (" (fase)" if f["lavorazione"] else ""), 3)
+        h = doc.add_heading(level=3)
+        stile._run(h, nome_fase(f))
+        stile._run(h, " (fase)" if f["lavorazione"] else "", 8.5, stile.TESTO3, carattere=stile.CARATTERE)
         if f["dettaglio"]:
-            doc.add_paragraph(f["dettaglio"])
+            stile.testo(doc, f["dettaglio"])
         struttura = struttura_fase(repo, f["id"])
-        impegnati = repo.lavoratori_fase(f["id"])
+        impegnati = []
+        for l in repo.lavoratori_fase(f["id"]):
+            usa = [nomi_attrezzature[a] for fase, a in mansioni.get(l["id"], ()) if fase == f["id"] and a
+                   in nomi_attrezzature]
+            voce = f"{anagrafiche.nominativo(l)} ({l['mansione']})" if l["mansione"] else anagrafiche.nominativo(l)
+            impegnati.append(voce + (f", usa: {', '.join(usa)}" if usa else ""))
         stile.scheda(doc, [
+            ("Addetto", f["addetto"]),
+            ("Lavoratori impegnati", "\n".join(impegnati)),
             ("Macchine utilizzate", ", ".join(a["nome"] for a in struttura["macchine"])),
             ("Attrezzi e opere provvisionali", ", ".join(a["nome"] for a in struttura["attrezzi"])),
-            ("Addetto", f["addetto"]),
-            ("Lavoratori impegnati", ", ".join(f"{anagrafiche.nominativo(l)} ({l['mansione']})" if l["mansione"]
-                                               else anagrafiche.nominativo(l) for l in impegnati)),
             ("Modalità organizzative", f["modalita"]),
             ("Turni di lavoro", f["turni"]),
             ("Procedure complementari richieste dal PSC", f["procedure_psc"]),
-        ], 5.2)
+        ], 5.0)
         rischi_fase = [r for r in rischi if r["fase_id"] == f["id"]]
-        _icone_dpi(doc, [r["dpi"] for r in struttura["rischi_lavorazione"]], "DPI dell'addetto:")
-        esclusi = repo.rischi_esclusi(fase_id=f["id"])
         if rischi_fase:
             _tabella_rischi(doc, rischi_fase)
-            collegate = [v for v in valutazioni if f["id"] in repo.fasi_valutazione(v["id"])]
+            collegate = [v for v in valutazioni if f["id"] in repo.fasi_valutazione(v["id"]) and v["metodo"] in METODI]
             if collegate:
-                stile.nota(doc, "Rischi specifici valutati con metodo dedicato (capitolo «Valutazioni dei rischi "
-                                "specifici»): " + "; ".join(
-                                    f"{v['titolo'] or METODI[v['metodo']].nome} - {_esito_breve(repo, v)[1]}"
-                                    for v in collegate if v["metodo"] in METODI) + ".")
+                stile.nota(doc, "Rischi valutati con metodo specifico (capitolo «Valutazioni dei rischi specifici»): "
+                                + "; ".join(f"{v['titolo'] or METODI[v['metodo']].nome} - {_esito_breve(repo, v)[1]}"
+                                            for v in collegate) + ".")
         else:
-            testo_o_segnaposto(doc, "")
+            stile.testo(doc, "", "Nessun rischio valutato per questa fase.")
+        _dpi_con_icone(doc, [r["dpi"] for r in struttura["rischi_lavorazione"]], "DPI dell'addetto:")
+        esclusi = repo.rischi_esclusi(fase_id=f["id"])
         if esclusi:
             stile.banda(doc, "Rischi valutati come non presenti")
             stile.tabella_colorata(doc, ["Rischio", "Motivazione"], [
-                [f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"], r["motivazione"] or "-"]
-                for r in esclusi], 8.5, colore_intestazione="6B7B8C", larghezze=[6, 11])
+                [_descrizione_rischio(r), r["motivazione"] or "-"] for r in esclusi], 8.5, larghezze=[6, 11.4])
 
-    for chiave, lettera in (("integrative", "g"), ("procedure", "h")):
-        stile.capitolo(doc, dict(SEZIONI_POS)[chiave], f"punto 3.2.1, lettera {lettera}), Allegato XV del D.Lgs. 81/2008")
-        testo_o_segnaposto(doc, sezioni[chiave])
+    stile.capitolo(doc, "Opere provvisionali, macchine e impianti utilizzati",
+                   "Allegato XV punto 3.2.1, lettera d), e artt. 70-73 e Allegati V-VII")
+    if schede or ponteggi:
+        ordine = list(TIPI_ATTREZZATURA)
+        righe = [[s["tipo"], s["nome"], "; ".join(nomi_fasi[x] for x in s["fasi"] if x in nomi_fasi)]
+                 for s in sorted(schede.values(), key=lambda s: (ordine.index(s["tipo"]) if s["tipo"] in ordine
+                                                                else len(ordine), s["nome"].lower()))]
+        righe += [["Ponteggio", p_["nome"] or p_["tipo"] or "Ponteggio",
+                   " · ".join(v for v in (p_["tipo"], f"altezza {p_['altezza']} m" if p_["altezza"] else "") if v)]
+                  for p_ in ponteggi]
+        stile.tabella_colorata(doc, ["Tipo", "Denominazione", "Lavorazioni in cui è utilizzata"], righe,
+                               larghezze=[3.2, 5.6, 8.6])
+        stile.nota(doc, "Macchine, attrezzature e opere provvisionali sono ad uso dell'impresa esecutrice, salvo "
+                        "diversa indicazione nel PSC o negli accordi con l'impresa affidataria.")
+    else:
+        stile.testo(doc, "", "Nessuna macchina, attrezzatura od opera provvisionale indicata nelle lavorazioni.")
+    for macchine, titolo in ((True, "Macchine utilizzate nelle lavorazioni"),
+                             (False, "Attrezzature e opere provvisionali utilizzate nelle lavorazioni")):
+        elenco_schede = [s for s in sorted(schede.values(), key=lambda s: s["nome"])
+                         if (s["tipo"] == MACCHINA) == macchine]
+        if not elenco_schede:
+            continue
+        stile.sezione(doc, titolo)
+        for s in elenco_schede:
+            stile.riquadro(doc, s["nome"], s["tipo"].lower(), stile.TESTO3, stile.SUPERFICIE, livello=3)
+            for riga in s["descrizione"]:
+                doc.add_paragraph(riga)
+            propri = list(dict.fromkeys(r["descrizione"] for r in rischi if r["fonte"] == s["nome"]))
+            if propri:
+                p = doc.add_paragraph()
+                stile._run(p, "Rischi generati dall'uso: ", grassetto=True)
+                p.add_run("; ".join(propri) + ".")
+            if s["misure"]:
+                p = doc.add_paragraph()
+                stile._spaziatura(p, 4, 2)
+                stile._run(p, "Misure preventive e protettive", grassetto=True)
+                stile.testo(doc, "\n".join(s["misure"]))
+            if s["dpi"]:
+                _dpi_con_icone(doc, s["dpi"], "DPI dell'operatore:" if macchine else "DPI dell'utilizzatore:")
+    for p_ in ponteggi:
+        stile.riquadro(doc, p_["nome"] or "Ponteggio", "ponteggio", stile.TESTO3, stile.SUPERFICIE, livello=3)
+        stile.scheda(doc, [("Tipo", p_["tipo"]), ("Fabbricante e modello", " ".join(v for v in (p_["fabbricante"],
+                                                                                           p_["modello"]) if v)),
+                           ("Autorizzazione ministeriale", p_["autorizzazione"]),
+                           ("Altezza / lunghezza", " · ".join(v for v in (f"{p_['altezza']} m" if p_["altezza"] else "",
+                                                                         f"{p_['lunghezza']} m" if p_["lunghezza"]
+                                                                         else "") if v)),
+                           ("Classe di carico", p_["classe_carico"]),
+                           ("Montato secondo gli schemi tipo", "sì" if p_["conforme_schemi"] else "no, con progetto"),
+                           ("Piano di appoggio", p_["piano_appoggio"]), ("Ancoraggi", p_["ancoraggi"])])
+        stile.nota(doc, "Montaggio, trasformazione e smontaggio secondo il PiMUS (art. 136).")
 
-    # --- valutazioni specifiche ---
-    if valutazioni:
+    stile.capitolo(doc, "Sostanze e miscele pericolose", "Allegato XV punto 3.2.1, lettera e), e Titolo IX")
+    aggiungi_sostanze(doc, repo, sostanze_elenco, livello=3)
+    if sezioni["sostanze"].strip():
+        stile.testo(doc, sezioni["sostanze"])
+
+    for metodo, titolo in (("rumore", dict(SEZIONI_POS)["rumore"]),
+                           ("vibrazioni", "Esito della valutazione delle vibrazioni")):
+        elenco_v = [v for v in valutazioni if v["metodo"] == metodo]
+        if metodo == "vibrazioni" and not elenco_v:
+            continue
+        stile.capitolo(doc, titolo, "Allegato XV punto 3.2.1, lettera f), e Titolo VIII, Capo II"
+                       if metodo == "rumore" else "Titolo VIII, Capo III del D.Lgs. 81/2008")
+        if elenco_v:
+            stile.tabella_colorata(doc, ["Mansione / gruppo omogeneo", "Livello di esposizione", "Esito"], [
+                [v["mansione"] or v["titolo"], *_esito_breve(repo, v)] for v in elenco_v], larghezze=[6, 4, 7.4])
+            stile.nota(doc, "Calcoli e misure di dettaglio nel capitolo «Valutazioni dei rischi specifici».")
+        if metodo == "rumore" and (sezioni["rumore"].strip() or not elenco_v):
+            stile.testo(doc, sezioni["rumore"], "Riportare l'esito della valutazione del rumore (art. 190) o "
+                                                "inserire la valutazione nella pagina «Valutazioni».")
+
+    eseguibili = [v for v in valutazioni if v["metodo"] in METODI]
+    if eseguibili:
         stile.capitolo(doc, "Valutazioni dei rischi specifici", "Titoli VI, VIII e IX del D.Lgs. 81/2008")
         stile.tabella_colorata(doc, ["Valutazione", "Lavorazioni", "Metodo", "Indice", "Classe"], [
             [v["titolo"] or METODI[v["metodo"]].nome, lavorazioni_valutazione(repo, v) or "-",
-             METODI[v["metodo"]].norma, *_esito_breve(repo, v)]
-            for v in valutazioni if v["metodo"] in METODI], 8.5, larghezze=[3.6, 4.6, 3.4, 2.2, 3.2])
-        for v in valutazioni:
-            aggiungi_valutazione(doc, repo, v, livello=2)
+             METODI[v["metodo"]].norma, *_esito_breve(repo, v)] for v in eseguibili],
+            8, larghezze=[3.6, 4.6, 3.4, 2.2, 3.6])
+        for v in eseguibili:
+            stile.riquadro(doc, v["titolo"] or METODI[v["metodo"]].nome, METODI[v["metodo"]].nome)
+            aggiungi_valutazione(doc, repo, v, livello=2, titolo=False)
 
-    # --- schede di attrezzature e macchine ---
-    for titolo, macchine in (("Attrezzature utilizzate nelle lavorazioni", False),
-                             ("Macchine utilizzate nelle lavorazioni", True)):
-        elenco = {a["nome"]: a for a in attrezzature if (a["tipo"] == MACCHINA) == macchine}
-        if not elenco:
-            continue
-        stile.capitolo(doc, titolo, "artt. 70-73 e Allegati V-VII del D.Lgs. 81/2008")
-        p = doc.add_paragraph()
-        p.add_run("Elenco: ").bold = True
-        p.add_run("; ".join(sorted(elenco)) + ".")
-        for nome, a in sorted(elenco.items()):
-            stile.riquadro(doc, nome, a["tipo"].lower(), "7F6000", "FFF2CC")
-            if a["descrizione"]:
-                doc.add_paragraph(a["descrizione"])
-            propri = list(dict.fromkeys(r["descrizione"] for r in rischi if r["fonte"] == nome))
-            if propri:
-                doc.add_paragraph().add_run(f"Rischi generati dall'uso {'della macchina' if macchine else 'dell attrezzo'}:"
-                                            .replace("dell attrezzo", "dell'attrezzo")).bold = True
-                for n, voce in enumerate(propri, 1):
-                    q = doc.add_paragraph(f"{n})  {voce};")
-                    q.paragraph_format.left_indent = Cm(0.6)
-                    q.paragraph_format.space_after = Pt(0)
-            if a["misure"]:
-                doc.add_paragraph().add_run("Misure preventive e protettive:").bold = True
-                for riga in a["misure"].split("\n"):
-                    doc.add_paragraph(riga)
-            if a["dpi"]:
-                p = doc.add_paragraph()
-                chi = "dell'operatore" if macchine else "dell'utilizzatore"
-                p.add_run(f"DPI {chi}: ").bold = True
-                p.add_run(a["dpi"] + ".")
-                stile.icone_in_riga(doc.add_paragraph(),
-                                    [segnaletica.SEGNALI[i].file for i in segnaletica.icone_dpi(a["dpi"])], 0.8)
+    # ===== Parte 3 =====
+    stile.parte(doc, "3", "Misure, protezione ed emergenze",
+                "Misure integrative al PSC, procedure, dispositivi di protezione, formazione, emergenze, "
+                "segnaletica e documenti (Allegato XV punto 3.2.1, lettere g, h, i, l).")
 
-    # --- i) DPI ---
-    stile.capitolo(doc, "Elenco dei dispositivi di protezione individuale forniti ai lavoratori",
-                   "punto 3.2.1, lettera i), Allegato XV del D.Lgs. 81/2008")
+    stile.capitolo(doc, dict(SEZIONI_POS)["integrative"], "Allegato XV punto 3.2.1, lettera g)")
+    stile.testo(doc, sezioni["integrative"], "Indicare le misure integrative rispetto a quelle del PSC, se previste.")
+    stile.nota(doc, "Le misure di prevenzione specifiche di ciascuna fase sono riportate nelle tabelle dei rischi "
+                    "del capitolo «Attività di cantiere, modalità organizzative e turni di lavoro».")
+
+    stile.capitolo(doc, dict(SEZIONI_POS)["procedure"], "Allegato XV punto 3.2.1, lettera h)")
+    stile.testo(doc, sezioni["procedure"], "Indicare le procedure complementari e di dettaglio richieste dal PSC, "
+                                           "se previste.")
+    con_procedure = [f for f in fasi if f["procedure_psc"].strip()]
+    if con_procedure:
+        stile.tabella_colorata(doc, ["Fase", "Procedura richiesta dal PSC"],
+                               [[nome_fase(f), f["procedure_psc"]] for f in con_procedure], larghezze=[6, 11.4])
+
+    stile.capitolo(doc, "Dispositivi di protezione individuale forniti ai lavoratori",
+                   "Allegato XV punto 3.2.1, lettera i), e artt. 74-79")
     con_dpi = [l for l in lavoratori if anagrafiche.dpi_lavoratore(l)]
     if con_dpi:
-        stile.tabella_colorata(doc, ["Qualifica", "Lavoratore", "DPI forniti"], [
-            [l["mansione"], anagrafiche.nominativo(l), "; ".join(anagrafiche.dpi_lavoratore(l))] for l in con_dpi])
-    dpi = elenco_dpi([r["dpi"] for r in rischi])
+        stile.tabella_colorata(doc, ["Lavoratore", "Qualifica", "DPI forniti"], [
+            [anagrafiche.nominativo(l), l["mansione"], "; ".join(anagrafiche.dpi_lavoratore(l))] for l in con_dpi],
+            larghezze=[4.4, 3.6, 9.4])
+    dpi = elenco_dpi([r["dpi"] for r in rischi] + [a["dpi"] for a in attrezzature])
     if dpi:
-        stile.banda(doc, "DPI previsti dalle schede di rischio delle lavorazioni")
+        stile.banda(doc, "DPI previsti dalle schede di rischio delle lavorazioni e delle attrezzature")
         stile.griglia_immagini(doc, [
             (segnaletica.SEGNALI[i].file, segnaletica.SEGNALI[i].testo.replace(" obbligatori", "")
-             .replace(" obbligatoria", "")) for i in segnaletica.icone_dpi(dpi)], colonne=5, lato_cm=2.0, dimensione_testo=6.5)
-        for voce in dpi:
-            doc.add_paragraph(voce, style="List Bullet")
+             .replace(" obbligatoria", "")) for i in segnaletica.icone_dpi(dpi)], colonne=6, lato_cm=1.8,
+            dimensione_testo=6.5)
+        stile.elenco_colonne(doc, dpi)
     elif not con_dpi:
-        testo_o_segnaposto(doc, "")
+        stile.testo(doc, "", "DPI da indicare per i lavoratori o nelle schede di rischio.")
 
-    # --- l) formazione ---
-    stile.capitolo(doc, "Formazione e informazione dei lavoratori",
-                   "punto 3.2.1, lettera l), Allegato XV del D.Lgs. 81/2008")
-    doc.add_paragraph(
-        "I lavoratori ricevono informazione, formazione e addestramento ai sensi degli artt. 36, 37 e 77 "
-        "del D.Lgs. 81/2008 e dell'Accordo Stato-Regioni vigente; la documentazione è conservata in cantiere.")
-    if lavoratori:
-        stile.tabella_colorata(doc, ["N.", "Lavoratore", "Qualifica", "Informazione, formazione e addestramento"], [
-            [str(n), anagrafiche.nominativo(l), l["mansione"], "; ".join(anagrafiche.formazione_lavoratore(l)) or "-"]
-            for n, l in enumerate(lavoratori, 1)])
+    stile.capitolo(doc, "Informazione, formazione e addestramento", "Allegato XV punto 3.2.1, lettera l), e "
+                                                                    "artt. 36, 37 e 77")
+    doc.add_paragraph("I lavoratori ricevono informazione, formazione e addestramento ai sensi degli artt. 36, 37 e "
+                      "77 del D.Lgs. 81/2008 e dell'Accordo Stato-Regioni vigente; la documentazione è conservata in "
+                      "cantiere.")
+    if dipendenti:
+        stile.tabella_colorata(doc, ["Lavoratore", "Qualifica", "Informazione, formazione e addestramento"], [
+            [anagrafiche.nominativo(l), l["mansione"], "; ".join(anagrafiche.formazione_lavoratore(l)) or "-"]
+            for l in dipendenti], larghezze=[4.4, 3.6, 9.4])
 
-    # --- emergenze ---
-    stile.capitolo(doc, "Organizzazione del servizio di primo soccorso, antincendio ed evacuazione dei lavoratori",
-                   "artt. 18, 43-46 e punto 3.2.1, lettera a), punto 3, Allegato XV del D.Lgs. 81/2008")
-    addetti = [(f["ruolo"], f["nome"]) for f in figure if f["ruolo"].startswith("Addetto") and f["nome"]]
+    stile.capitolo(doc, "Primo soccorso, antincendio ed evacuazione",
+                   "artt. 18, 43-46 e Allegato XV punto 3.2.1, lettera a), punto 3")
+    addetti = [f for f in figure if anagrafiche.ruolo_riconosciuto(f["ruolo"]) in
+               (anagrafiche.PRIMO_SOCCORSO, anagrafiche.ANTINCENDIO) or f["ruolo"].startswith("Addetto")]
     if addetti:
-        stile.scheda(doc, addetti)
-    testo_o_segnaposto(doc, sezioni["emergenze"])
+        per_ruolo: dict[str, list[str]] = {}
+        for f in addetti:
+            per_ruolo.setdefault(f["ruolo"], []).append(f["nome"])
+        stile.scheda(doc, [(r, ", ".join(dict.fromkeys(n))) for r, n in per_ruolo.items()])
+    stile.banda(doc, "Numeri di emergenza")
+    stile.scheda(doc, [(nome, numero) for nome, numero in NUMERI_EMERGENZA])
+    if sezioni["telefoni"].strip():
+        stile.banda(doc, "Telefoni e indirizzi utili locali")
+        stile.testo(doc, sezioni["telefoni"])
+    stile.banda(doc, "Gestione delle emergenze")
+    stile.testo(doc, sezioni["emergenze"], "Descrivere la gestione delle emergenze nei «Testi del POS».")
     stile.griglia_immagini(doc, [(segnaletica.SEGNALI[k].file, segnaletica.SEGNALI[k].testo)
-                                 for k in ("soccorso", "estintore")], colonne=2, lato_cm=2.4)
+                                 for k in ("soccorso", "estintore")], colonne=4, lato_cm=2.0)
 
-    # --- conclusioni ---
-    stile.capitolo(doc, "Conclusioni generali")
-    doc.add_paragraph("Al presente piano operativo di sicurezza sono allegati, e ne fanno parte integrante:")
-    allegati = ["schede di dati di sicurezza delle sostanze e miscele pericolose;",
-                "documentazione sulla formazione e informazione dei lavoratori;",
-                "verbali di consegna dei DPI;"]
-    if valutazioni:
-        allegati.insert(0, "relazioni delle valutazioni dei rischi specifici;")
-    stile.elenco_lettere(doc, allegati)
-    doc.add_paragraph()
-    doc.add_paragraph(f"{c['comune'] or ''}, {data_it(date.today())}".strip(", "))
-    firma(doc, "Il Datore di lavoro")
-    doc.add_paragraph("Per presa visione, il Rappresentante dei lavoratori per la sicurezza")
-    doc.add_paragraph("_______________________________")
+    stile.capitolo(doc, "Segnaletica prevista nel cantiere", "Titolo V e Allegati XXIV-XXXII del D.Lgs. 81/2008")
+    stile.cartello_testo(doc, "Vietato l'accesso ai non addetti ai lavori")
+    cartelli = segnaletica.segnali_cantiere([r["descrizione"] for r in rischi],
+                                            [r["dpi"] for r in rischi] + [a["dpi"] for a in attrezzature])
+    stile.griglia_immagini(doc, [(s.file, s.testo) for s in cartelli], colonne=5, lato_cm=2.3)
+    stile.nota(doc, "Rappresentazione indicativa: i cartelli posati in cantiere sono conformi alla UNI EN ISO 7010 "
+                    "e collocati in prossimità dei pericoli e degli accessi.")
+
+    stile.capitolo(doc, "Documentazione da custodire in cantiere")
+    doc.add_paragraph("Presso il cantiere o gli uffici di cantiere l'impresa tiene a disposizione degli organi di "
+                      "vigilanza e del coordinatore la seguente documentazione:")
+    stile.elenco(doc, DOCUMENTI_IN_CANTIERE)
+
+    # --- allegati e firme ---
+    stile.capitolo(doc, "Allegati e firme")
+    allegati = []
+    if sostanze_elenco:
+        schede_sds = [Path(s["file_sds"]).name for s in sostanze_elenco if s.get("file_sds")]
+        allegati.append("schede di dati di sicurezza delle sostanze e miscele pericolose"
+                        + (f" ({', '.join(schede_sds)})" if schede_sds else "") + ";")
+    if lavoratori:
+        allegati += ["attestati di informazione, formazione e addestramento dei lavoratori;",
+                     "verbali di consegna dei DPI;"]
+    if ponteggi:
+        allegati.append("PiMUS dei ponteggi;")
+    if allegati:
+        doc.add_paragraph("Sono allegati al presente piano operativo di sicurezza, e ne fanno parte integrante:")
+        stile.elenco_lettere(doc, allegati)
+    doc.add_paragraph("Il datore di lavoro dichiara di aver redatto il presente piano operativo di sicurezza per il "
+                      "cantiere indicato, ai sensi dell'art. 96 e dell'Allegato XV del D.Lgs. 81/2008, e di averlo "
+                      "messo a disposizione del rappresentante dei lavoratori per la sicurezza.")
+    p = doc.add_paragraph(f"{c['comune'] or ''}, {data_documento}".strip(", "))
+    stile._spaziatura(p, 8, 8)
+    rls = next((f for f in figure if anagrafiche.ruolo_riconosciuto(f["ruolo"]) in ("RLS", "RLST")), None)
+    medico = next((f for f in figure if anagrafiche.ruolo_riconosciuto(f["ruolo"]) == anagrafiche.MEDICO), None)
+    firme = [("Il datore di lavoro", datore)]
+    if rspp and rspp["nome"] != datore:
+        firme.append(("Il responsabile del servizio di prevenzione e protezione", rspp["nome"]))
+    if medico:
+        firme.append(("Il medico competente", medico["nome"]))
+    firme.append(("Per presa visione, il rappresentante dei lavoratori per la sicurezza"
+                  + (" territoriale" if rls and anagrafiche.ruolo_riconosciuto(rls["ruolo"]) == "RLST" else ""),
+                  rls["nome"] if rls else ""))
+    stile.firme(doc, firme)
 
     destinazione = Path(destinazione)
     doc.save(destinazione)

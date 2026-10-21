@@ -1,8 +1,12 @@
-"""Impaginazione dei documenti: stili, copertina, titoli dei capitoli, schede di dati, immagini.
+"""Impaginazione dei documenti: stili, copertina, capitoli numerati, schede di dati, tabelle, immagini.
 
-Impostazione grafica di SicurCantiere: capitoli su banda grigia con il riferimento di legge
-in blu, dati in elenchi etichetta-valore, lavorazioni e fasi in riquadri colorati, cartelli e
-icone dei DPI, piè di pagina con opera, comune e numero di pagina.
+Impostazione grafica propria di SicurCantiere, con gli stessi colori del programma:
+- capitoli numerati (1, 1.1) allineati a sinistra con un filetto nel colore del programma e il
+  riferimento di legge sotto, in piccolo; le parti del documento si aprono su una pagina nuova;
+- dati in schede etichetta-valore a righe sottili, tabelle leggere senza griglia verticale con
+  l'intestazione ripetuta a ogni pagina;
+- lavorazioni e fasi in riquadri con barra laterale, note e avvertenze in box evidenziati;
+- intestazione con documento e revisione, piè di pagina con cantiere e «Pagina X di Y».
 """
 
 from __future__ import annotations
@@ -17,12 +21,33 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
-BLU = RGBColor(0x1F, 0x4E, 0x8C)
-BLU_SCURO = RGBColor(0x1F, 0x3A, 0x5F)
-ROSSO = RGBColor(0xB0, 0x1E, 0x23)
-GRIGIO = RGBColor(0x59, 0x59, 0x59)
-ARANCIO = "E8792B"
-GRIGIO_BANDA, GRIGIO_CHIARO, AZZURRO, GIALLO = "D9D9D9", "F2F2F2", "DCE6F2", "FFD966"
+CARATTERE = "Segoe UI"
+CARATTERE_TITOLI = "Segoe UI Semibold"
+LARGHEZZA_UTILE = 17.4  # cm, A4 con margini di 1,8 cm
+
+# Colori (gli stessi del programma POS); ACCENTO e TINTA si possono cambiare per ogni documento.
+ACCENTO, ACCENTO_SCURO, TINTA = "1C6597", "134A70", "E6F1F9"
+INCHIOSTRO, TESTO2, TESTO3 = "17202A", "45515E", "6B7785"
+LINEA, LINEA_FORTE, SUPERFICIE = "D7DDE3", "B9C3CD", "F4F6F8"
+AVVISO, AVVISO_SFONDO = "9A4500", "FFF2DC"
+# Livelli di rischio: (sfondo, testo) come nel programma.
+LIVELLI = [("DCF0E0", "1B5E2B"), ("FDEFB2", "674B00"), ("FFDCC0", "863300"), ("F7D2CF", "8F1A13")]
+
+
+def rgb(colore: str) -> RGBColor:
+    return RGBColor.from_string(colore)
+
+
+# Nomi usati dal codice precedente.
+BLU = rgb(ACCENTO)
+GRIGIO = rgb(TESTO3)
+
+
+def imposta_colore(accento: str, scuro: str, tinta: str) -> None:
+    """Colore del programma per il documento (POS blu, PSC e PiMUS con i loro colori)."""
+    global ACCENTO, ACCENTO_SCURO, TINTA, BLU
+    ACCENTO, ACCENTO_SCURO, TINTA = accento, scuro, tinta
+    BLU = rgb(accento)
 
 
 # --- utilità XML ---
@@ -35,14 +60,14 @@ def _ombra(elemento_pr, colore: str) -> None:
     elemento_pr.append(sfondo)
 
 
-def _bordo_paragrafo(paragrafo, lati: tuple[str, ...], colore: str, spessore: int = 8) -> None:
+def _bordo_paragrafo(paragrafo, lati: tuple[str, ...], colore: str, spessore: int = 8, spazio: int = 4) -> None:
     pr = paragrafo._p.get_or_add_pPr()
     bordi = OxmlElement("w:pBdr")
     for lato in lati:
         b = OxmlElement(f"w:{lato}")
         b.set(qn("w:val"), "single")
         b.set(qn("w:sz"), str(spessore))
-        b.set(qn("w:space"), "4")
+        b.set(qn("w:space"), str(spazio))
         b.set(qn("w:color"), colore)
         bordi.append(b)
     pr.append(bordi)
@@ -56,7 +81,6 @@ def ombreggia_cella(cella, colore: str) -> None:
     _ombra(cella._tc.get_or_add_tcPr(), colore)
 
 
-
 def larghezze_colonne(t, larghezze_cm: list[float]) -> None:
     """Fissa la larghezza delle colonne (griglia e celle), rispettata anche da LibreOffice."""
     t.autofit = False
@@ -67,14 +91,40 @@ def larghezze_colonne(t, larghezze_cm: list[float]) -> None:
         for cella, cm in zip(riga.cells, larghezze_cm):
             cella.width = Cm(cm)
 
-def senza_bordi(tabella) -> None:
+
+def _bordi_tabella(tabella, **lati: tuple[str, int] | None) -> None:
+    """Bordi della tabella: per ogni lato (top, left, bottom, right, insideH, insideV) colore e spessore."""
     pr = tabella._tbl.tblPr
+    for vecchio in pr.findall(qn("w:tblBorders")):
+        pr.remove(vecchio)
     bordi = OxmlElement("w:tblBorders")
     for lato in ("top", "left", "bottom", "right", "insideH", "insideV"):
         b = OxmlElement(f"w:{lato}")
-        b.set(qn("w:val"), "nil")
+        valore = lati.get(lato)
+        if valore is None:
+            b.set(qn("w:val"), "nil")
+        else:
+            b.set(qn("w:val"), "single")
+            b.set(qn("w:color"), valore[0])
+            b.set(qn("w:sz"), str(valore[1]))
+            b.set(qn("w:space"), "0")
         bordi.append(b)
     pr.append(bordi)
+
+
+def senza_bordi(tabella) -> None:
+    _bordi_tabella(tabella)
+
+
+def _margini_celle(tabella, sopra: float = 0.08, lati: float = 0.15) -> None:
+    pr = tabella._tbl.tblPr
+    margini = OxmlElement("w:tblCellMar")
+    for lato, cm in (("top", sopra), ("bottom", sopra), ("left", lati), ("right", lati)):
+        m = OxmlElement(f"w:{lato}")
+        m.set(qn("w:w"), str(int(Cm(cm).twips)))
+        m.set(qn("w:type"), "dxa")
+        margini.append(m)
+    pr.append(margini)
 
 
 def bordi_cella(cella, colore: str = "000000", spessore: int = 12, lati=("top", "left", "bottom", "right")) -> None:
@@ -89,7 +139,19 @@ def bordi_cella(cella, colore: str = "000000", spessore: int = 12, lati=("top", 
     pr.append(bordi)
 
 
-def campo(paragrafo, istruzione: str, testo: str = "") -> None:
+def _ripeti_intestazione(riga) -> None:
+    pr = riga._tr.get_or_add_trPr()
+    e = OxmlElement("w:tblHeader")
+    e.set(qn("w:val"), "true")
+    pr.append(e)
+
+
+def _non_spezzare(riga) -> None:
+    pr = riga._tr.get_or_add_trPr()
+    pr.append(OxmlElement("w:cantSplit"))
+
+
+def campo(paragrafo, istruzione: str, testo: str = ""):
     """Campo di Word (numero di pagina, indice...) aggiornato all'apertura del documento."""
     run = paragrafo.add_run()
     inizio = OxmlElement("w:fldChar")
@@ -105,6 +167,7 @@ def campo(paragrafo, istruzione: str, testo: str = "") -> None:
     fine.set(qn("w:fldCharType"), "end")
     for e in (inizio, istr, separa, segnaposto, fine):
         run._r.append(e)
+    return run
 
 
 def aggiorna_campi_all_apertura(doc) -> None:
@@ -114,138 +177,285 @@ def aggiorna_campi_all_apertura(doc) -> None:
     impostazioni.append(elemento)
 
 
+def _run(paragrafo, testo: str, dimensione: float | None = None, colore: str | None = None,
+         grassetto: bool | None = None, corsivo: bool | None = None, carattere: str | None = None):
+    r = paragrafo.add_run(testo)
+    if dimensione:
+        r.font.size = Pt(dimensione)
+    if colore:
+        r.font.color.rgb = rgb(colore)
+    if grassetto is not None:
+        r.bold = grassetto
+    if corsivo is not None:
+        r.italic = corsivo
+    if carattere:
+        r.font.name = carattere
+    return r
+
+
+def _spaziatura(paragrafo, prima: float = 0, dopo: float = 0) -> None:
+    paragrafo.paragraph_format.space_before = Pt(prima)
+    paragrafo.paragraph_format.space_after = Pt(dopo)
+
+
 # --- stili del documento ---
 
 def imposta_stili(doc) -> None:
     normale = doc.styles["Normal"]
-    normale.font.name = "Calibri"
-    normale.font.size = Pt(10)
-    normale.paragraph_format.space_after = Pt(3)
+    normale.font.name = CARATTERE
+    normale.font.size = Pt(9.5)
+    normale.font.color.rgb = rgb(INCHIOSTRO)
+    normale.paragraph_format.space_after = Pt(4)
+    normale.paragraph_format.line_spacing = 1.12
 
-    h1 = doc.styles["Heading 1"]
-    h1.font.name, h1.font.size, h1.font.bold = "Calibri", Pt(15), True
-    h1.font.color.rgb = RGBColor(0x26, 0x26, 0x26)
-    h1.font.all_caps = True
-    h1.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    h1.paragraph_format.space_before = Pt(0)
-    h1.paragraph_format.space_after = Pt(2)
-    h1.paragraph_format.page_break_before = True
-    h1.paragraph_format.keep_with_next = True
-    _ombra(h1.element.get_or_add_pPr(), GRIGIO_BANDA)
-
-    h2 = doc.styles["Heading 2"]
-    h2.font.name, h2.font.size, h2.font.bold = "Calibri", Pt(12.5), True
-    h2.font.color.rgb = BLU_SCURO
-    h2.paragraph_format.space_before = Pt(12)
-    h2.paragraph_format.space_after = Pt(4)
-    h2.paragraph_format.keep_with_next = True
-
-    h3 = doc.styles["Heading 3"]
-    h3.font.name, h3.font.size, h3.font.bold = "Calibri", Pt(11), True
-    h3.font.color.rgb = BLU
-    h3.paragraph_format.space_before = Pt(10)
-    h3.paragraph_format.space_after = Pt(3)
-    h3.paragraph_format.keep_with_next = True
+    for nome, dimensione, colore, prima, dopo in (("Heading 1", 17, INCHIOSTRO, 20, 2),
+                                                   ("Heading 2", 12.5, ACCENTO_SCURO, 14, 4),
+                                                   ("Heading 3", 10.5, INCHIOSTRO, 10, 3)):
+        h = doc.styles[nome]
+        h.font.name, h.font.size, h.font.bold, h.font.italic = CARATTERE_TITOLI, Pt(dimensione), False, False
+        h.font.color.rgb = rgb(colore)
+        h.font.all_caps = False
+        h.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        h.paragraph_format.space_before = Pt(prima)
+        h.paragraph_format.space_after = Pt(dopo)
+        h.paragraph_format.keep_with_next = True
+        h.paragraph_format.page_break_before = False
+    for nome in ("List Bullet", "List Number"):
+        doc.styles[nome].font.name = CARATTERE
+        doc.styles[nome].paragraph_format.space_after = Pt(2)
 
 
-def imposta_pagina(doc, piede: str) -> None:
-    """Margini A4 e piè di pagina con descrizione dell'opera e numero di pagina."""
+def imposta_pagina(doc, piede: str, intestazione: tuple[str, str] = ("", "")) -> None:
+    """A4 con intestazione (documento a sinistra, revisione a destra) e piè di pagina con
+    cantiere e «Pagina X di Y». La copertina resta senza intestazione e piè di pagina."""
     for sezione in doc.sections:
         sezione.page_height, sezione.page_width = Cm(29.7), Cm(21)
         sezione.left_margin = sezione.right_margin = Cm(1.8)
-        sezione.top_margin, sezione.bottom_margin = Cm(1.6), Cm(1.8)
-        sezione.different_first_page_header_footer = True  # copertina senza piè di pagina
-        p = sezione.footer.paragraphs[0]
-        p.text = ""
-        _bordo_paragrafo(p, ("top",), "7F7F7F", 6)
-        r = p.add_run(piede)
-        r.italic, r.font.size, r.font.color.rgb = True, Pt(7.5), GRIGIO
-        p2 = sezione.footer.add_paragraph()
-        p2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        r = p2.add_run("Pag. ")
-        r.italic, r.font.size, r.font.color.rgb = True, Pt(8), GRIGIO
-        campo(p2, "PAGE", "1")
+        sezione.top_margin, sezione.bottom_margin = Cm(2.0), Cm(1.8)
+        sezione.header_distance, sezione.footer_distance = Cm(0.9), Cm(0.8)
+        sezione.different_first_page_header_footer = True
+        _intestazione(sezione.header.paragraphs[0], *intestazione)
+        _piede(sezione.footer.paragraphs[0], piede)
 
 
-# --- elementi ---
+def _tabulazione_destra(paragrafo) -> None:
+    pr = paragrafo._p.get_or_add_pPr()
+    tabs = OxmlElement("w:tabs")
+    for posizione in (4680, 9360, 4513, 9026):  # tabulazioni degli stili Intestazione e Piè di pagina
+        via = OxmlElement("w:tab")
+        via.set(qn("w:val"), "clear")
+        via.set(qn("w:pos"), str(posizione))
+        tabs.append(via)
+    tab = OxmlElement("w:tab")
+    tab.set(qn("w:val"), "right")
+    tab.set(qn("w:pos"), str(int(Cm(LARGHEZZA_UTILE).twips)))
+    tabs.append(tab)
+    pr.append(tabs)
 
-def capitolo(doc, titolo: str, riferimento: str = "", nuova_pagina: bool = True) -> None:
-    """Titolo di capitolo su banda grigia, con il riferimento normativo in blu sotto."""
-    h = doc.add_heading(titolo, 1)
-    if not nuova_pagina:
-        h.paragraph_format.page_break_before = False
+
+def _intestazione(p, sinistra: str, destra: str) -> None:
+    p.text = ""
+    _tabulazione_destra(p)
+    _bordo_paragrafo(p, ("bottom",), LINEA, 4, 3)
+    _run(p, sinistra, 7.5, TESTO3, grassetto=True)
+    _run(p, "\t" + destra, 7.5, TESTO3)
+
+
+def _piede(p, testo: str) -> None:
+    p.text = ""
+    _tabulazione_destra(p)
+    _bordo_paragrafo(p, ("top",), LINEA, 4, 3)
+    _run(p, testo, 7.5, TESTO3)
+    _run(p, "\tPagina ", 7.5, TESTO3)
+    campo(p, "PAGE", "1").font.size = Pt(7.5)
+    _run(p, " di ", 7.5, TESTO3)
+    campo(p, "NUMPAGES", "1").font.size = Pt(7.5)
+
+
+# --- numerazione dei capitoli ---
+
+def _numeri(doc) -> list[int]:
+    if not hasattr(doc, "_numeri_sc"):
+        doc._numeri_sc = [0, 0, 0]
+    return doc._numeri_sc
+
+
+def parte(doc, numero: str, titolo: str, descrizione: str = "") -> None:
+    """Apertura di una parte del documento su pagina nuova (non entra nell'indice)."""
+    p = doc.add_paragraph()
+    p.paragraph_format.page_break_before = True
+    _spaziatura(p, 0, 2)
+    _run(p, f"PARTE {numero}", 8.5, ACCENTO, grassetto=True)
+    p = doc.add_paragraph()
+    _spaziatura(p, 0, 4 if descrizione else 14)
+    _bordo_paragrafo(p, ("bottom",), ACCENTO, 18, 6)
+    _run(p, titolo, 22, INCHIOSTRO, carattere=CARATTERE_TITOLI)
+    if descrizione:
+        p = doc.add_paragraph()
+        _spaziatura(p, 0, 14)
+        _run(p, descrizione, 9, TESTO2)
+
+
+def capitolo(doc, titolo: str, riferimento: str = "", nuova_pagina: bool = False) -> None:
+    """Capitolo numerato (1, 2, 3...) con filetto colorato e riferimento di legge sotto."""
+    n = _numeri(doc)
+    n[0], n[1], n[2] = n[0] + 1, 0, 0
+    h = doc.add_heading(level=1)
+    h.paragraph_format.page_break_before = nuova_pagina
+    _bordo_paragrafo(h, ("bottom",), ACCENTO, 12, 4)
+    _run(h, f"{n[0]}", colore=ACCENTO)
+    _run(h, f"   {titolo}")
     if riferimento:
         p = doc.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_after = Pt(10)
-        r = p.add_run(f"({riferimento})")
-        r.font.size, r.font.color.rgb = Pt(9), BLU
+        _spaziatura(p, 2, 10)
+        p.paragraph_format.keep_with_next = True
+        _run(p, riferimento[0].upper() + riferimento[1:], 8, TESTO3)
     else:
         h.paragraph_format.space_after = Pt(10)
 
 
+def sezione(doc, titolo: str, sottotitolo: str = "") -> None:
+    """Paragrafo numerato (1.1, 1.2...) dentro il capitolo, incluso nell'indice."""
+    n = _numeri(doc)
+    n[1], n[2] = n[1] + 1, 0
+    h = doc.add_heading(level=2)
+    _run(h, f"{n[0]}.{n[1]}  ", colore=TESTO3)
+    _run(h, titolo)
+    if sottotitolo:
+        _run(h, f"  {sottotitolo}", 9, TESTO3, carattere=CARATTERE)
+
+
+def sottosezione(doc, titolo: str) -> None:
+    """Titolo di terzo livello (non numerato, fuori dall'indice)."""
+    doc.add_heading(titolo, 3)
+
+
 def banda(doc, testo: str) -> None:
-    """Sottotitolo su banda grigia chiara (es. «DATI IMPRESA»)."""
+    """Sottotitolo di gruppo: maiuscoletto nel colore del programma con filetto sottile."""
     p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(8)
-    p.paragraph_format.space_after = Pt(3)
+    _spaziatura(p, 10, 4)
     p.paragraph_format.keep_with_next = True
-    ombreggia_paragrafo(p, GRIGIO_CHIARO)
-    _bordo_paragrafo(p, ("bottom",), "A6A6A6", 4)
-    r = p.add_run(testo)
+    _bordo_paragrafo(p, ("bottom",), LINEA, 4, 2)
+    r = _run(p, testo, 8, ACCENTO_SCURO, grassetto=True)
     r.font.all_caps = True
-    r.bold, r.font.size = True, Pt(9)
+    spaziatura = OxmlElement("w:spacing")
+    spaziatura.set(qn("w:val"), "10")
+    r._r.get_or_add_rPr().append(spaziatura)
 
 
-def scheda(doc, voci: list[tuple[str, Any]], larghezza_etichetta: float = 5.5) -> None:
-    """Elenco etichetta-valore senza griglia, valori in grassetto; le voci vuote non compaiono."""
-    voci = [(e, str(v)) for e, v in voci if v not in (None, "", "-")]
+def scheda(doc, voci: list[tuple[str, Any]], larghezza_etichetta: float = 5.2, titolo: str = "") -> None:
+    """Elenco etichetta-valore a righe sottili; le voci vuote non compaiono, e se sono tutte vuote
+    non compare neanche il titolo del gruppo."""
+    voci = [(e, str(v).strip()) for e, v in voci if v not in (None, "", "-") and str(v).strip()]
     if not voci:
         return
+    if titolo:
+        banda(doc, titolo)
     t = doc.add_table(rows=0, cols=2)
-    senza_bordi(t)
+    _bordi_tabella(t, insideH=(LINEA, 4), bottom=(LINEA, 4))
+    _margini_celle(t, 0.06, 0.1)
     for etichetta, valore in voci:
-        celle = t.add_row().cells
+        riga = t.add_row()
+        _non_spezzare(riga)
+        celle = riga.cells
         p = celle[0].paragraphs[0]
-        p.paragraph_format.space_after = Pt(0)
-        r = p.add_run(f"{etichetta}:")
-        r.font.size = Pt(9.5)
-        p = celle[1].paragraphs[0]
-        p.paragraph_format.space_after = Pt(0)
-        r = p.add_run(valore)
-        r.bold, r.font.size = True, Pt(9.5)
-    larghezze_colonne(t, [larghezza_etichetta, 17 - larghezza_etichetta])
+        _spaziatura(p)
+        _run(p, etichetta, 8.5, TESTO3)
+        for n, testo in enumerate(valore.split("\n")):
+            p = celle[1].paragraphs[0] if n == 0 else celle[1].add_paragraph()
+            _spaziatura(p)
+            _run(p, testo, 9.5, INCHIOSTRO)
+    larghezze_colonne(t, [larghezza_etichetta, LARGHEZZA_UTILE - larghezza_etichetta])
+    _spazio_dopo(doc)
 
 
-def riquadro(doc, testo: str, sottotitolo: str = "", colore: str = "1F4E8C", sfondo: str = AZZURRO,
+def _spazio_dopo(doc, punti: float = 4) -> None:
+    p = doc.add_paragraph()
+    _spaziatura(p)
+    p.paragraph_format.line_spacing = Pt(punti)
+
+
+def riquadro(doc, testo: str, sottotitolo: str = "", colore: str | None = None, sfondo: str | None = None,
              livello: int = 2) -> None:
-    """Titolo in riquadro colorato (lavorazioni e fasi), incluso nell'indice."""
+    """Titolo in riquadro con barra laterale (lavorazioni, fasi, schede di macchine e sostanze)."""
     h = doc.add_heading(level=livello)
-    h.paragraph_format.space_before = Pt(12)
-    ombreggia_paragrafo(h, sfondo)
-    _bordo_paragrafo(h, ("top", "left", "bottom", "right"), colore, 8)
-    h.add_run(testo)
+    _spaziatura(h, 12, 4)
+    ombreggia_paragrafo(h, sfondo or TINTA)
+    _bordo_paragrafo(h, ("left",), colore or ACCENTO, 36, 6)
+    if livello == 2:
+        n = _numeri(doc)
+        n[1], n[2] = n[1] + 1, 0
+        _run(h, f"{n[0]}.{n[1]}  ", colore=TESTO3)
+    _run(h, testo, colore=INCHIOSTRO)
     if sottotitolo:
-        r = h.add_run(f"  {sottotitolo}")
-        r.font.size, r.bold = Pt(9), False
+        _run(h, f"   {sottotitolo}", 8.5, TESTO2, carattere=CARATTERE)
 
 
 def elenco_lettere(doc, voci: list[str], grassetto_iniziale: bool = False) -> None:
-    """Elenco a), b), c)... come nei piani di sicurezza."""
+    """Elenco a), b), c)..."""
     for i, voce in enumerate(voci):
         p = doc.add_paragraph()
-        p.paragraph_format.left_indent = Cm(0.6)
-        p.paragraph_format.first_line_indent = Cm(-0.6)
-        p.paragraph_format.space_after = Pt(1)
+        p.paragraph_format.left_indent = Cm(0.7)
+        p.paragraph_format.first_line_indent = Cm(-0.7)
+        _spaziatura(p, 0, 2)
         lettera = chr(ord("a") + i) if i < 26 else str(i + 1)
-        p.add_run(f"{lettera})  ").bold = True
+        _run(p, f"{lettera})\t", colore=ACCENTO, grassetto=True)
         p.add_run(voce)
 
 
-def nota(doc, testo: str) -> None:
+def elenco(doc, voci: list[str], numerato: bool = False) -> None:
+    for n, voce in enumerate(voci, 1):
+        p = doc.add_paragraph()
+        p.paragraph_format.left_indent = Cm(0.6)
+        p.paragraph_format.first_line_indent = Cm(-0.6)
+        _spaziatura(p, 0, 1.5)
+        _run(p, f"{n}.\t" if numerato else "•\t", colore=ACCENTO, grassetto=numerato)
+        p.add_run(voce)
+
+
+def elenco_colonne(doc, voci: list[str], colonne: int = 3) -> None:
+    """Elenco puntato breve distribuito su più colonne (per esempio i DPI)."""
+    if not voci:
+        return
+    t = doc.add_table(rows=1, cols=colonne)
+    _bordi_tabella(t)
+    per_colonna = -(-len(voci) // colonne)
+    for n, cella in enumerate(t.rows[0].cells):
+        gruppo = voci[n * per_colonna:(n + 1) * per_colonna]
+        for i, voce in enumerate(gruppo):
+            p = cella.paragraphs[0] if i == 0 else cella.add_paragraph()
+            _spaziatura(p, 0, 1)
+            p.paragraph_format.left_indent = Cm(0.4)
+            p.paragraph_format.first_line_indent = Cm(-0.4)
+            _run(p, "•  ", 8.5, ACCENTO)
+            _run(p, voce, 8.5)
+    larghezze_colonne(t, [LARGHEZZA_UTILE / colonne] * colonne)
+    _spazio_dopo(doc)
+
+
+def nota(doc, testo: str, avviso: bool = False) -> None:
+    """Box evidenziato con barra laterale (note, chiarimenti, avvertenze)."""
     p = doc.add_paragraph()
-    r = p.add_run(testo)
-    r.italic, r.font.size, r.font.color.rgb = True, Pt(8.5), GRIGIO
+    _spaziatura(p, 4, 6)
+    p.paragraph_format.left_indent = Cm(0.15)
+    ombreggia_paragrafo(p, AVVISO_SFONDO if avviso else SUPERFICIE)
+    _bordo_paragrafo(p, ("left",), AVVISO if avviso else LINEA_FORTE, 18, 6)
+    _run(p, testo, 8.5, AVVISO if avviso else TESTO2)
+
+
+def testo(doc, contenuto: str, vuoto: str = "Sezione da compilare.") -> None:
+    """Testo libero con un paragrafo per riga; se manca, un segnaposto evidenziato."""
+    righe = [r.strip() for r in (contenuto or "").strip().split("\n")]
+    if not any(righe):
+        nota(doc, vuoto, avviso=True)
+        return
+    for riga in righe:
+        if not riga:
+            continue
+        if riga[:2] in ("- ", "• ", "* "):
+            elenco(doc, [riga[2:]])
+        else:
+            doc.add_paragraph(riga)
 
 
 def immagine(doc, percorso: str | Path, larghezza_cm: float = 12, didascalia: str = "") -> bool:
@@ -259,31 +469,33 @@ def immagine(doc, percorso: str | Path, larghezza_cm: float = 12, didascalia: st
     if didascalia:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = p.add_run(didascalia)
-        r.italic, r.font.size, r.font.color.rgb = True, Pt(8.5), GRIGIO
+        _run(p, didascalia, 8, TESTO3)
     return True
 
 
 def griglia_immagini(doc, voci: list[tuple[Path, str]], colonne: int = 4, lato_cm: float = 2.6,
-                     dimensione_testo: float = 7.5) -> None:
+                     dimensione_testo: float = 7) -> None:
     """Immagini con didascalia disposte in griglia (cartelli, DPI)."""
     voci = [(p, t) for p, t in voci if Path(p).is_file()]
     if not voci:
         return
     t = doc.add_table(rows=0, cols=colonne)
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
-    t.style = "Table Grid"
-    for i, (percorso, testo) in enumerate(voci):
+    _bordi_tabella(t)
+    for i, (percorso, didascalia) in enumerate(voci):
         if i % colonne == 0:
             celle = t.add_row().cells
+            _non_spezzare(t.rows[-1])
         cella = celle[i % colonne]
         p = cella.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        _spaziatura(p, 6, 2)
         p.add_run().add_picture(str(percorso), width=Cm(lato_cm))
         d = cella.add_paragraph()
         d.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = d.add_run(testo.upper())
-        r.bold, r.font.size = True, Pt(dimensione_testo)
+        _spaziatura(d, 0, 6)
+        _run(d, didascalia[0].upper() + didascalia[1:] if didascalia else "", dimensione_testo, TESTO2)
+    _spazio_dopo(doc)
 
 
 def icone_in_riga(paragrafo, percorsi: list[Path], lato_cm: float = 0.9) -> None:
@@ -293,49 +505,72 @@ def icone_in_riga(paragrafo, percorsi: list[Path], lato_cm: float = 0.9) -> None
             paragrafo.add_run(" ")
 
 
-def cartello_testo(doc, testo: str, sfondo: str = "C8102E") -> None:
-    """Cartello di solo testo (es. divieto di accesso) come cella colorata a tutta larghezza."""
+def cartello_testo(doc, testo_cartello: str, sfondo: str = "C8102E") -> None:
+    """Cartello di solo testo (es. divieto di accesso) come cella colorata."""
     t = doc.add_table(rows=1, cols=1)
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
     cella = t.rows[0].cells[0]
-    cella.width = Cm(12)
     ombreggia_cella(cella, sfondo)
+    larghezze_colonne(t, [12])
     p = cella.paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(10)
-    p.paragraph_format.space_after = Pt(10)
-    r = p.add_run(testo.upper())
-    r.bold, r.font.size, r.font.color.rgb = True, Pt(20), RGBColor(0xFF, 0xFF, 0xFF)
+    _spaziatura(p, 10, 10)
+    _run(p, testo_cartello.upper(), 16, "FFFFFF", grassetto=True)
+    _spazio_dopo(doc, 8)
 
 
-def tabella_colorata(doc, intestazioni: list[str], righe: list[list[str]], dimensione: float = 9,
-                     colore_intestazione: str = "1F4E8C", larghezze: list[float] | None = None):
-    """Tabella con intestazione colorata e righe alternate."""
+def tabella_colorata(doc, intestazioni: list[str], righe: list[list[str]], dimensione: float = 8.5,
+                     colore_intestazione: str | None = None, larghezze: list[float] | None = None):
+    """Tabella leggera: intestazione su fondo tenue ripetuta a ogni pagina, righe a filetti sottili."""
     t = doc.add_table(rows=1, cols=len(intestazioni))
-    t.style = "Table Grid"
-    for cella, testo in zip(t.rows[0].cells, intestazioni):
-        ombreggia_cella(cella, colore_intestazione)
-        r = cella.paragraphs[0].add_run(testo)
-        r.bold, r.font.size, r.font.color.rgb = True, Pt(dimensione), RGBColor(0xFF, 0xFF, 0xFF)
-    for n, riga in enumerate(righe):
-        celle = t.add_row().cells
-        for cella, testo in zip(celle, riga):
-            if n % 2:
-                ombreggia_cella(cella, GRIGIO_CHIARO)
-            r = cella.paragraphs[0].add_run(str(testo))
-            r.font.size = Pt(dimensione)
+    _bordi_tabella(t, top=(colore_intestazione or ACCENTO, 8), bottom=(LINEA_FORTE, 6), insideH=(LINEA, 4))
+    _margini_celle(t)
+    _ripeti_intestazione(t.rows[0])
+    for cella, titolo in zip(t.rows[0].cells, intestazioni):
+        ombreggia_cella(cella, TINTA)
+        p = cella.paragraphs[0]
+        _spaziatura(p)
+        _run(p, titolo, dimensione - 0.5, ACCENTO_SCURO, grassetto=True)
+    for riga in righe:
+        r = t.add_row()
+        _non_spezzare(r)
+        for cella, valore in zip(r.cells, riga):
+            for n, testo_cella in enumerate(str(valore if valore not in (None, "") else "—").split("\n")):
+                testo_cella = testo_cella if testo_cella != " " else ""
+                p = cella.paragraphs[0] if n == 0 else cella.add_paragraph()
+                _spaziatura(p, 0, 1 if n else 0)
+                _run(p, testo_cella, dimensione, TESTO3 if valore in (None, "", "-", "—") else None)
     if not larghezze and intestazioni[0] in ("N.", "Rev."):
-        resto = (17 - 1.2) / (len(intestazioni) - 1)
-        larghezze = [1.2] + [resto] * (len(intestazioni) - 1)
+        resto = (LARGHEZZA_UTILE - 1.0) / (len(intestazioni) - 1)
+        larghezze = [1.0] + [resto] * (len(intestazioni) - 1)
     if larghezze:
-        larghezze_colonne(t, larghezze)
+        fattore = LARGHEZZA_UTILE / sum(larghezze)
+        larghezze_colonne(t, [l * fattore for l in larghezze])
+    _spazio_dopo(doc)
     return t
 
 
+def colora_livello(cella, livello: int) -> None:
+    """Cella di un livello di rischio (0 basso - 3 molto alto) nei colori del programma."""
+    sfondo, colore = LIVELLI[max(0, min(livello, 3))]
+    ombreggia_cella(cella, sfondo)
+    for p in cella.paragraphs:
+        for r in p.runs:
+            r.font.color.rgb = rgb(colore)
+    if cella.paragraphs and cella.paragraphs[0].runs:
+        cella.paragraphs[0].runs[0].bold = True
+
+
 def indice(doc) -> None:
-    capitolo(doc, "Indice")
+    """Indice dei capitoli (campo di Word aggiornato all'apertura)."""
     p = doc.add_paragraph()
-    campo(p, 'TOC \\o "1-2" \\h \\z \\u', "Aggiornare l'indice: tasto destro > Aggiorna campo.")
+    p.paragraph_format.page_break_before = True
+    _spaziatura(p, 0, 10)
+    _bordo_paragrafo(p, ("bottom",), ACCENTO, 12, 4)
+    _run(p, "Indice", 17, INCHIOSTRO, carattere=CARATTERE_TITOLI)
+    p = doc.add_paragraph()
+    campo(p, 'TOC \\o "1-2" \\h \\z \\u', "L'indice si aggiorna all'apertura in Word (o con tasto destro > "
+                                          "Aggiorna campo).")
     aggiorna_campi_all_apertura(doc)
 
 
@@ -343,82 +578,101 @@ def interruzione_pagina(doc) -> None:
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
 
+def firme(doc, voci: list[tuple[str, str]]) -> None:
+    """Riquadri delle firme: ruolo, nominativo e spazio per la firma."""
+    if not voci:
+        return
+    t = doc.add_table(rows=0, cols=2)
+    _bordi_tabella(t, insideH=(LINEA, 4), bottom=(LINEA, 4), top=(LINEA, 4))
+    _margini_celle(t, 0.12, 0.12)
+    for ruolo, nome in voci:
+        riga = t.add_row()
+        _non_spezzare(riga)
+        p = riga.cells[0].paragraphs[0]
+        _spaziatura(p)
+        _run(p, ruolo, 8, TESTO3)
+        p = riga.cells[0].add_paragraph()
+        _spaziatura(p, 1, 0)
+        _run(p, nome or " ", 9.5, INCHIOSTRO, grassetto=True)
+        p = riga.cells[1].paragraphs[0]
+        _spaziatura(p, 18, 0)
+        _bordo_paragrafo(p, ("bottom",), LINEA_FORTE, 4, 1)
+        p = riga.cells[1].add_paragraph()
+        _spaziatura(p)
+        _run(p, "firma", 7, TESTO3)
+    larghezze_colonne(t, [8.4, 9.0])
+    _spazio_dopo(doc, 8)
+
+
 def copertina(doc, *, comune: str, titolo: str, riferimento: str, voci: list[tuple[str, str]],
-              data_luogo: str, firme: list[tuple[str, str]], impresa: list[str], logo: str = "") -> None:
-    """Copertina incorniciata con banda colorata a sinistra, titolo rosso e dati dell'impresa in basso."""
-    t = doc.add_table(rows=3, cols=2)
-    t.alignment = WD_TABLE_ALIGNMENT.CENTER
-    larghezze_colonne(t, [2.6, 14.8])
-    for riga in t.rows:
-        ombreggia_cella(riga.cells[0], GIALLO)
-    for riga in t.rows:
-        for cella in riga.cells:
-            bordi_cella(cella, "000000", 12)
-
-    # Riga 1: comune.
-    p = t.rows[0].cells[1].paragraphs[0]
-    p.paragraph_format.space_before = Pt(14)
-    r = p.add_run(comune or " ")
-    r.bold, r.font.size, r.font.color.rgb = True, Pt(18), BLU
-    t.rows[0].cells[1].add_paragraph()
-
-    # Riga 2: titolo, dati principali, firme.
-    cella = t.rows[1].cells[1]
-    p = cella.paragraphs[0]
-    p.paragraph_format.space_before = Pt(60)
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(titolo)
-    r.bold, r.font.size, r.font.color.rgb = True, Pt(30), ROSSO
-    p = cella.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(f"({riferimento})")
-    r.font.size, r.font.color.rgb = Pt(10), BLU
-    p.paragraph_format.space_after = Pt(60)
-    interna = cella.add_table(rows=0, cols=2)
-    senza_bordi(interna)
-    for etichetta, valore in voci:
-        celle = interna.add_row().cells
-        q = celle[0].paragraphs[0]
-        q.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        rr = q.add_run(f"{etichetta.upper()}:")
-        rr.bold, rr.font.color.rgb, rr.font.size = True, ROSSO, Pt(10)
-        rr = celle[1].paragraphs[0].add_run(valore or "-")
-        rr.font.size = Pt(10)
-    larghezze_colonne(interna, [3.6, 10.6])
-    p = cella.add_paragraph()
-    p.paragraph_format.space_before = Pt(24)
-    p.add_run(data_luogo).font.size = Pt(9.5)
-    for ruolo, nome in firme:
-        p = cella.add_paragraph()
-        p.paragraph_format.space_before = Pt(18)
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.add_run(ruolo).bold = True
-        p = cella.add_paragraph("_________________________________")
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        if nome:
-            p = cella.add_paragraph(f"({nome})")
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.runs[0].font.size = Pt(8.5)
-    cella.add_paragraph()
-
-    # Riga 3: impresa con logo.
-    cella = t.rows[2].cells[1]
-    p = cella.paragraphs[0]
-    p.paragraph_format.space_before = Pt(8)
+              data_luogo: str, firme: list[tuple[str, str]], impresa: list[str], logo: str = "",
+              revisione: str = "") -> None:
+    """Copertina: logo, titolo grande con filetto, impresa, dati principali e firme."""
+    p = doc.paragraphs[0] if doc.paragraphs and not doc.paragraphs[0].text else doc.add_paragraph()
+    _spaziatura(p, 0, 0)
     if logo and Path(logo).is_file():
         try:
-            p.add_run().add_picture(logo, height=Cm(1.6))
-            p = cella.add_paragraph()
+            p.add_run().add_picture(logo, height=Cm(1.8))
         except Exception:  # noqa: BLE001 - logo non leggibile
             pass
-    for i, riga in enumerate(r for r in impresa if r):
-        q = p if i == 0 else cella.add_paragraph()
-        q.paragraph_format.space_after = Pt(0)
-        rr = q.add_run(riga)
-        rr.font.color.rgb = BLU
-        rr.font.size = Pt(11 if i == 0 else 9)
-        rr.bold = i == 0
-    cella.add_paragraph()
+    p = doc.add_paragraph()
+    _spaziatura(p, 70, 6)
+    _run(p, riferimento.upper(), 7.5, ACCENTO, grassetto=True)
+    p = doc.add_paragraph()
+    _spaziatura(p, 0, 0)
+    p.paragraph_format.line_spacing = 1.0
+    _run(p, titolo[:1].upper() + titolo[1:].lower(), 32, INCHIOSTRO, carattere=CARATTERE_TITOLI)
+    p = doc.add_paragraph()
+    _spaziatura(p, 2, 20)
+    _bordo_paragrafo(p, ("bottom",), ACCENTO, 24, 8)
+    righe = [r for r in impresa if r]
+    if righe:
+        _run(p, righe[0], 15, ACCENTO_SCURO, carattere=CARATTERE_TITOLI)
+        for riga in righe[1:]:
+            q = doc.add_paragraph()
+            _spaziatura(q)
+            _run(q, riga, 8.5, TESTO2)
+    spazio = doc.add_paragraph()
+    _spaziatura(spazio, 0, 18)
+
+    voci = [(e, v) for e, v in voci if v] + ([("Comune", comune)] if comune else [])
+    if revisione:
+        voci.append(("Revisione", revisione))
+    t = doc.add_table(rows=0, cols=2)
+    _bordi_tabella(t, insideH=(LINEA, 4), top=(LINEA_FORTE, 6), bottom=(LINEA_FORTE, 6))
+    _margini_celle(t, 0.12, 0.1)
+    for etichetta, valore in voci:
+        celle = t.add_row().cells
+        q = celle[0].paragraphs[0]
+        _spaziatura(q)
+        _run(q, etichetta.upper(), 7.5, TESTO3, grassetto=True)
+        q = celle[1].paragraphs[0]
+        _spaziatura(q)
+        _run(q, valore, 10.5, INCHIOSTRO)
+    larghezze_colonne(t, [3.6, LARGHEZZA_UTILE - 3.6])
+
+    p = doc.add_paragraph()
+    _spaziatura(p, 26, 6)
+    _run(p, data_luogo, 9, TESTO2)
+    _firme_copertina(doc, firme)
+
+
+def _firme_copertina(doc, voci: list[tuple[str, str]]) -> None:
+    if not voci:
+        return
+    t = doc.add_table(rows=1, cols=len(voci))
+    _bordi_tabella(t)
+    for cella, (ruolo, nome) in zip(t.rows[0].cells, voci):
+        p = cella.paragraphs[0]
+        _spaziatura(p, 0, 26)
+        _run(p, ruolo, 7.5, TESTO3)
+        if nome:
+            p.add_run("\n")
+            _run(p, nome, 9, INCHIOSTRO, grassetto=True)
+        q = cella.add_paragraph()
+        _spaziatura(q)
+        _bordo_paragrafo(q, ("bottom",), LINEA_FORTE, 4, 1)
+    larghezze_colonne(t, [LARGHEZZA_UTILE / len(voci)] * len(voci))
 
 
 def nuova_sezione_verticale(doc) -> None:

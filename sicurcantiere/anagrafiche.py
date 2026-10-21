@@ -98,18 +98,88 @@ COMPITI_DATORE = ("Valuta i rischi e redige il POS, nomina RSPP e medico compete
                   "emergenze, fornisce DPI e attrezzature conformi e cura informazione e formazione "
                   "(artt. 17, 18 e 96).")
 
+PRIMO_SOCCORSO = "Addetto al primo soccorso"
+ANTINCENDIO = "Addetto antincendio ed evacuazione"
+DIRETTORE_TECNICO = "Direttore tecnico di cantiere"
+CAPOCANTIERE = "Capocantiere"
+PREPOSTO = "Preposto"
+MEDICO = "Medico competente"
+
 # Figure che l'Allegato XV punto 3.2.1 lett. a) chiede di indicare nel POS.
 FIGURE_OBBLIGATORIE: list[tuple[tuple[str, ...], str, bool]] = [
     # (ruoli che soddisfano il requisito, descrizione, errore se manca)
-    ((RSPP,), "il responsabile del servizio di prevenzione e protezione", True),
-    (("RLS", "RLST"), "il rappresentante dei lavoratori per la sicurezza (aziendale o territoriale)", True),
-    (("Addetto al primo soccorso",), "gli addetti al primo soccorso", True),
-    (("Addetto antincendio ed evacuazione", "Addetto antincendio", "Addetto alla gestione delle emergenze"),
-     "gli addetti antincendio, evacuazione e gestione delle emergenze", True),
-    (("Medico competente",), "il medico competente, ove previsto", False),
-    (("Direttore tecnico di cantiere",), "il direttore tecnico di cantiere", False),
-    (("Capocantiere", "Preposto"), "il capocantiere o il preposto", False),
+    ((RSPP,), "il responsabile del servizio di prevenzione e protezione (o la spunta «il datore di lavoro "
+              "svolge direttamente i compiti di RSPP»)", True),
+    (("RLS", "RLST"), "il rappresentante dei lavoratori per la sicurezza: aziendale (RLS) o, se non eletto, "
+                      "territoriale (RLST)", True),
+    ((PRIMO_SOCCORSO,), "gli addetti al primo soccorso (o il datore di lavoro, che può svolgerne i compiti "
+                        "fino a cinque lavoratori)", True),
+    ((ANTINCENDIO, "Addetto antincendio", "Addetto alla gestione delle emergenze"),
+     "gli addetti antincendio ed evacuazione (o il datore di lavoro, che può svolgerne i compiti fino a "
+     "cinque lavoratori)", True),
+    ((PREPOSTO,), "il preposto (obbligatorio dal D.L. 146/2021, art. 18 c. 1 lett. b-bis): un lavoratore "
+                  "designato oppure il datore di lavoro, spuntandolo sopra", True),
+    ((MEDICO,), "il medico competente, oppure dichiararlo non presente se la sorveglianza sanitaria non è "
+                "prevista", False),
+    ((DIRETTORE_TECNICO,), "il direttore tecnico di cantiere, oppure dichiararlo non presente", False),
+    ((CAPOCANTIERE,), "il capocantiere, oppure dichiararlo non presente", False),
 ]
+
+# Ruoli che il datore di lavoro può svolgere di persona (oltre a quello di RSPP, art. 34).
+RUOLI_DATORE = [PRIMO_SOCCORSO, ANTINCENDIO, DIRETTORE_TECNICO, CAPOCANTIERE, PREPOSTO]
+NOTE_RUOLI_DATORE = {
+    PRIMO_SOCCORSO: "I compiti di primo soccorso sono svolti direttamente dal datore di lavoro (art. 34 c. 1-bis).",
+    ANTINCENDIO: "I compiti di prevenzione incendi ed evacuazione sono svolti direttamente dal datore di lavoro "
+                 "(art. 34 c. 1-bis).",
+}
+LIMITE_ART_34 = 5  # lavoratori oltre i quali il datore non può fare da addetto al primo soccorso e antincendio
+
+# Figure che un'impresa può non avere: dichiarate non presenti non danno più avvisi e il POS lo riporta.
+FIGURE_FACOLTATIVE = {
+    DIRETTORE_TECNICO: "Il ruolo non è previsto nell'organizzazione dell'impresa per questo cantiere: la "
+                       "direzione dei lavori dell'impresa è svolta dal datore di lavoro.",
+    CAPOCANTIERE: "Non è presente un capocantiere: l'organizzazione delle squadre è curata dal datore di lavoro "
+                  "o dal preposto.",
+    MEDICO: "La sorveglianza sanitaria non è prevista per le mansioni svolte (art. 41): il medico competente "
+            "non è nominato.",
+}
+
+
+def ruolo_riconosciuto(ruolo: str) -> str:
+    """Ruolo con il nome usato dal programma anche se scritto a mano in un altro modo.
+
+    Per esempio «addetto primo soccorso» o «Capo cantiere» valgono come le voci dell'elenco.
+    """
+    r = " ".join(ruolo.lower().replace("'", " ").split())
+    if not r:
+        return ""
+    for nome in (*FIGURE_IMPRESA, RSPP):
+        if r == nome.lower().replace("'", " "):
+            return nome
+    regole = [(("soccorso",), PRIMO_SOCCORSO), (("antincendio", "incendi", "evacuazione", "emergenz"), ANTINCENDIO),
+              (("direttore tecnico", "direzione tecnica"), DIRETTORE_TECNICO),
+              (("capocantiere", "capo cantiere"), CAPOCANTIERE), (("montaggio", "ponteggi"), ""),
+              (("preposto",), PREPOSTO), (("medico",), MEDICO), (("rspp", "responsabile del servizio"), RSPP),
+              (("rlst", "territoriale"), "RLST"), (("rls", "rappresentante dei lavoratori"), "RLS")]
+    for parole, nome in regole:
+        if any(p in r for p in parole):
+            return nome or ruolo
+    return ruolo
+
+
+def _elenco(testo: str | None) -> list[str]:
+    return [v.strip() for v in (testo or "").split(";") if v.strip()]
+
+
+def ruoli_datore(impresa: dict[str, Any]) -> list[str]:
+    return [r for r in _elenco(impresa.get("ruoli_datore")) if r in RUOLI_DATORE]
+
+
+def figure_non_presenti(impresa: dict[str, Any]) -> list[tuple[str, str]]:
+    """Figure dichiarate non presenti, con la motivazione (quella scritta o la frase predefinita)."""
+    nota = (impresa.get("figure_motivazione") or "").strip()
+    return [(r, nota or FIGURE_FACOLTATIVE[r]) for r in _elenco(impresa.get("figure_non_presenti"))
+            if r in FIGURE_FACOLTATIVE]
 
 
 def soggetti(repo: Repository) -> list[dict[str, Any]]:
@@ -126,16 +196,30 @@ def soggetti(repo: Repository) -> list[dict[str, Any]]:
 
 
 def figure(repo: Repository, impresa: dict[str, Any]) -> list[dict[str, Any]]:
-    """Figure della sicurezza dell'impresa, compreso il datore di lavoro come RSPP se ne svolge i compiti."""
+    """Figure della sicurezza dell'impresa, compresi i ruoli svolti di persona dal datore di lavoro.
+
+    Una stessa persona può avere più ruoli (per esempio capocantiere e addetto al primo soccorso):
+    basta una riga per ruolo con lo stesso nominativo.
+    """
     elenco = repo.elenco("figure", impresa_id=impresa["id"])
-    if impresa.get("rspp_datore") and impresa.get("datore_lavoro", "").strip():
+    datore = (impresa.get("datore_lavoro") or "").strip()
+    if not datore:
+        return elenco
+
+    def del_datore(ruolo: str, nota: str) -> dict[str, Any]:
+        return {"id": None, "impresa_id": impresa["id"], "ruolo": ruolo, "nome": datore,
+                "qualifica": "Datore di lavoro", "codice_fiscale": "", "telefono": impresa.get("telefono", ""),
+                "email": impresa.get("email", ""), "formazione": "", "formazione_scadenza": None, "nota": nota}
+
+    aggiunte = []
+    if impresa.get("rspp_datore"):
         elenco = [f for f in elenco if f["ruolo"] != RSPP]
-        elenco.insert(0, {"id": None, "impresa_id": impresa["id"], "ruolo": RSPP, "nome": impresa["datore_lavoro"],
-                          "qualifica": "Datore di lavoro", "codice_fiscale": "", "telefono": impresa["telefono"],
-                          "email": impresa["email"], "formazione": "", "formazione_scadenza": None,
-                          "nota": "I compiti del servizio di prevenzione e protezione sono svolti direttamente "
-                                  "dal datore di lavoro (art. 34)."})
-    return elenco
+        aggiunte.append(del_datore(RSPP, "I compiti del servizio di prevenzione e protezione sono svolti "
+                                         "direttamente dal datore di lavoro (art. 34)."))
+    for ruolo in ruoli_datore(impresa):
+        if not any(f["ruolo"] == ruolo and f["nome"].strip() == datore for f in elenco):
+            aggiunte.append(del_datore(ruolo, NOTE_RUOLI_DATORE.get(ruolo, "Ruolo svolto dal datore di lavoro.")))
+    return aggiunte + elenco
 
 
 def compiti(ruolo: str) -> str:

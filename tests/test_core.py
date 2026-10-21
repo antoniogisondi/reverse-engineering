@@ -298,7 +298,7 @@ def test_genera_pos(repo, tmp_path):
     a = _cantiere_completo(repo)
     repo.salva_testo(chiave_testo(a, "rumore"), "Esposizione inferiore a 80 dB(A).")
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
-    assert "PIANO OPERATIVO DI SICUREZZA" in testo
+    assert "Piano operativo di sicurezza" in testo
     assert "Mario Bianchi" in testo and "Giuseppe Neri" in testo
     assert "Gru a torre" in testo
     assert "80 dB(A)" in testo
@@ -491,8 +491,7 @@ def test_figure_e_dati_impresa_nel_pos(repo, tmp_path):
 
     a = _cantiere_completo(repo)
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
-    assert "Alfa Costruzioni: indicare il rappresentante dei lavoratori per la sicurezza " \
-           "(aziendale o territoriale)." in messaggi
+    assert any(m.startswith("Alfa Costruzioni: indicare il rappresentante dei lavoratori") for m in messaggi)
     assert not any("responsabile del servizio" in m for m in messaggi)
     repo.aggiorna("imprese", a, inail="BA 123", cassa_edile="Cassa edile di Bari 7236",
                   ccnl="Edilizia - industria", durc_scadenza="2001-01-01", rspp_datore=1,
@@ -509,6 +508,31 @@ def test_figure_e_dati_impresa_nel_pos(repo, tmp_path):
     assert "svolti direttamente dal datore di lavoro" in testo and "Luca Verdi" not in testo
     assert "Paolo Gialli" in testo and "art. 50" in testo
     assert repo.leggi("imprese", b)["affidataria_id"] == a
+
+
+def test_figure_svolte_dal_datore_o_non_presenti(repo, tmp_path):
+    from sicurcantiere import anagrafiche, controlli
+    from sicurcantiere.documenti.pos import genera_pos
+
+    a = _cantiere_completo(repo)
+
+    def figure_mancanti():
+        return [s for s in controlli.controlla_pos(repo)
+                if s.sezione == "Figure della sicurezza" and s.messaggio.startswith("Alfa Costruzioni: indicare")]
+
+    prima = {s.messaggio.split(": indicare ")[1].split(" ")[1] for s in figure_mancanti()}
+    assert "direttore" in prima and "capocantiere," in prima
+    # ruolo scritto a mano in modo diverso dall'elenco: vale lo stesso
+    repo.inserisci("figure", impresa_id=a, ruolo="RLS", nome="Anna Neri")
+    repo.inserisci("figure", impresa_id=a, ruolo="addetto primo soccorso", nome="Anna Neri")
+    repo.aggiorna("imprese", a, ruoli_datore=f"{anagrafiche.ANTINCENDIO}; {anagrafiche.PREPOSTO}",
+                  figure_non_presenti=f"{anagrafiche.DIRETTORE_TECNICO}; {anagrafiche.CAPOCANTIERE}; "
+                                      f"{anagrafiche.MEDICO}")
+    assert not [s for s in figure_mancanti() if s.livello == controlli.ERRORE]
+    assert not figure_mancanti()
+    testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
+    assert "art. 34 c. 1-bis" in testo and "non è nominato" in testo
+    assert "direzione dei lavori dell'impresa è svolta dal datore di lavoro" in testo
 
 
 def test_archivio_anagrafiche(repo, tmp_path):
@@ -691,7 +715,10 @@ def test_segnaletica_e_impaginazione_pos(repo, tmp_path):
     testo = "\n".join(p.text for p in doc.paragraphs)
     assert "Foto 1 - area del cantiere" in testo and "Foto 2" not in testo  # foto mancante saltata
     titoli = [p.text for p in doc.paragraphs if p.style.name == "Heading 1"]
-    assert {"Lavoro", "Segnaletica prevista nel cantiere", "Conclusioni generali"} <= set(titoli)
+    # capitoli numerati in ordine: «1   Dati generali del lavoro», «2   Committente...»
+    assert titoli[0] == "1   Dati generali del lavoro" and titoli[-1].endswith("Allegati e firme")
+    assert [int(t.split()[0]) for t in titoli] == list(range(1, len(titoli) + 1))
+    assert any(t.endswith("Segnaletica prevista nel cantiere") for t in titoli)
     # immagini: foto, cartelli e icone dei DPI
     assert len(doc.inline_shapes) > 10
     # la tabella dei rischi ha colonne di larghezza fissa e il livello colorato

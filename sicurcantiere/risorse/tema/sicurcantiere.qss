@@ -245,10 +245,21 @@ QDateEdit:disabled, QTextEdit:disabled, QPlainTextEdit:disabled {
 }
 QLineEdit[readOnly="true"] { background: @surface2; }
 QLineEdit[mono="true"] { font-family: "@mono"; font-size: 12px; }
+QComboBox { padding-right: 30px; }
+QComboBox:focus { padding-right: 29px; }
 QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
     border: none;
-    width: 24px;
+    border-left: 1px solid @line;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
 }
+QComboBox::drop-down:hover { background: @surface2; }
+QComboBox::down-arrow { image: url(@icon_arrow); width: 14px; height: 14px; }
+QComboBox::down-arrow:disabled { image: url(@icon_arrow_off); }
+QComboBox::down-arrow:on { top: 1px; }
 QComboBox QAbstractItemView {
     background: @surface;
     border: 1px solid @line2;

@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -449,6 +450,10 @@ class PaginaImprese(Pagina):
         self.figure = ModuloRecord(repo, "imprese", [
             ("datore_lavoro", "Datore di lavoro"),
             ("rspp_datore", "Il datore di lavoro svolge direttamente i compiti di RSPP (art. 34)", "spunta"),
+            ("ruoli_datore", "Il datore di lavoro svolge anche il ruolo di", "spunte", anagrafiche.RUOLI_DATORE),
+            ("figure_non_presenti", "Figure non presenti in questa impresa", "spunte",
+             list(anagrafiche.FIGURE_FACOLTATIVE)),
+            ("figure_motivazione", "Motivazione (se vuota si usa una frase standard)", "testo_lungo"),
         ])
         self.elenco_figure = TabellaCrud(repo, "figure", [
             Colonna("ruolo", "Figura", "scelta", scelte=lambda: [(r, r) for r in anagrafiche.FIGURE_IMPRESA],
@@ -465,15 +470,24 @@ class PaginaImprese(Pagina):
         self.elenco_figure.aggiungi_pulsante("Dall'archivio...", self._figura_dall_archivio)
         self.elenco_figure.aggiungi_pulsante("Salva in archivio", lambda: archivio_anagrafiche.salva_persona(
             self, self.repo, "figure", self.elenco_figure.id_selezionato()))
-        pannello_figure = QWidget()
-        lf = QVBoxLayout(pannello_figure)
+        self.figure.campi["figure_motivazione"].setFixedHeight(46)
+        contenuto_figure = QWidget()
+        lf = QVBoxLayout(contenuto_figure)
         lf.addWidget(self.figure)
         aiuto = QLabel("Una riga per persona e per ruolo: RSPP, medico competente, RLS o RLST, preposti, "
-                       "direttore tecnico, capocantiere, addetti al primo soccorso e antincendio.")
+                       "direttore tecnico, capocantiere, addetti al primo soccorso e antincendio. Se una persona "
+                       "ha più ruoli (per esempio capocantiere e addetto al primo soccorso) basta una riga per "
+                       "ciascun ruolo con lo stesso nome; i ruoli svolti dal datore di lavoro si spuntano sopra.")
         aiuto.setObjectName("pageSubtitle")
         aiuto.setWordWrap(True)
         lf.addWidget(aiuto)
-        lf.addWidget(self.elenco_figure)
+        self.elenco_figure.setMinimumHeight(260)
+        lf.addWidget(self.elenco_figure, 1)
+        # con la finestra bassa la scheda scorre invece di schiacciare caselle e tabella
+        pannello_figure = QScrollArea()
+        pannello_figure.setWidgetResizable(True)
+        pannello_figure.setFrameShape(QFrame.Shape.NoFrame)
+        pannello_figure.setWidget(contenuto_figure)
 
         self.lavoratori = PannelloLavoratori(repo)
         self.autonomi = PannelloLavoratori(repo, autonomi=True)

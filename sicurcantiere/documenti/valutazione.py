@@ -30,7 +30,8 @@ def lavorazioni_valutazione(repo: Repository, valutazione: dict[str, Any]) -> st
     return "; ".join(nome_fase(fasi[f]) for f in repo.fasi_valutazione(valutazione["id"]) if f in fasi)
 
 
-def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], livello: int = 1) -> None:
+def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], livello: int = 1,
+                         titolo: bool = True) -> None:
     metodo = METODI.get(valutazione["metodo"])
     if metodo is None:
         return
@@ -38,7 +39,8 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
     esito = metodo.calcola(dati)
     impresa = repo.leggi("imprese", valutazione["impresa_id"]) if valutazione["impresa_id"] else None
 
-    doc.add_heading(valutazione["titolo"] or metodo.nome, livello)
+    if titolo:
+        doc.add_heading(valutazione["titolo"] or metodo.nome, livello)
     tabella_voci(doc, [
         ("Metodo", f"{metodo.nome} - {metodo.norma}"),
         ("Mansione / gruppo omogeneo", valutazione["mansione"]),
@@ -48,10 +50,10 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
 
     grezzi = repo.dati_valutazione(valutazione["id"])
     if not grezzi:
-        p = doc.add_paragraph()
-        r = p.add_run("Valutazione da eseguire: la lavorazione presenta questo rischio, ma i parametri "
-                      "del metodo non sono ancora stati inseriti.")
-        r.bold = True
+        from sicurcantiere.documenti import stile
+
+        stile.nota(doc, "Valutazione da eseguire: la lavorazione presenta questo rischio, ma i parametri del "
+                        "metodo non sono ancora stati inseriti.", avviso=True)
         return
     if str(grezzi.get("descrizione", "")).strip():
         doc.add_heading("Descrizione dell'attività", livello + 1)

@@ -11,9 +11,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRectF, QSize, QStandardPaths, Qt
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics, QIcon, QPainter, QPalette, QPen
-from PySide6.QtWidgets import QApplication, QStyle, QStyledItemDelegate, QStyleOptionViewItem, QWidget
+from PySide6.QtWidgets import (QApplication, QComboBox, QCompleter, QLineEdit, QStyle, QStyledItemDelegate,
+                               QStyleOptionViewItem, QWidget)
 
 RISORSE = Path(__file__).resolve().parent.parent / "risorse"
 FOGLIO = RISORSE / "tema" / "sicurcantiere.qss"
@@ -154,16 +155,21 @@ def _icone_spunta(c: dict) -> dict[str, str]:
                 or Path.home() / ".cache")
     cartella = base / "sicurcantiere_icone"
     cartella.mkdir(parents=True, exist_ok=True)
-    colore = c["acc_tx"]
+    colore, freccia, spenta = c["acc_tx"], c["tx2"], c["tx3"]
     forme = {
-        "check": f'<path d="M3.5 8.2l3 3L12.5 5" fill="none" stroke="{colore}" stroke-width="2" '
-                 'stroke-linecap="round" stroke-linejoin="round"/>',
-        "dash": f'<path d="M4 8h8" stroke="{colore}" stroke-width="2" stroke-linecap="round"/>',
-        "dot": f'<circle cx="8" cy="8" r="3" fill="{colore}"/>',
+        "check": (colore, f'<path d="M3.5 8.2l3 3L12.5 5" fill="none" stroke="{colore}" stroke-width="2" '
+                          'stroke-linecap="round" stroke-linejoin="round"/>'),
+        "dash": (colore, f'<path d="M4 8h8" stroke="{colore}" stroke-width="2" stroke-linecap="round"/>'),
+        "dot": (colore, f'<circle cx="8" cy="8" r="3" fill="{colore}"/>'),
+        # freccia dei menù a tendina: senza, con il foglio di stile il campo sembra una casella di testo
+        "arrow": (freccia, f'<path d="M4 6l4 4 4-4" fill="none" stroke="{freccia}" stroke-width="1.8" '
+                           'stroke-linecap="round" stroke-linejoin="round"/>'),
+        "arrow_off": (spenta, f'<path d="M4 6l4 4 4-4" fill="none" stroke="{spenta}" stroke-width="1.8" '
+                              'stroke-linecap="round" stroke-linejoin="round"/>'),
     }
     percorsi = {}
-    for nome, corpo in forme.items():
-        f = cartella / f"{nome}_{colore.lstrip('#')}.svg"
+    for nome, (tinta, corpo) in forme.items():
+        f = cartella / f"{nome}_{tinta.lstrip('#')}.svg"
         if not f.exists():
             f.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
                          f"{corpo}</svg>", encoding="utf-8")
@@ -210,7 +216,46 @@ def applica(app: QApplication, scuro: bool = False, programma: str | None = None
     carattere.setPixelSize(13)
     app.setFont(carattere)
     app.setStyleSheet(foglio_di_stile(scuro))
+    if not hasattr(app, "_filtro_tendine"):
+        app._filtro_tendine = _FiltroTendine(app)
+        app.installEventFilter(app._filtro_tendine)
     return c
+
+
+class _FiltroTendine(QObject):
+    """Menù a tendina più facili da usare in tutto il programma.
+
+    Nei campi in cui si può anche scrivere: un clic sul campo vuoto apre l'elenco e, scrivendo,
+    compaiono le voci che contengono il testo (non solo quelle che iniziano così).
+    """
+
+    def eventFilter(self, oggetto, evento):
+        tipo = evento.type()
+        if tipo == QEvent.Type.Polish and isinstance(oggetto, QComboBox) and oggetto.isEditable():
+            completamento = oggetto.completer()
+            if completamento is not None:
+                completamento.setFilterMode(Qt.MatchFlag.MatchContains)
+                completamento.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+                completamento.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        elif (tipo == QEvent.Type.MouseButtonRelease and isinstance(oggetto, QLineEdit)
+              and isinstance(oggetto.parent(), QComboBox)):
+            tendina = oggetto.parent()
+            if not oggetto.text() and tendina.count() > 1 and tendina.isEnabled():
+                QTimer.singleShot(0, tendina.showPopup)
+        return False
+
+
+def disegna_freccia(painter: QPainter, rettangolo, colore: str) -> None:
+    """Piccola freccia a destra di una cella che si sceglie da un elenco."""
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    penna = QPen(QColor(colore), 1.6)
+    penna.setCapStyle(Qt.PenCapStyle.RoundCap)
+    penna.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    painter.setPen(penna)
+    x, y = rettangolo.right() - 14, rettangolo.center().y()
+    painter.drawPolyline([QPointF(x - 4, y - 2), QPointF(x, y + 2), QPointF(x + 4, y - 2)])
+    painter.restore()
 
 
 def _ripolisci(widget: QWidget) -> None:

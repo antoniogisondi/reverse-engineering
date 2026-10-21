@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -132,8 +133,8 @@ class ModuloRecord(QWidget):
     """Modulo con i campi di un record di una tabella.
 
     Ogni campo è (campo, etichetta) per il testo oppure (campo, etichetta, tipo, opzioni) con tipo
-    testo, testo_lungo, scelta (elenco modificabile), data, numero, spunta, impresa, immagine
-    o dpi; (None, titolo) inserisce un titolo di gruppo. Per il tipo dpi le opzioni sono una
+    testo, testo_lungo, scelta (elenco modificabile), data, numero, spunta, spunte (più voci da
+    spuntare tra le opzioni, salvate separate da «;»), impresa, immagine o dpi; (None, titolo) inserisce un titolo di gruppo. Per il tipo dpi le opzioni sono una
     funzione che dal record restituisce i DPI suggeriti. Si salvano solo i campi modificati nel
     modulo, così un aggiornamento del record fatto altrove (per esempio dall'assistente AI) non
     viene sovrascritto con i valori vecchi rimasti nei campi.
@@ -205,6 +206,20 @@ class ModuloRecord(QWidget):
         elif tipo == "spunta":
             w = QCheckBox()
             w.toggled.connect(subito)
+        elif tipo == "spunte":
+            w = QWidget()
+            griglia = QGridLayout(w)
+            griglia.setContentsMargins(0, 2, 0, 2)
+            griglia.setHorizontalSpacing(18)
+            griglia.setVerticalSpacing(6)
+            w.caselle = []
+            for n, voce in enumerate(opzioni):
+                casella = QCheckBox(voce)
+                casella.setMinimumHeight(22)
+                casella.toggled.connect(subito)
+                griglia.addWidget(casella, n // 3, n % 3)
+                w.caselle.append(casella)
+            griglia.setColumnStretch(3, 1)
         elif tipo in ("testo_lungo", "dpi"):
             w = QPlainTextEdit()
             w.setFixedHeight(70)
@@ -269,6 +284,8 @@ class ModuloRecord(QWidget):
             return w.value()
         if tipo == "spunta":
             return int(w.isChecked())
+        if tipo == "spunte":
+            return "; ".join(c.text() for c in w.caselle if c.isChecked())
         if tipo in ("testo_lungo", "dpi"):
             return w.toPlainText()
         return w.text()
@@ -290,6 +307,10 @@ class ModuloRecord(QWidget):
             w.setValue(float(valore or 0))
         elif tipo == "spunta":
             w.setChecked(bool(valore))
+        elif tipo == "spunte":
+            scelte = {v.strip() for v in (valore or "").split(";")}
+            for c in w.caselle:
+                c.setChecked(c.text() in scelte)
         elif tipo in ("testo_lungo", "dpi"):
             w.setPlainText(valore or "")
         else:

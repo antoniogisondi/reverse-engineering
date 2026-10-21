@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from PySide6.QtCore import QDate, Qt, Signal
+from PySide6.QtCore import QDate, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -102,8 +102,17 @@ class _Delegato(QStyledItemDelegate):
             e.setEditable(col.scelta_libera)
             for valore, etichetta in col.scelte() if col.scelte else []:
                 e.addItem(etichetta, valore)
+            if not col.scelta_libera:
+                QTimer.singleShot(0, e.showPopup)  # l'elenco si apre subito, senza un secondo clic
             return e
         return QLineEdit(genitore)
+
+    def paint(self, painter, opzioni, indice):
+        super().paint(painter, opzioni, indice)
+        if self.tabella.colonne[indice.column()].tipo == "scelta":
+            from sicurcantiere.ui import tema
+
+            tema.disegna_freccia(painter, opzioni.rect, tema.correnti()["tx3"])
 
     def setEditorData(self, editor, indice):
         col = self.tabella.colonne[indice.column()]
@@ -181,6 +190,7 @@ class TabellaCrud(QFrame):
         self.vista.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.vista.setEditTriggers(
             QAbstractItemView.EditTrigger.DoubleClicked
+            | QAbstractItemView.EditTrigger.SelectedClicked
             | QAbstractItemView.EditTrigger.EditKeyPressed
             | QAbstractItemView.EditTrigger.AnyKeyPressed
         )
