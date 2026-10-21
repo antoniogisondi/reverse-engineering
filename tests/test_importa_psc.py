@@ -137,3 +137,31 @@ def test_parte_troncata_divisa_e_riletta():
     testo = "\n".join("riga del PSC con molte fasi " * 4 for _ in range(100))  # una sola parte
     analisi = AssistenteAI(fornitore=OPENAI, client=client).analizza_psc(testo)
     assert [i["ragione_sociale"] for i in analisi.imprese] == ["Impresa 0", "Impresa 1"]
+
+
+def test_risposta_troncata_recuperata_o_saltata():
+    from types import SimpleNamespace
+
+    from sicurcantiere.ai import ripara_json
+
+    troncato = '{"imprese": [{"ragione_sociale": "Alfa", "ruolo": "x"}, {"ragione_sociale": "Be'
+    assert ripara_json(troncato) == {"imprese": [{"ragione_sociale": "Alfa", "ruolo": "x"}]}
+    assert ripara_json("niente") is None
+
+    # il modello tronca sempre: i pezzi si dividono fino a pezzi piccoli, poi si recupera la parte valida
+    def create(**_):
+        return SimpleNamespace(choices=[SimpleNamespace(finish_reason="length", message=SimpleNamespace(
+            content=troncato, refusal=None))])
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    testo = "\n".join("riga del PSC " * 6 for _ in range(60))
+    analisi = AssistenteAI(fornitore=OPENAI, client=client).analizza_psc(testo)
+    assert [i["ragione_sociale"] for i in analisi.imprese] == ["Alfa"] and not analisi.saltati
+
+    def vuota(**_):
+        return SimpleNamespace(choices=[SimpleNamespace(finish_reason="length", message=SimpleNamespace(
+            content='{"imp', refusal=None))])
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=vuota)))
+    analisi = AssistenteAI(fornitore=OPENAI, client=client).analizza_psc(testo)  # non si ferma
+    assert analisi.saltati and not analisi.imprese

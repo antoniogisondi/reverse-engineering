@@ -157,6 +157,9 @@ SICURCANTIERE_AI_STANDARD_CHIAVE=
 SICURCANTIERE_AI_STANDARD_MODELLO=deepseek-flash
 SICURCANTIERE_AI_STANDARD_URL=
 SICURCANTIERE_AI_STANDARD_SEDE=DeepSeek, con trattamento dei dati in Cina
+# Lunghezza massima delle risposte (token); vuoto = 8000. Alzarla se nel registro compaiono
+# «Risposta troncata» e il modello lo permette.
+SICURCANTIERE_AI_STANDARD_MAX_TOKEN=
 #
 # Motore avanzato (solo piano Studio): Claude di Anthropic.
 SICURCANTIERE_AI_AVANZATO_CHIAVE=

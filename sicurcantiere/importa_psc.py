@@ -215,6 +215,7 @@ class Analisi:
     interferenze: list[dict[str, str]] = field(default_factory=list)
     richieste_pos: list[dict[str, str]] = field(default_factory=list)
     file: str = ""
+    saltati: list[str] = field(default_factory=list)  # inizi dei pezzi che l'assistente non è riuscito a leggere
 
     def json(self) -> str:
         return json.dumps(self.__dict__, ensure_ascii=False, indent=1)

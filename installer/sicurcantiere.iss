@@ -42,6 +42,14 @@ Name: "associa"; Description: "Apri i file dei cantieri con doppio clic"; GroupD
 Source: "..\dist\SicurCantiere PSC\*"; DestDir: "{app}\PSC"; Components: psc; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\SicurCantiere POS\*"; DestDir: "{app}\POS"; Components: pos; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\SicurCantiere PiMUS\*"; DestDir: "{app}\PiMUS"; Components: pimus; Flags: ignoreversion recursesubdirs createallsubdirs
+; Caratteri Ubuntu (Ubuntu Font Licence) installati in Windows: servono a Word per i documenti generati.
+Source: "..\sicurcantiere\risorse\font\Ubuntu-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "..\sicurcantiere\risorse\font\Ubuntu-Italic.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Italic"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "..\sicurcantiere\risorse\font\Ubuntu-Medium.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Medium"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "..\sicurcantiere\risorse\font\Ubuntu-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Bold"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "..\sicurcantiere\risorse\font\Ubuntu-BoldItalic.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Bold Italic"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "..\sicurcantiere\risorse\font\UbuntuMono-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Mono"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "..\sicurcantiere\risorse\font\UbuntuMono-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Mono Bold"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 Name: "{group}\SicurCantiere PSC"; Filename: "{app}\PSC\SicurCantiere PSC.exe"; Components: psc

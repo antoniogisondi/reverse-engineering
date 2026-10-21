@@ -148,13 +148,16 @@ def crea_api() -> Flask:
             return _errore("Raggiunto il limite giornaliero dell'assistente AI (il 30% del credito del mese): "
                            "torna disponibile domani.", 429)
 
+        massimo = os.environ.get(f"SICURCANTIERE_AI_{nome_motore.upper()}_MAX_TOKEN", "")
         assistente = ai.AssistenteAI(fornitore=motore.fornitore, api_key=motore.chiave, modello=motore.modello,
-                                     url=motore.url or None)
+                                     url=motore.url or None, max_token=int(massimo) if massimo.isdigit() else None)
         troncata = False
         try:
             contenuto = assistente.richiesta_grezza(testo, schema)
-        except ai.RispostaTroncata:
-            contenuto, troncata = "", True
+        except ai.RispostaTroncata as e:
+            contenuto, troncata = e.parziale, True  # il programma divide il testo o recupera la parte valida
+            app.logger.warning("Risposta troncata (motore %s, token in uscita %s): valutare "
+                               "SICURCANTIERE_AI_%s_MAX_TOKEN", nome_motore, assistente.uso[1], nome_motore.upper())
         except ai.ErroreAI as e:
             app.logger.warning("Errore del fornitore AI: %s", e)
             return _errore("Il servizio SicurCantiere AI non ha potuto rispondere: riprovare tra qualche minuto.", 502)

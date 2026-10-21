@@ -85,7 +85,51 @@ class ErroreAI(Exception):
 
 
 class RispostaTroncata(ErroreAI):
-    """La risposta ha superato la lunghezza massima: si può ripetere con un testo più breve."""
+    """La risposta ha superato la lunghezza massima: si può ripetere con un testo più breve.
+
+    `parziale` è il testo arrivato fino al taglio, da cui spesso si recupera la parte valida.
+    """
+
+    def __init__(self, messaggio: str = "La risposta è stata troncata: provare con una descrizione più breve.",
+                 parziale: str = ""):
+        super().__init__(messaggio)
+        self.parziale = parziale
+
+
+def ripara_json(testo: str) -> dict[str, Any] | None:
+    """Oggetto JSON da una risposta troncata: si taglia all'ultimo elemento completo e si chiudono
+    parentesi ed elenchi rimasti aperti. None se non si recupera niente."""
+    inizio = testo.find("{")
+    if inizio < 0:
+        return None
+    testo = testo[inizio:]
+    tagli = [i for i, c in enumerate(testo) if c in "}]"][::-1][:400]
+    for taglio in tagli:
+        pezzo = testo[:taglio + 1]
+        pila, in_stringa, escape = [], False, False
+        for c in pezzo:
+            if in_stringa:
+                if escape:
+                    escape = False
+                elif c == "\\":
+                    escape = True
+                elif c == '"':
+                    in_stringa = False
+            elif c == '"':
+                in_stringa = True
+            elif c in "{[":
+                pila.append("}" if c == "{" else "]")
+            elif c in "}]" and pila:
+                pila.pop()
+        if in_stringa:
+            continue
+        try:
+            dati = json.loads(pezzo + "".join(reversed(pila)))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(dati, dict):
+            return dati
+    return None
 
 
 SITI_CREDITO = {DEEPSEEK: "platform.deepseek.com", OPENAI: "platform.openai.com", ANTHROPIC: "console.anthropic.com",
@@ -164,7 +208,8 @@ def _descrivi_campi(campi: tuple[Campo, ...]) -> str:
 
 class AssistenteAI:
     def __init__(self, fornitore: str = FORNITORE_PREDEFINITO, client: Any = None,
-                 api_key: str | None = None, modello: str | None = None, url: str | None = None):
+                 api_key: str | None = None, modello: str | None = None, url: str | None = None,
+                 max_token: int | None = None):
         """Per INTEGRATO `api_key` è il codice di licenza e `modello` il motore (standard o avanzato);
         `url` cambia l'indirizzo di un servizio compatibile con DeepSeek/OpenAI (es. ospitato in Europa)."""
         if fornitore not in FORNITORI:
@@ -174,6 +219,7 @@ class AssistenteAI:
         self.api_key = api_key or None
         self.modello = modello or FORNITORI[fornitore].modello_predefinito
         self.url = url
+        self.max_token = max_token  # lunghezza massima della risposta (None: quella predefinita del fornitore)
         self.uso = (0, 0)  # token in ingresso e in uscita dell'ultima richiesta
         self.credito: dict[str, Any] = {}  # credito AI restante, dall'ultima risposta del server ponte
 
@@ -241,7 +287,7 @@ class AssistenteAI:
         self.credito = risposta.get("credito") or {}
         self.uso = tuple(risposta.get("uso") or (0, 0))
         if risposta.get("troncata"):
-            raise RispostaTroncata("La risposta è stata troncata: provare con una descrizione più breve.")
+            raise RispostaTroncata(parziale=str(risposta.get("contenuto", "")))
         return str(risposta.get("contenuto", ""))
 
     def _richiesta(self, testo: str, schema: dict[str, Any]) -> dict[str, Any]:
@@ -275,7 +321,8 @@ class AssistenteAI:
 
         formato = {"type": "json_object"} if modalita_json else {
             "type": "json_schema", "json_schema": {"name": "risposta", "schema": schema, "strict": True}}
-        limite = {"max_tokens": 8000} if modalita_json else {"max_completion_tokens": MAX_TOKEN}
+        limite = {"max_tokens": self.max_token or 8000} if modalita_json else {
+            "max_completion_tokens": self.max_token or MAX_TOKEN}
         try:
             risposta = self.client.chat.completions.create(
                 model=self.modello,
@@ -309,7 +356,7 @@ class AssistenteAI:
         if getattr(scelta.message, "refusal", None):
             raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
         if scelta.finish_reason == "length":
-            raise RispostaTroncata("La risposta è stata troncata: provare con una descrizione più breve.")
+            raise RispostaTroncata(parziale=scelta.message.content or "")
         return scelta.message.content or ""
 
     def _richiesta_anthropic(self, testo: str, schema: dict[str, Any]) -> str:
@@ -318,7 +365,7 @@ class AssistenteAI:
         try:
             risposta = self.client.beta.messages.create(
                 model=self.modello,
-                max_tokens=MAX_TOKEN,
+                max_tokens=self.max_token or MAX_TOKEN,
                 betas=[BETA_FALLBACK],
                 fallbacks="default",
                 system=SISTEMA,
@@ -346,7 +393,7 @@ class AssistenteAI:
         if risposta.stop_reason == "refusal":
             raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
         if risposta.stop_reason == "max_tokens":
-            raise RispostaTroncata("La risposta è stata troncata: provare con una descrizione più breve.")
+            raise RispostaTroncata(parziale=next((b.text for b in risposta.content if b.type == "text"), ""))
         return next((b.text for b in risposta.content if b.type == "text"), "")
 
     # --- funzioni offerte al programma ---
@@ -536,23 +583,35 @@ class AssistenteAI:
         pezzi = importa_psc.parti(testo)
         parziali: list[dict[str, Any]] = []
 
+        saltati: list[str] = []
+
         def leggi(pezzo: str, n: int, livello: int = 0) -> None:
             try:
                 parziali.append(self._richiesta(importa_psc.ISTRUZIONI.format(n=n, totale=len(pezzi), testo=pezzo),
                                                 importa_psc.SCHEMA))
-            except RispostaTroncata:
-                # parte con troppi dati per una risposta: si divide a metà e si rilegge
-                meta = importa_psc.parti(pezzo, max(len(pezzo) // 2 + 1, 2000))
-                if livello >= 3 or len(meta) < 2:
-                    raise
+                return
+            except RispostaTroncata as e:
+                troncata = e
+            # parte con troppi dati per una risposta: si divide a metà e si rilegge
+            meta = importa_psc.parti(pezzo, max(len(pezzo) // 2 + 1, 1500))
+            if livello < 2 and len(meta) >= 2:  # al massimo 4 richieste per parte: i token restano contenuti
                 for sotto in meta:
                     leggi(sotto, n, livello + 1)
+                return
+            # pezzo già piccolo: si tiene quello che è arrivato prima del taglio, senza fermare la lettura
+            recuperato = ripara_json(troncata.parziale)
+            if recuperato is not None:
+                parziali.append(recuperato)
+            else:
+                saltati.append(pezzo[:80].replace("\n", " "))
 
         for n, pezzo in enumerate(pezzi, 1):
             if avanzamento:
                 avanzamento(n, len(pezzi))
             leggi(pezzo, n)
-        return importa_psc.unisci(parziali)
+        analisi = importa_psc.unisci(parziali)
+        analisi.saltati = saltati
+        return analisi
 
     def estrai_sds(self, testo_scheda: str) -> dict[str, Any]:
         """Dati principali di una scheda di dati di sicurezza, dal suo testo."""

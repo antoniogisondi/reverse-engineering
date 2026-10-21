@@ -21,8 +21,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
-CARATTERE = "Segoe UI"
-CARATTERE_TITOLI = "Segoe UI Semibold"
+# Caratteri Ubuntu (Ubuntu Font Licence): l'installatore li installa in Windows, così Word li mostra;
+# salvando da Word con «incorpora i caratteri» li vede anche chi riceve il documento.
+CARATTERE = "Ubuntu"
+CARATTERE_TITOLI = "Ubuntu Medium"
 LARGHEZZA_UTILE = 17.4  # cm, A4 con margini di 1,8 cm
 
 # Colori (gli stessi del programma POS); ACCENTO e TINTA si possono cambiare per ogni documento.
@@ -170,6 +172,34 @@ def campo(paragrafo, istruzione: str, testo: str = ""):
     return run
 
 
+def incorpora_caratteri(doc) -> None:
+    """Ubuntu come carattere di base del documento (anche dove gli stili non lo indicano) e richiesta a
+    Word di incorporare i caratteri al salvataggio, così chi riceve il file vede il font Ubuntu."""
+    predefiniti = doc.styles.element.find(qn("w:docDefaults"))
+    if predefiniti is not None:
+        rpr = predefiniti.find(qn("w:rPrDefault"))
+        rpr = rpr.find(qn("w:rPr")) if rpr is not None else None
+        if rpr is not None:
+            for vecchio in rpr.findall(qn("w:rFonts")):
+                rpr.remove(vecchio)
+            caratteri = OxmlElement("w:rFonts")
+            for attributo in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
+                caratteri.set(qn(attributo), CARATTERE)
+            rpr.insert(0, caratteri)
+    # i caratteri «del tema» (Calibri) negli stili prevalgono in Word su quelli indicati: si tolgono
+    for caratteri in doc.styles.element.iter(qn("w:rFonts")):
+        tema = [k for k in caratteri.attrib if k.endswith("Theme") or k.endswith("theme")]
+        for k in tema:
+            del caratteri.attrib[k]
+        if tema and caratteri.get(qn("w:ascii")) is None:
+            caratteri.set(qn("w:ascii"), CARATTERE)
+            caratteri.set(qn("w:hAnsi"), CARATTERE)
+    impostazioni = doc.settings.element
+    for nome in ("w:saveSubsetFonts", "w:embedTrueTypeFonts"):
+        if impostazioni.find(qn(nome)) is None:
+            impostazioni.insert(0, OxmlElement(nome))
+
+
 def aggiorna_campi_all_apertura(doc) -> None:
     impostazioni = doc.settings.element
     elemento = OxmlElement("w:updateFields")
@@ -201,6 +231,7 @@ def _spaziatura(paragrafo, prima: float = 0, dopo: float = 0) -> None:
 # --- stili del documento ---
 
 def imposta_stili(doc) -> None:
+    incorpora_caratteri(doc)
     normale = doc.styles["Normal"]
     normale.font.name = CARATTERE
     normale.font.size = Pt(9.5)

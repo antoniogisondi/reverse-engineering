@@ -220,6 +220,11 @@ class DialogoImpresePSC(QDialog):
             f"Trovati: {len(analisi.imprese)} imprese, {len(analisi.fasi)} fasi di lavoro, "
             f"{len(analisi.interferenze)} interferenze, {len(analisi.richieste_pos)} richieste ai POS.")
         intestazione.setWordWrap(True)
+        if analisi.saltati:
+            intestazione.setText(intestazione.text() + (
+                f"<br><span style='color:#9A4500'>{len(analisi.saltati)} brevi parti del documento non sono state "
+                "lette dall'assistente: controlla nel PSC le sezioni che iniziano con «"
+                + "», «".join(s[:40] for s in analisi.saltati[:3]) + "».</span>"))
         self.imprese = QListWidget()
         for i in analisi.imprese:
             n = len(analisi.fasi_impresa(i["ragione_sociale"]))

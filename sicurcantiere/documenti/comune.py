@@ -95,7 +95,10 @@ def nuovo_documento():
     doc = Document()
     for sezione in doc.sections:
         sezione.left_margin = sezione.right_margin = Cm(2)
-    doc.styles["Normal"].font.name = "Calibri"
+    from sicurcantiere.documenti import stile
+
+    stile.incorpora_caratteri(doc)
+    doc.styles["Normal"].font.name = stile.CARATTERE
     doc.styles["Normal"].font.size = Pt(10)
     return doc
 

@@ -81,7 +81,7 @@ CLASSI_VALUTAZIONE = {
               "rosso": ("#4B1D1B", "#FF9E96"), "viola": ("#33224D", "#D3B8FF")},
 }
 
-CARATTERE, CARATTERE_MONO = "IBM Plex Sans", "IBM Plex Mono"
+CARATTERE, CARATTERE_MONO = "Ubuntu", "Ubuntu Mono"
 RISERVA, RISERVA_MONO = "Segoe UI", "Consolas"
 
 _corrente = {"tema": "chiaro", "programma": "pos", "sans": RISERVA, "mono": RISERVA_MONO}
@@ -132,7 +132,7 @@ def livello(prodotto: int) -> int:
 # --- caratteri ---
 
 def carica_caratteri(cartella: Path = CARTELLA_CARATTERI) -> None:
-    """IBM Plex Sans e Mono inclusi nel programma (licenza OFL); in mancanza Segoe UI e Consolas."""
+    """Ubuntu e Ubuntu Mono inclusi nel programma (Ubuntu Font Licence); in mancanza Segoe UI e Consolas."""
     famiglie: set[str] = set()
     if cartella.is_dir():
         for f in sorted(cartella.glob("*.ttf")):

@@ -489,7 +489,7 @@ class FinestraPrincipale(QMainWindow):
             f"{licenza_ui.descrizione(licenza_ui.stato_corrente(self.edizione.chiave), self.edizione.nome)}<br><br>"
             "I documenti generati vanno riletti e firmati da chi ne risponde: il programma è uno "
             "strumento di redazione.<br><br>"
-            "Caratteri IBM Plex (SIL Open Font License).",
+            "Caratteri Ubuntu (Ubuntu Font Licence 1.0, © Canonical Ltd.).",
         )
 
     # --- gestione progetto ---

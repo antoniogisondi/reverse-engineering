@@ -80,7 +80,7 @@ L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e d
   rischi, icone dei DPI, numeri utili e documenti da tenere in cantiere
 - **Controlli di completezza** prima della stampa (errori e avvisi)
 - **Interfaccia** con tema chiaro e scuro e colore proprio per ogni programma (foglio di stile in
-  `sicurcantiere/risorse/tema`, caratteri IBM Plex con licenza OFL in `sicurcantiere/risorse/font`):
+  `sicurcantiere/risorse/tema`, caratteri Ubuntu con la Ubuntu Font Licence in `sicurcantiere/risorse/font`, installati anche in Windows per i documenti Word):
   barra laterale con le pagine numerate e il numero di problemi di ognuna, tabelle in riquadri,
   livelli di rischio e risultati delle valutazioni a colori, controlli che portano alla pagina da correggere
 - **Pagina iniziale** con le schede dei cantieri recenti; **riepilogo a riquadri** del cantiere
