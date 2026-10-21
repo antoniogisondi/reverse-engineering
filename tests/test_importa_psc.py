@@ -117,3 +117,23 @@ def test_file_del_pos(tmp_path):
         assert "verificare probabilità e danno" in fase["procedure_psc"]
     finally:
         repo.progetto.chiudi()
+
+
+def test_parte_troncata_divisa_e_riletta():
+    from types import SimpleNamespace
+
+    risposte = iter(["troncata"] + [_parziale(imprese=[{"ragione_sociale": f"Impresa {n}", "partita_iva": "",
+                                                        "ruolo": "", "sede": "", "datore_lavoro": "",
+                                                        "lavori_affidati": ""}]) for n in range(10)])
+
+    def create(**_):
+        r = next(risposte)
+        motivo = "length" if r == "troncata" else "stop"
+        import json
+        return SimpleNamespace(choices=[SimpleNamespace(finish_reason=motivo, message=SimpleNamespace(
+            content="{}" if r == "troncata" else json.dumps(r), refusal=None))])
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    testo = "\n".join("riga del PSC con molte fasi " * 4 for _ in range(100))  # una sola parte
+    analisi = AssistenteAI(fornitore=OPENAI, client=client).analizza_psc(testo)
+    assert [i["ragione_sociale"] for i in analisi.imprese] == ["Impresa 0", "Impresa 1"]

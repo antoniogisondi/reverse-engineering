@@ -27,7 +27,7 @@ from typing import Any
 
 from sicurcantiere import anagrafiche
 
-CARATTERI_PER_PARTE = 30_000  # circa 8-9 mila token per richiesta, con risposte brevi
+CARATTERI_PER_PARTE = 20_000  # circa 6 mila token per richiesta, con risposte brevi
 CARATTERI_PER_TOKEN = 3.6  # stima per l'italiano
 CHIAVE_ANALISI = "analisi_psc"
 CHIAVE_ORIGINE = "origine_psc"

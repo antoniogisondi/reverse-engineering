@@ -70,6 +70,10 @@ class ErroreAI(Exception):
     """Errore comprensibile all'utente durante una richiesta all'assistente."""
 
 
+class RispostaTroncata(ErroreAI):
+    """La risposta ha superato la lunghezza massima: si può ripetere con un testo più breve."""
+
+
 SITI_CREDITO = {DEEPSEEK: "platform.deepseek.com", OPENAI: "platform.openai.com", ANTHROPIC: "console.anthropic.com"}
 
 
@@ -242,7 +246,7 @@ class AssistenteAI:
         if getattr(scelta.message, "refusal", None):
             raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
         if scelta.finish_reason == "length":
-            raise ErroreAI("La risposta è stata troncata: provare con una descrizione più breve.")
+            raise RispostaTroncata("La risposta è stata troncata: provare con una descrizione più breve.")
         return scelta.message.content or ""
 
     def _richiesta_anthropic(self, testo: str, schema: dict[str, Any]) -> str:
@@ -277,7 +281,7 @@ class AssistenteAI:
         if risposta.stop_reason == "refusal":
             raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
         if risposta.stop_reason == "max_tokens":
-            raise ErroreAI("La risposta è stata troncata: provare con una descrizione più breve.")
+            raise RispostaTroncata("La risposta è stata troncata: provare con una descrizione più breve.")
         return next((b.text for b in risposta.content if b.type == "text"), "")
 
     # --- funzioni offerte al programma ---
@@ -465,12 +469,24 @@ class AssistenteAI:
         from sicurcantiere import importa_psc
 
         pezzi = importa_psc.parti(testo)
-        parziali = []
+        parziali: list[dict[str, Any]] = []
+
+        def leggi(pezzo: str, n: int, livello: int = 0) -> None:
+            try:
+                parziali.append(self._richiesta(importa_psc.ISTRUZIONI.format(n=n, totale=len(pezzi), testo=pezzo),
+                                                importa_psc.SCHEMA))
+            except RispostaTroncata:
+                # parte con troppi dati per una risposta: si divide a metà e si rilegge
+                meta = importa_psc.parti(pezzo, max(len(pezzo) // 2 + 1, 2000))
+                if livello >= 3 or len(meta) < 2:
+                    raise
+                for sotto in meta:
+                    leggi(sotto, n, livello + 1)
+
         for n, pezzo in enumerate(pezzi, 1):
             if avanzamento:
                 avanzamento(n, len(pezzi))
-            parziali.append(self._richiesta(importa_psc.ISTRUZIONI.format(n=n, totale=len(pezzi), testo=pezzo),
-                                            importa_psc.SCHEMA))
+            leggi(pezzo, n)
         return importa_psc.unisci(parziali)
 
     def estrai_sds(self, testo_scheda: str) -> dict[str, Any]:
