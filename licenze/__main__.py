@@ -2,6 +2,7 @@
 
     python -m licenze genera-chiave     crea la chiave di firma (una volta sola) e stampa la pubblica
     python -m licenze crea-utente NOME  crea o aggiorna un utente (chiede la password)
+    python -m licenze togli-2fa NOME    disattiva la verifica in due passaggi (telefono perso)
     python -m licenze chiave-pubblica   stampa la chiave pubblica da inserire nel programma
     python -m licenze prova             avvia il gestionale in locale su http://127.0.0.1:8080 (solo prove)
 """
@@ -42,10 +43,16 @@ def main(argv: list[str]) -> int:
         crea_utente(argv[1], password)
         print(f"Utente {argv[1]} pronto.")
         return 0
+    if comando == "togli-2fa" and len(argv) == 2:
+        conn = archivio.connessione()
+        cambiati = conn.execute("UPDATE utenti SET totp = '', totp_ultimo = 0 WHERE nome = ?", (argv[1],)).rowcount
+        conn.commit()
+        print(f"Verifica in due passaggi disattivata per {argv[1]}." if cambiati else f"Utente {argv[1]} inesistente.")
+        return 0 if cambiati else 1
     if comando == "prova":
         from licenze.app import crea_app
 
-        crea_app().run(host="127.0.0.1", port=8080)
+        crea_app(https=False).run(host="127.0.0.1", port=8080)
         return 0
     print(__doc__)
     return 1

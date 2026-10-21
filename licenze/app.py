@@ -1,39 +1,53 @@
 """Gestionale web delle licenze SicurCantiere: clienti, licenze, rinnovi, pagamenti e scadenze.
 
-Gira sul server dell'ufficio ed è pensato per la rete interna: chi lo apre dal browser deve
-accedere con nome e password. Qui si firmano le licenze con la chiave privata, che non lascia
-mai il server; i programmi dei clienti verificano il codice senza collegarsi a niente.
+Gira sul server dell'ufficio e si può aprire anche da internet: chi lo apre dal browser deve
+accedere con nome, password e (se attivata) il codice dell'app di autenticazione; dopo troppi
+tentativi sbagliati l'accesso si blocca per un po'. Qui si firmano le licenze con la chiave
+privata, che non lascia mai il server; i programmi dei clienti verificano il codice senza
+collegarsi a niente.
 """
 
 from __future__ import annotations
 
 import csv
 import io
+import os
 import secrets
+import time
 from datetime import date, timedelta
 from functools import wraps
 
 from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from licenze import archivio
+from licenze import archivio, totp
 from sicurcantiere import licenza
 
 GIORNI_AVVISO = 30
+BLOCCO_SECONDI = 15 * 60
+TENTATIVI_UTENTE = 5  # tentativi sbagliati per nome utente prima del blocco
+TENTATIVI_IP = 20  # tentativi sbagliati dallo stesso indirizzo prima del blocco
 METODI_PAGAMENTO = ("Bonifico", "Carta", "PayPal", "Contanti", "Altro")
 
 
-def crea_app() -> Flask:
+def crea_app(https: bool = True) -> Flask:
+    """https=False solo per le prove in locale (python -m licenze prova)."""
     app = Flask(__name__)
     app.config["SECRET_KEY"] = archivio.segreto_sessione()
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+    app.config["SESSION_COOKIE_SECURE"] = https
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+    if os.environ.get("SICURCANTIERE_LICENZE_PROXY") == "1":
+        # Dietro Caddy (accesso da internet): l'indirizzo del visitatore arriva in X-Forwarded-For.
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     @app.context_processor
     def comuni():
         return {"piani": licenza.PIANI, "token": _token(), "oggi": date.today().isoformat(),
-                "utente": session.get("utente")}
+                "utente": session.get("utente"), "con_2fa": session.get("2fa", False)}
 
     @app.template_filter("data")
     def data_it(valore):
@@ -54,6 +68,18 @@ def crea_app() -> Flask:
         if request.endpoint not in ("accesso", "static") and not session.get("utente"):
             return redirect(url_for("accesso", prossima=request.path))
         return None
+
+    @app.after_request
+    def intestazioni(risposta):
+        risposta.headers.setdefault("Content-Security-Policy",
+                                    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                                    "frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
+        risposta.headers.setdefault("X-Frame-Options", "DENY")
+        risposta.headers.setdefault("X-Content-Type-Options", "nosniff")
+        risposta.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.endpoint != "static":
+            risposta.headers.setdefault("Cache-Control", "no-store")
+        return risposta
 
     _rotte(app)
     return app
@@ -104,21 +130,53 @@ def emetti(conn, cliente_id: int, piano: str, scadenza: date | None, postazioni:
     return cur.lastrowid
 
 
+def _bloccato(conn, nome: str, ip: str) -> bool:
+    dal = time.time() - BLOCCO_SECONDI
+    conn.execute("DELETE FROM accessi_falliti WHERE quando < ?", (dal,))
+    per_nome = conn.execute("SELECT COUNT(*) FROM accessi_falliti WHERE nome = ?", (nome,)).fetchone()[0]
+    per_ip = conn.execute("SELECT COUNT(*) FROM accessi_falliti WHERE ip = ?", (ip,)).fetchone()[0]
+    return per_nome >= TENTATIVI_UTENTE or per_ip >= TENTATIVI_IP
+
+
+def _controlla_accesso(conn, nome: str, password: str, codice: str):
+    """Riga dell'utente se nome, password e (se attivato) codice dell'app sono giusti."""
+    utente = conn.execute("SELECT * FROM utenti WHERE nome = ?", (nome,)).fetchone()
+    if utente is None or not check_password_hash(utente["password"], password):
+        return None
+    if utente["totp"]:
+        contatore = totp.verifica(utente["totp"], codice, utente["totp_ultimo"])
+        if contatore is None:
+            return None
+        conn.execute("UPDATE utenti SET totp_ultimo = ? WHERE id = ?", (contatore, utente["id"]))
+    return utente
+
+
 def _rotte(app: Flask) -> None:
     @app.route("/accesso", methods=["GET", "POST"])
     def accesso():
         if request.method == "POST":
             conn = _db()
-            utente = conn.execute("SELECT * FROM utenti WHERE nome = ?", (request.form.get("nome", ""),)).fetchone()
-            if utente and check_password_hash(utente["password"], request.form.get("password", "")):
-                session.clear()
-                session["utente"] = utente["nome"]
-                session["token"] = secrets.token_urlsafe(24)
-                session.permanent = True
-                prossima = request.args.get("prossima", "")
-                return redirect(prossima if prossima.startswith("/") and not prossima.startswith("//")
-                                else url_for("cruscotto"))
-            flash("Nome o password non corretti.", "errore")
+            nome, ip = request.form.get("nome", "").strip(), request.remote_addr or ""
+            if _bloccato(conn, nome, ip):
+                conn.commit()
+                flash("Troppi tentativi sbagliati: riprovare tra 15 minuti.", "errore")
+                return render_template("accesso.html"), 429
+            utente = _controlla_accesso(conn, nome, request.form.get("password", ""), request.form.get("codice", ""))
+            if utente is None:
+                conn.execute("INSERT INTO accessi_falliti (nome, ip, quando) VALUES (?, ?, ?)", (nome, ip, time.time()))
+                conn.commit()
+                flash("Nome, password o codice non corretti.", "errore")
+                return render_template("accesso.html")
+            conn.execute("DELETE FROM accessi_falliti WHERE nome = ?", (nome,))
+            conn.commit()
+            session.clear()
+            session["utente"] = utente["nome"]
+            session["2fa"] = bool(utente["totp"])
+            session["token"] = secrets.token_urlsafe(24)
+            session.permanent = True
+            prossima = request.args.get("prossima", "")
+            return redirect(prossima if prossima.startswith("/") and not prossima.startswith("//")
+                            else url_for("cruscotto"))
         return render_template("accesso.html")
 
     @app.route("/esci", methods=["POST"])
@@ -276,6 +334,48 @@ def _rotte(app: Flask) -> None:
     def impostazioni():
         return render_template("impostazioni.html", chiave=archivio.chiave_pubblica(),
                                cartella=archivio.cartella_dati())
+
+    @app.route("/impostazioni/due-passaggi", methods=["GET", "POST"])
+    def due_passaggi():
+        """Attiva la verifica in due passaggi: QR code per l'app, poi conferma con il primo codice."""
+        conn = _db()
+        utente = conn.execute("SELECT * FROM utenti WHERE nome = ?", (session["utente"],)).fetchone()
+        if request.method == "POST":
+            if request.form.get("azione") == "disattiva":
+                if not check_password_hash(utente["password"], request.form.get("password", "")):
+                    flash("Password non corretta.", "errore")
+                    return redirect(url_for("due_passaggi"))
+                conn.execute("UPDATE utenti SET totp = '', totp_ultimo = 0 WHERE id = ?", (utente["id"],))
+                conn.commit()
+                session["2fa"] = False
+                flash("Verifica in due passaggi disattivata.", "ok")
+                return redirect(url_for("impostazioni"))
+            segreto = session.get("totp_nuovo", "")
+            contatore = totp.verifica(segreto, request.form.get("codice", ""))
+            if contatore is None:
+                flash("Codice non corretto: controllare l'ora del telefono e riprovare.", "errore")
+                return redirect(url_for("due_passaggi"))
+            conn.execute("UPDATE utenti SET totp = ?, totp_ultimo = ? WHERE id = ?", (segreto, contatore, utente["id"]))
+            conn.commit()
+            session.pop("totp_nuovo", None)
+            session["2fa"] = True
+            flash("Verifica in due passaggi attivata: d'ora in poi all'accesso serve il codice dell'app.", "ok")
+            return redirect(url_for("impostazioni"))
+        if utente["totp"]:
+            return render_template("due_passaggi.html", attiva=True)
+        segreto = session.get("totp_nuovo") or totp.nuovo_segreto()
+        session["totp_nuovo"] = segreto
+        return render_template("due_passaggi.html", attiva=False, segreto=segreto,
+                               qr=_qr(totp.indirizzo(segreto, utente["nome"])))
+
+
+def _qr(testo: str) -> str:
+    """QR code come immagine data: (vuoto se manca la libreria: resta il codice da scrivere a mano)."""
+    try:
+        import segno
+    except ImportError:
+        return ""
+    return segno.make(testo, error="m").svg_data_uri(scale=5, border=2)
 
 
 def crea_utente(nome: str, password: str) -> None:

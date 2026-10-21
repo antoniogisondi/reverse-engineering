@@ -21,7 +21,15 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS utenti (
     id INTEGER PRIMARY KEY,
     nome TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    totp TEXT NOT NULL DEFAULT '',
+    totp_ultimo INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS accessi_falliti (
+    id INTEGER PRIMARY KEY,
+    nome TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    quando REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS clienti (
     id INTEGER PRIMARY KEY,
@@ -75,6 +83,10 @@ def connessione() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    colonne = {r[1] for r in conn.execute("PRAGMA table_info(utenti)")}
+    for nome, tipo in (("totp", "TEXT NOT NULL DEFAULT ''"), ("totp_ultimo", "INTEGER NOT NULL DEFAULT 0")):
+        if nome not in colonne:  # database creato da una versione precedente
+            conn.execute(f"ALTER TABLE utenti ADD COLUMN {nome} {tipo}")
     return conn
 
 

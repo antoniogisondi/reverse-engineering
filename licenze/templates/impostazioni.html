@@ -4,6 +4,9 @@
 <div class="card"><h2>Chiave pubblica</h2><div class="corpo">
 <p>Va inserita nel programma (<span class="mono">sicurcantiere/licenza.py</span>, <span class="mono">CHIAVE_PUBBLICA</span>) perché riconosca le licenze firmate qui. Si può condividere: non permette di creare licenze.</p>
 <textarea class="codice" readonly style="min-height:40px">{{ chiave }}</textarea></div></div>
+<div class="card"><h2>Verifica in due passaggi</h2><div class="corpo">
+<p>{% if con_2fa %}Attiva: all'accesso serve anche il codice dell'app sul telefono.{% else %}<b>Non attiva.</b> Con il gestionale aperto su internet va attivata: senza il telefono, la sola password non basta per entrare.{% endif %}</p>
+<a class="pulsante" href="{{ url_for('due_passaggi') }}">{% if con_2fa %}Gestisci{% else %}Attiva{% endif %}</a></div></div>
 <div class="card"><h2>Dati e copie di sicurezza</h2><div class="corpo">
 <p>Cartella dei dati sul server: <span class="mono">{{ cartella }}</span> (database <span class="mono">licenze.db</span> e <span class="mono">chiave_privata.pem</span>).</p>
 <p><b>La chiave privata va copiata in un posto sicuro</b> (chiavetta in cassaforte, gestore di password): se va persa non si possono più emettere licenze per i programmi già distribuiti. Non va mai mandata a nessuno.</p></div></div>

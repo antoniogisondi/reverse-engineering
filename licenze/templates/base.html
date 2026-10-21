@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block titolo %}Licenze{% endblock %} · SicurCantiere</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='stile.css') }}">
+<script src="{{ url_for('static', filename='azioni.js') }}" defer></script>
 </head>
 <body>
 {% if utente %}
@@ -23,6 +24,10 @@
 {% for categoria, messaggio in get_flashed_messages(with_categories=true) %}
   <div class="avviso {{ categoria }}">{{ messaggio }}</div>
 {% endfor %}
+{% if utente and not con_2fa and request.endpoint != 'due_passaggi' %}
+  <div class="avviso errore">La verifica in due passaggi non è attiva: se il gestionale è raggiungibile da internet
+  va attivata. <a href="{{ url_for('due_passaggi') }}">Attivala adesso</a>.</div>
+{% endif %}
 {% block contenuto %}{% endblock %}
 </main>
 </body>

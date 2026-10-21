@@ -17,7 +17,9 @@ def client(tmp_path, monkeypatch):
     crea_utente("antonio", "una password lunga")
     app = crea_app()
     app.config["TESTING"] = True
-    return app.test_client()
+    client = app.test_client()
+    client.environ_base["wsgi.url_scheme"] = "https"  # cookie di sessione solo su HTTPS
+    return client
 
 
 def _token(client):
@@ -25,13 +27,15 @@ def _token(client):
         return s.get("token") or ""
 
 
-def _accedi(client, password="una password lunga"):
+def _accedi(client, password="una password lunga", codice=""):
     client.get("/accesso")
-    return client.post("/accesso", data={"nome": "antonio", "password": password, "token": _token(client)})
+    return client.post("/accesso", data={"nome": "antonio", "password": password, "codice": codice,
+                                         "token": _token(client)})
 
 
 def test_accesso_obbligatorio_e_token(client):
     assert client.get("/").status_code == 302  # senza accesso si va alla pagina di login
+    assert "Content-Security-Policy" in client.get("/accesso").headers
     assert "non corretti" in _accedi(client, "sbagliata").get_data(as_text=True)
     assert _accedi(client).status_code == 302
     assert client.get("/").status_code == 200
@@ -73,3 +77,47 @@ def test_cliente_licenza_rinnovo_pagamento(client):
     csv = client.get("/esporta.csv").get_data(as_text=True)
     assert "Studio Rossi" in csv and csv.count("\n") == 3
     assert archivio.chiave_pubblica() in client.get("/impostazioni").get_data(as_text=True)
+
+
+def test_blocco_dopo_troppi_tentativi(client):
+    for _ in range(5):
+        assert _accedi(client, "sbagliata").status_code == 200
+    r = _accedi(client)  # bloccato anche con la password giusta
+    assert r.status_code == 429 and "Troppi tentativi" in r.get_data(as_text=True)
+    assert client.get("/").status_code == 302
+
+
+def test_verifica_in_due_passaggi(client):
+    import time
+
+    from licenze import totp
+
+    _accedi(client)
+    assert "due passaggi non è attiva" in client.get("/").get_data(as_text=True)
+    pagina = client.get("/impostazioni/due-passaggi").get_data(as_text=True)
+    assert "data:image/svg+xml" in pagina or "segno" not in pagina
+    with client.session_transaction() as s:
+        segreto = s["totp_nuovo"]
+    adesso = int(time.time() // totp.PERIODO)
+    client.post("/impostazioni/due-passaggi", data={"codice": "000000" if totp.codice(segreto, adesso) != "000000"
+                                                     else "111111", "token": _token(client)})
+    assert "due passaggi non è attiva" in client.get("/").get_data(as_text=True)  # codice sbagliato: non attivata
+    client.post("/impostazioni/due-passaggi", data={"codice": totp.codice(segreto, adesso), "token": _token(client)})
+    assert "due passaggi non è attiva" not in client.get("/").get_data(as_text=True)
+
+    client.post("/esci", data={"token": _token(client)})
+    assert _accedi(client).status_code == 200  # senza codice non si entra
+    assert _accedi(client, codice=totp.codice(segreto, adesso)).status_code == 200  # codice già usato
+    assert _accedi(client, codice=totp.codice(segreto, adesso + 1)).status_code == 302
+    assert client.get("/").status_code == 200
+
+
+def test_codici_totp_rfc6238():
+    import base64
+
+    from licenze import totp
+
+    segreto = base64.b32encode(b"12345678901234567890").decode()
+    assert totp.verifica(segreto, "287082", adesso=59) == 1
+    assert totp.verifica(segreto, "287082", ultimo=1, adesso=59) is None
+    assert totp.verifica(segreto, "287082", adesso=59 + 120) is None

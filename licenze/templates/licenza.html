@@ -6,7 +6,7 @@
 {% if precedente %}<p>Rinnovo di <a class="mono" href="{{ url_for('dettaglio_licenza', id_=precedente.id) }}">{{ precedente.codice_licenza }}</a>.</p>{% endif %}
 {% if successiva %}<p>Rinnovata con <a class="mono" href="{{ url_for('dettaglio_licenza', id_=successiva.id) }}">{{ successiva.codice_licenza }}</a>.</p>{% endif %}
 
-<div class="card"><h2>Codice da mandare al cliente <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('codice').value)">Copia</button></h2>
+<div class="card"><h2>Codice da mandare al cliente <button type="button" data-copia="codice">Copia</button></h2>
 <div class="corpo"><textarea id="codice" class="codice" readonly>{{ l.codice }}</textarea>
 <p>Testo per l'email:</p>
 <textarea class="codice" readonly>Gentile {{ l.cliente }},
@@ -27,7 +27,7 @@ https://github.com/antoniogisondi/sicurcantiere/releases/latest/download/SicurCa
 <div class="largo"><button class="primario">Rinnova per un anno</button></div>
 <div class="tutto sotto">La nuova scadenza parte dalla scadenza attuale (o da oggi, se è già passata). Al cliente va mandato il nuovo codice.</div>
 </form>
-<form class="corpo" method="post" action="{{ url_for('annulla', id_=l.id) }}" onsubmit="return confirm('Segnare la licenza come annullata?')">
+<form class="corpo" method="post" action="{{ url_for('annulla', id_=l.id) }}" data-conferma="Segnare la licenza come annullata?">
 <input type="hidden" name="token" value="{{ token }}"><button class="pericolo">Segna come annullata</button>
 <span class="sotto">Solo nel registro: un codice già consegnato resta valido fino alla scadenza.</span></form></div>
 {% endif %}

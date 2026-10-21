@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block titolo %}Verifica in due passaggi{% endblock %}
+{% block contenuto %}
+<h1>Verifica in due passaggi</h1><p class="sotto">Oltre alla password serve un codice di 6 cifre che cambia ogni 30 secondi sul telefono.</p>
+{% if attiva %}
+<div class="card"><h2>Attiva</h2>
+<form class="corpo" method="post"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="azione" value="disattiva">
+<p>Per disattivarla (per esempio per spostarla su un nuovo telefono) inserire la password.</p>
+<label for="password">Password</label><input id="password" name="password" type="password" required style="max-width:320px">
+<p></p><button class="pericolo">Disattiva</button></form></div>
+{% else %}
+<div class="card"><h2>1. Inquadra il codice con l'app</h2><div class="corpo">
+<p>Installare sul telefono un'app di autenticazione (Google Authenticator, Microsoft Authenticator, Aegis...), toccare «Aggiungi» e inquadrare il codice.</p>
+{% if qr %}<img src="{{ qr }}" alt="QR code per l'app di autenticazione" width="230" height="230">{% endif %}
+<p>Se non si riesce a inquadrarlo, inserire a mano questa chiave:</p>
+<p class="mono" style="font-size:15px;letter-spacing:1px">{{ segreto }}</p></div></div>
+<div class="card"><h2>2. Conferma</h2>
+<form class="corpo" method="post"><input type="hidden" name="token" value="{{ token }}">
+<label for="codice">Codice mostrato dall'app</label>
+<input id="codice" name="codice" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required style="max-width:200px">
+<p></p><button class="primario">Attiva</button></form></div>
+{% endif %}
+{% endblock %}
