@@ -97,15 +97,26 @@ def _togli_chiavi_vecchie() -> None:
         impostazioni.remove("ai/fornitore")
 
 
+def _mostra_pulsante_ai(pulsante: QWidget, attiva: bool) -> None:
+    if pulsante.parentWidget() is None:
+        # Un pulsante non ancora inserito nella pagina, se mostrato, diventa una
+        # finestra a sé che compare e sparisce: qui si decide solo se seguirà la
+        # pagina (che lo mostrerà insieme a sé) o se resterà nascosto.
+        pulsante.setAttribute(Qt.WidgetAttribute.WA_WState_ExplicitShowHide, not attiva)
+        pulsante.setAttribute(Qt.WidgetAttribute.WA_WState_Hidden, True)
+    else:
+        pulsante.setVisible(attiva)
+
+
 def registra_pulsante_ai(pulsante: QWidget) -> None:
     _pulsanti_ai.add(pulsante)
-    pulsante.setVisible(ai_attiva())
+    _mostra_pulsante_ai(pulsante, ai_attiva())
 
 
 def aggiorna_pulsanti_ai() -> None:
     attiva = ai_attiva()
     for pulsante in list(_pulsanti_ai):
-        pulsante.setVisible(attiva)
+        _mostra_pulsante_ai(pulsante, attiva)
 
 
 def motore() -> str:

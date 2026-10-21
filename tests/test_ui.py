@@ -686,11 +686,26 @@ def test_assistente_ai_spento_di_serie(app, monkeypatch):
 
     stato = {"attiva": False}
     monkeypatch.setattr(lavoro_ai, "ai_attiva", lambda: stato["attiva"])
+    from PySide6.QtWidgets import QVBoxLayout, QWidget
+
+    pagina = QWidget()
     pulsante = pulsante_ai("Suggerisci")
+    QVBoxLayout(pagina).addWidget(pulsante)
+    pagina.show()
     assert pulsante.isHidden()  # spento: il pulsante non compare
     stato["attiva"] = True
     lavoro_ai.aggiorna_pulsanti_ai()
-    assert not pulsante.isHidden()
+    assert pulsante.isVisible()
+    # Acceso: un pulsante ancora senza pagina non si mostra da solo (finestra lampo),
+    # ma compare con la pagina in cui viene inserito.
+    altro = pulsante_ai("Altro")
+    assert not altro.isVisible()
+    lavoro_ai.aggiorna_pulsanti_ai()
+    assert not altro.isVisible()
+    pagina.layout().addWidget(altro)
+    app.processEvents()
+    assert altro.isVisible()
+    pagina.close()
     stato["attiva"] = False
     chiamate = []
     lavoro_ai.esegui_ai(None, "x", lambda ai: chiamate.append(ai), lambda r: None)
@@ -973,3 +988,27 @@ def test_chiusura_con_modifiche_non_salvate(app, tmp_path, monkeypatch):
     assert traduci_in_italiano(app)  # pulsanti standard di Qt in italiano
     pulsanti = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Cancel)
     assert pulsanti.buttons()[0].text() == "Annulla"
+
+
+def test_nessuna_finestra_lampo_con_ai_accesa(app, tmp_path, monkeypatch):
+    from sicurcantiere import autoverifica
+    from sicurcantiere.ui import lavoro_ai
+
+    monkeypatch.setattr(lavoro_ai, "ai_attiva", lambda: True)
+    file = tmp_path / "c.scs"
+    Progetto(file, crea=True).chiudi()
+    f = FinestraPrincipale()
+    f.show()
+
+    def apri():
+        f.apri_file(file)
+        for i in range(len(f.pagine)):
+            f.navigazione.setCurrentRow(i)
+            app.processEvents()
+        f.salva()
+        f.apri_file(file)
+        app.processEvents()
+
+    assert autoverifica._finestre_comparse(f, apri) == []
+    f.salva()
+    f.close()

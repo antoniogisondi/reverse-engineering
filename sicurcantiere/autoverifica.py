@@ -85,8 +85,15 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     finestra.show()
     processi: list[str] = []
     finestre_native: list[str] = []
-    with _registra_processi(processi), _registra_finestre_native(finestra, finestre_native):
-        lampi = _finestre_comparse(finestra, lambda: _apri_e_sfoglia(finestra, file))
+    from sicurcantiere.ui import lavoro_ai
+
+    # come sul computer di chi ha la licenza: con l'assistente acceso compaiono i suoi pulsanti
+    ai_attiva, lavoro_ai.ai_attiva = lavoro_ai.ai_attiva, lambda: True
+    try:
+        with _registra_processi(processi), _registra_finestre_native(finestra, finestre_native):
+            lampi = _finestre_comparse(finestra, lambda: _apri_e_sfoglia(finestra, file))
+    finally:
+        lavoro_ai.ai_attiva = ai_attiva
     righe.append(f"processi avviati all'apertura: {len(processi)}")
     righe.extend(f"  {p}" for p in processi)
     righe.append(f"finestre di sistema comparse all'apertura: {len(finestre_native)}")
