@@ -81,20 +81,15 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
 
 
 def _prova_licenza() -> str:
-    """Firma e verifica una licenza con una chiave di prova: la crittografia è nell'eseguibile."""
+    """Firma e verifica una licenza con una chiave di prova appena creata."""
     import base64
+    import os
     from datetime import date
 
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from sicurcantiere import ed25519, licenza
 
-    from sicurcantiere import licenza
-
-    privata = Ed25519PrivateKey.generate()
-    grezza = privata.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
-                                   serialization.NoEncryption())
-    pubblica = privata.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    segreto = os.urandom(32)
+    pubblica = base64.b64encode(ed25519.chiave_pubblica(segreto)).decode()
     prova = licenza.Licenza("PROVA", "Autoverifica", "completo", date.today())
-    letta = licenza.leggi(licenza.firma(prova, grezza), base64.b64encode(pubblica).decode())
-    assert letta == prova, "verifica della licenza non riuscita"
+    assert licenza.leggi(licenza.firma(prova, segreto), pubblica) == prova, "verifica della licenza non riuscita"
     return f"licenze: verifica della firma riuscita (controllo {'attivo' if licenza.controllo_attivo() else 'non attivo'})"

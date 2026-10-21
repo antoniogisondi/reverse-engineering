@@ -21,6 +21,8 @@ import os
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from sicurcantiere import ed25519
+
 PREFISSO = "SC1-"
 GIORNI_PROVA = 30
 
@@ -98,30 +100,31 @@ def controllo_attivo() -> bool:
 
 
 def firma(licenza: Licenza, chiave_privata: bytes) -> str:
-    """Codice di licenza firmato (usato dal gestionale sul server)."""
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
+    """Codice di licenza firmato con la chiave privata (32 byte); lo usa il gestionale sul server."""
     dati = json.dumps(licenza.dati(), ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
-    firma_ = Ed25519PrivateKey.from_private_bytes(chiave_privata).sign(dati)
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    except ImportError:  # senza la libreria (per esempio nell'eseguibile) si usa l'implementazione pura
+        firma_ = ed25519.firma(chiave_privata, dati)
+    else:
+        firma_ = Ed25519PrivateKey.from_private_bytes(chiave_privata).sign(dati)
     return f"{PREFISSO}{_b64(dati)}.{_b64(firma_)}"
 
 
 def leggi(codice: str, chiave: str | None = None) -> Licenza:
     """Verifica il codice e restituisce la licenza; ErroreLicenza se non è valido."""
-    from cryptography.exceptions import InvalidSignature
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
     codice = "".join(codice.split())  # tollera spazi e a capo copiati dall'email
     if not codice.startswith(PREFISSO) or "." not in codice:
         raise ErroreLicenza("Il codice di licenza non è nel formato giusto (deve iniziare con SC1-).")
     dati_b64, firma_b64 = codice[len(PREFISSO):].split(".", 1)
+    errore = ErroreLicenza("Il codice di licenza non è valido: controllare di averlo copiato per intero.")
     try:
         dati, firma_ = _da_b64(dati_b64), _da_b64(firma_b64)
-        pubblica = Ed25519PublicKey.from_public_bytes(base64.b64decode(chiave or chiave_pubblica()))
-        pubblica.verify(firma_, dati)
+        if not ed25519.verifica(base64.b64decode(chiave or chiave_pubblica()), dati, firma_):
+            raise errore
         contenuto = json.loads(dati.decode("utf-8"))
-    except (InvalidSignature, ValueError, UnicodeDecodeError) as e:
-        raise ErroreLicenza("Il codice di licenza non è valido: controllare di averlo copiato per intero.") from e
+    except (ValueError, UnicodeDecodeError) as e:
+        raise errore from e
     return Licenza.da_dati(contenuto)
 
 

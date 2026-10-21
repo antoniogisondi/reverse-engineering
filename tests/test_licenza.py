@@ -73,3 +73,29 @@ def test_aggiornamenti_con_licenza_scaduta():
     assert aggiornamenti.inclusa_nella_licenza(v, None)
     assert not aggiornamenti.inclusa_nella_licenza(v, date(2027, 10, 1))
     assert aggiornamenti.inclusa_nella_licenza(v, date(2027, 12, 1))
+
+
+def test_ed25519_vettore_rfc8032():
+    from sicurcantiere import ed25519
+
+    # RFC 8032, sezione 7.1, TEST 1 (messaggio vuoto)
+    segreto = bytes.fromhex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60")
+    pubblica = bytes.fromhex("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
+    firma = bytes.fromhex("e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555"
+                          "fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b")
+    assert ed25519.chiave_pubblica(segreto) == pubblica
+    assert ed25519.firma(segreto, b"") == firma
+    assert ed25519.verifica(pubblica, b"", firma)
+    assert not ed25519.verifica(pubblica, b"x", firma)
+    assert not ed25519.verifica(pubblica, b"", firma[:-1] + bytes([firma[-1] ^ 1]))
+
+
+def test_firma_della_libreria_e_verifica_pura(chiavi):
+    # il gestionale firma con cryptography, il programma verifica in Python puro: devono coincidere
+    from sicurcantiere import ed25519
+
+    dati = b"licenza di prova"
+    firma = Ed25519PrivateKey.from_private_bytes(chiavi).sign(dati)
+    pubblica = base64.b64decode(licenza.chiave_pubblica())
+    assert ed25519.verifica(pubblica, dati, firma)
+    assert ed25519.firma(chiavi, dati) == firma  # Ed25519 è deterministico

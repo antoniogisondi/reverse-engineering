@@ -34,6 +34,7 @@ pyinstaller --noconfirm --clean --windowed --name "SicurCantiere %1" ^
     --collect-data docx ^
     --paths . ^
     --collect-submodules sicurcantiere ^
+    --exclude-module cryptography ^
     --add-data "sicurcantiere\risorse;sicurcantiere\risorse" ^
     scripts\avvio_%2.py || exit /b 1
 echo Creato dist\SicurCantiere %1\SicurCantiere %1.exe
