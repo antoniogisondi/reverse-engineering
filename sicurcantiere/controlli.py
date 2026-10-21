@@ -102,6 +102,11 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
         s.append(Segnalazione(AVVISO, "Committente", "Manca il committente dei lavori."))
 
     imprese = [i for i in repo.elenco("imprese") if not anagrafiche.autonomo(i)]
+    # Le imprese senza lavorazioni né lavoratori sono solo di riferimento (affidataria, subappaltatrici,
+    # imprese venute dal PSC): si controllano quelle che redigono il POS, se ce ne sono.
+    operative = [i for i in imprese if repo.elenco("fasi", impresa_id=i["id"])
+                 or repo.elenco("lavoratori", impresa_id=i["id"])]
+    imprese = operative or imprese
     if not imprese:
         s.append(Segnalazione(ERRORE, "Impresa", "Inserire l'impresa che redige il POS."))
     oggi = date.today().isoformat()

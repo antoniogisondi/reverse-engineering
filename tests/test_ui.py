@@ -108,6 +108,15 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     imprese = _pagina(f, PaginaImprese)
     f.navigazione.setCurrentRow(f.pagine.index(imprese))
     assert not imprese.schede.isVisibleTo(imprese)  # nel PSC niente dati del POS
+    # «Prepara il POS dell'impresa...» crea il file .spo dell'impresa selezionata
+    assert any(b.text() == "Prepara il POS dell'impresa..." for b in imprese.findChildren(QtWidgets.QPushButton))
+    imprese.tabella.ricarica()
+    imprese.tabella.seleziona(a)
+    file_pos = imprese.prepara_pos(str(tmp_path / "pos alfa"))
+    assert file_pos.suffix == ".spo" and file_pos.is_file()
+    copia = Progetto(file_pos)
+    assert [i["id"] for i in Repository(copia).elenco("imprese")] == [a]
+    copia.chiudi()
 
     costi = _pagina(f, PaginaCosti)
     f.navigazione.setCurrentRow(f.pagine.index(costi))

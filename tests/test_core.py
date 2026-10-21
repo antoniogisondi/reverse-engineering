@@ -838,3 +838,41 @@ def test_autoverifica(tmp_path, monkeypatch):
     assert autoverifica.esegui(tmp_path, "pos") == 0
     esito = (tmp_path / "autoverifica.txt").read_text(encoding="utf-8")
     assert "ESITO: OK" in esito and (tmp_path / "prova POS.docx").is_file()
+
+
+def test_prepara_pos_dal_psc(repo, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.documenti.pos import genera_pos
+    from sicurcantiere.prepara_pos import CHIAVE_ORIGINE, prepara_pos
+
+    a = _cantiere_completo(repo)
+    b = repo.inserisci("imprese", ragione_sociale="Beta Impianti", tipo="Esecutrice", datore_lavoro="Ugo Blu")
+    sub = repo.inserisci("imprese", ragione_sociale="Gamma Sub", tipo="Subappaltatrice", affidataria_id=a)
+    repo.inserisci("lavoratori", impresa_id=b, nome="Ivo", cognome="Gialli", mansione="Elettricista")
+    fase_a = repo.elenco("fasi", impresa_id=a)[0]
+    fase_b = repo.inserisci("fasi", codice="IMP", descrizione="Impianto elettrico", impresa_id=b,
+                            data_inizio=fase_a["data_inizio"], data_fine=fase_a["data_fine"])
+    repo.inserisci("rischi", fase_id=fase_b, descrizione="Elettrocuzione", probabilita=2, danno=3, misure="x")
+    repo.salva_prescrizione(*sorted((fase_a["id"], fase_b)), "Sfasare le lavorazioni sullo stesso piano.")
+    repo.inserisci("costi", descrizione="Recinzione", quantita=1, prezzo_unitario=100)
+
+    file = prepara_pos(repo, a, tmp_path / "pos alfa.spo")
+    pos = Repository(Progetto(file))
+    try:
+        assert {i["ragione_sociale"] for i in pos.elenco("imprese")} == {"Alfa Costruzioni", "Gamma Sub"}
+        assert all(f["impresa_id"] == a for f in pos.elenco("fasi"))
+        assert not pos.elenco("costi") and not pos.prescrizioni()
+        assert [l["cognome"] for l in pos.elenco("lavoratori")] == [l["cognome"] for l in repo.elenco(
+            "lavoratori", impresa_id=a)]
+        procedure = pos.leggi("fasi", fase_a["id"])["procedure_psc"]
+        assert "Impianto elettrico" in procedure and "Beta Impianti" in procedure and "Sfasare" in procedure
+        assert pos.testo(CHIAVE_ORIGINE).startswith("Preparato dal PSC")
+        assert pos.cantiere()["nome"] == repo.cantiere()["nome"] and pos.elenco("soggetti")
+        # la subappaltatrice è solo di riferimento: niente errori per lei nei controlli del POS
+        assert not any("Gamma Sub" in s.messaggio for s in controlli.controlla_pos(pos))
+        testo = _testo_docx(genera_pos(pos, a, tmp_path / "pos.docx"))
+        assert "Sfasare le lavorazioni" in testo and "Gamma Sub" in testo
+    finally:
+        pos.progetto.chiudi()
+    assert len(repo.elenco("imprese")) == 3 and repo.prescrizioni()  # il PSC resta com'era
+    assert sub

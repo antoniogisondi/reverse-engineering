@@ -17,20 +17,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from PySide6.QtCore import QSize
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QSize, QUrl
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
 
 from sicurcantiere import controlli, pimus
+from sicurcantiere.prepara_pos import prepara_pos
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui import tema
 from sicurcantiere.ui.pagine import (
@@ -70,6 +73,40 @@ class PaginaImpresePSC(PaginaImprese):
     titolo = "Imprese e lavoratori autonomi"
     voce = "Imprese"
     schede_visibili = ()
+
+    def __init__(self, repo: Repository):
+        super().__init__(repo)
+        self.tabella.aggiungi_pulsante("Prepara il POS dell'impresa...", self.prepara_pos)
+
+    def prepara_pos(self, destinazione: str | None = None) -> Path | None:
+        """File .spo con i dati dell'impresa selezionata, da completare in SicurCantiere POS."""
+        id_ = self.tabella.id_selezionato()
+        impresa = self.repo.leggi("imprese", id_) if id_ is not None else None
+        if impresa is None:
+            QMessageBox.information(self, "Prepara il POS", "Seleziona l'impresa di cui preparare il POS.")
+            return None
+        if not destinazione:
+            nome = " - ".join(v for v in (self.repo.cantiere()["nome"], impresa["ragione_sociale"]) if v) or "POS"
+            nome = "".join(c for c in nome if c not in '<>:"/\\|?*').strip()
+            proposta = str(self.repo.progetto.percorso.with_name(f"POS {nome}.spo"))
+            destinazione, _ = QFileDialog.getSaveFileName(self, "Prepara il POS dell'impresa", proposta,
+                                                          "Cantiere POS (*.spo)")
+            if not destinazione:
+                return None
+        percorso = Path(destinazione).with_suffix(".spo")
+        try:
+            prepara_pos(self.repo, impresa["id"], percorso)
+        except (OSError, ValueError) as e:
+            QMessageBox.warning(self, "Prepara il POS", f"Il file non è stato creato:\n{e}")
+            return None
+        if not QApplication.platformName() == "offscreen" and QMessageBox.question(
+                self, "Prepara il POS",
+                f"Creato il file del POS di {impresa['ragione_sociale'] or 'questa impresa'}:\n{percorso}\n\n"
+                "Contiene i dati del cantiere, dell'impresa, le sue lavorazioni con rischi e attrezzature e le "
+                "prescrizioni sulle interferenze. Aprirlo ora con SicurCantiere POS per completarlo?",
+        ) == QMessageBox.StandardButton.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(percorso)))
+        return percorso
 
 
 class PaginaDocumentiPSC(PaginaDocumenti):
