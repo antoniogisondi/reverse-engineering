@@ -53,7 +53,7 @@ def test_richiesta_e_consumo(server):
     r = _chiedi(client, c)
     assert r.status_code == 200 and json.loads(r.json["contenuto"]) == {"testo": "ok"}
     assert r.json["credito"]["usati_mese"] == 1500 and r.json["credito"]["quota"] == 3_000_000
-    assert chiamate == [(ai.DEEPSEEK, "chiave-standard", "deepseek-flash")]
+    assert chiamate == [(ai.DEEPSEEK, "chiave-standard", "deepseek-v4-pro")]
     stato = client.post("/api/ai/stato", json={"licenza": c}).json
     assert stato["credito"]["residuo"] == 3_000_000 - 1500 and not stato["motori"]["avanzato"]["disponibile"]
     # Claude solo nel piano Studio, e conta 8 crediti per token

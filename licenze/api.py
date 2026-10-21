@@ -49,7 +49,7 @@ class Motore:
 def motori() -> dict[str, Motore | None]:
     """Motori configurati con le variabili d'ambiente del servizio (None se manca la chiave)."""
     env = os.environ.get
-    standard = Motore(ai.DEEPSEEK, env("SICURCANTIERE_AI_STANDARD_MODELLO", "deepseek-flash"),
+    standard = Motore(ai.DEEPSEEK, env("SICURCANTIERE_AI_STANDARD_MODELLO", "deepseek-v4-pro"),
                       env("SICURCANTIERE_AI_STANDARD_CHIAVE", ""), env("SICURCANTIERE_AI_STANDARD_URL", ""),
                       env("SICURCANTIERE_AI_STANDARD_SEDE", "DeepSeek, con trattamento dei dati in Cina"))
     avanzato = Motore(ai.ANTHROPIC, env("SICURCANTIERE_AI_AVANZATO_MODELLO", "claude-sonnet-5-5"),

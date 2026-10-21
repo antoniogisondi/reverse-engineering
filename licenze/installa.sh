@@ -156,7 +156,7 @@ if [ ! -f "$CONF/ai.env" ]; then
 # Motore standard (tutti i piani): DeepSeek o un servizio compatibile, anche ospitato in Europa
 # (in quel caso indicare l'indirizzo, il modello e la sede del trattamento).
 SICURCANTIERE_AI_STANDARD_CHIAVE=
-SICURCANTIERE_AI_STANDARD_MODELLO=deepseek-flash
+SICURCANTIERE_AI_STANDARD_MODELLO=deepseek-v4-pro
 SICURCANTIERE_AI_STANDARD_URL=
 SICURCANTIERE_AI_STANDARD_SEDE=DeepSeek, con trattamento dei dati in Cina
 # Lunghezza massima delle risposte (token): i modelli che «ragionano» prima di rispondere ne usano
