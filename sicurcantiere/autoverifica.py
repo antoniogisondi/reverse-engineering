@@ -83,7 +83,19 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
 
     finestra = FinestraPrincipale(EDIZIONI[edizione])
     finestra.show()
-    lampi = _finestre_comparse(finestra, lambda: _apri_e_sfoglia(finestra, file))
+    processi: list[str] = []
+    finestre_native: list[str] = []
+    with _registra_processi(processi), _registra_finestre_native(finestra, finestre_native):
+        lampi = _finestre_comparse(finestra, lambda: _apri_e_sfoglia(finestra, file))
+    righe.append(f"processi avviati all'apertura: {len(processi)}")
+    righe.extend(f"  {p}" for p in processi)
+    righe.append(f"finestre di sistema comparse all'apertura: {len(finestre_native)}")
+    righe.extend(f"  {f}" for f in finestre_native)
+    import os
+
+    # falliscono la prova i processi avviati e le finestre di questo programma; le altre (di altri
+    # programmi del computer) si riportano soltanto
+    lampi += processi + [f for f in finestre_native if f.startswith(f"pid {os.getpid()} ")]
     assert finestra.pagine, "pagine non create"
     righe.append(f"finestra: {len(finestra.pagine)} pagine")
     # Elementi che compaiono per un istante come finestre a sé (icone che lampeggiano nella barra
@@ -95,6 +107,100 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     finestra.close()
     finestra.deleteLater()
     return righe
+
+
+class _registra_processi:
+    """Registra i processi avviati (con il punto del codice che li avvia): su Windows ognuno fa
+    lampeggiare un'icona nella barra delle applicazioni."""
+
+    def __init__(self, elenco: list[str]):
+        self.elenco = elenco
+        self.originali: list[tuple[object, str, object]] = []
+
+    def __enter__(self):
+        import os
+        import subprocess
+
+        def spia(oggetto, nome):
+            originale = getattr(oggetto, nome, None)
+            if originale is None:
+                return
+
+            def registrata(*a, **k):
+                pila = "".join(traceback.format_stack(limit=12)[:-1])
+                self.elenco.append(f"{nome}{a[:2]!r}\n{pila}")
+                return originale(*a, **k)
+
+            setattr(oggetto, nome, registrata)
+            self.originali.append((oggetto, nome, originale))
+
+        try:
+            import _winapi
+
+            spia(_winapi, "CreateProcess")
+        except ImportError:
+            spia(subprocess, "Popen")
+        for nome in ("system", "startfile", "spawnv", "spawnl", "execv"):
+            spia(os, nome)
+        return self
+
+    def __exit__(self, *_):
+        for oggetto, nome, originale in self.originali:
+            setattr(oggetto, nome, originale)
+        return False
+
+
+class _registra_finestre_native:
+    """Su Windows: finestre visibili di qualsiasi programma comparse durante l'apertura (anche non di Qt)."""
+
+    def __init__(self, principale, elenco: list[str]):
+        self.principale, self.elenco = principale, elenco
+        self.timer = None
+
+    def _visibili(self) -> dict[int, str]:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        trovate: dict[int, str] = {}
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def una(hwnd, _):
+            if user32.IsWindowVisible(hwnd):
+                titolo = ctypes.create_unicode_buffer(256)
+                classe = ctypes.create_unicode_buffer(256)
+                user32.GetWindowTextW(hwnd, titolo, 256)
+                user32.GetClassNameW(hwnd, classe, 256)
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                trovate[hwnd] = f"pid {pid.value} classe {classe.value!r} titolo {titolo.value!r}"
+            return True
+
+        user32.EnumWindows(una, 0)
+        return trovate
+
+    def _controlla(self) -> None:
+        for hwnd, descrizione in self._visibili().items():
+            if hwnd not in self.iniziali and hwnd != int(self.principale.winId()) and descrizione not in self.elenco:
+                self.elenco.append(descrizione)
+
+    def __enter__(self):
+        import sys
+
+        if sys.platform != "win32":
+            return self
+        from PySide6.QtCore import QTimer
+
+        self.iniziali = set(self._visibili())
+        self.timer = QTimer(interval=5)
+        self.timer.timeout.connect(self._controlla)
+        self.timer.start()
+        return self
+
+    def __exit__(self, *_):
+        if self.timer is not None:
+            self.timer.stop()
+        return False
 
 
 def _apri_e_sfoglia(finestra, file: Path) -> None:
