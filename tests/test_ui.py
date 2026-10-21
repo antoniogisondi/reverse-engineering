@@ -573,3 +573,36 @@ def test_spunta_rischio_non_presente(app, tmp_path):
     tabella.vista.item(0, colonna).setCheckState(QtCore.Qt.CheckState.Unchecked)
     assert repo.leggi("rischi", rischio)["non_presente"] == 0
     f.close()
+
+
+def test_nuovo_su_cantiere_esistente_non_lo_cancella(app, tmp_path, monkeypatch):
+    from sicurcantiere.db import cartella_copie
+    from sicurcantiere.ui.edizioni import POS
+
+    p = Progetto(tmp_path / "Cliente.spo", crea=True)
+    Repository(p).aggiorna_cantiere(nome="Scuola di Bari")
+    p.chiudi()
+    opzioni = []
+
+    def salva(*a, **k):
+        opzioni.append(k.get("options"))
+        return str(tmp_path / "Cliente.spo"), ""
+
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", salva)
+    f = FinestraPrincipale(POS)
+    # Scelto per sbaglio da «Nuovo cantiere»: si apre il cantiere, nessuna sostituzione.
+    monkeypatch.setattr(f, "_scelta_file_esistente", lambda percorso: "apri")
+    f.nuovo()
+    assert opzioni == [QtWidgets.QFileDialog.Option.DontConfirmOverwrite]
+    assert f.pagine[0].repo.cantiere()["nome"] == "Scuola di Bari"
+    f._chiudi_progetto()
+    monkeypatch.setattr(f, "_scelta_file_esistente", lambda percorso: "annulla")
+    f.nuovo()
+    assert f.progetto is None
+    # Sostituito su richiesta esplicita: il vecchio resta tra le copie di sicurezza.
+    monkeypatch.setattr(f, "_scelta_file_esistente", lambda percorso: "sostituisci")
+    f.nuovo()
+    assert f.pagine[0].repo.cantiere()["nome"] == ""
+    copie = sorted(cartella_copie().glob("Cliente-*.spo"))
+    assert copie and Repository(Progetto(copie[-1])).cantiere()["nome"] == "Scuola di Bari"
+    f.close()

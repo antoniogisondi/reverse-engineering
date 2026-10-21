@@ -354,8 +354,11 @@ class FinestraPrincipale(QMainWindow):
         return str(Path(recenti[0]).parent) if recenti else str(Path.home())
 
     def nuovo(self) -> None:
+        # Niente conferma di sovrascrittura di Windows: scegliere un cantiere esistente qui di
+        # solito vuol dire volerlo aprire, e «Sì» lo sostituirebbe con uno vuoto.
         percorso, _ = QFileDialog.getSaveFileName(
-            self, "Nuovo cantiere", str(Path(self._cartella_iniziale()) / f"Cantiere{self.edizione.estensione}"), self.filtro
+            self, "Nuovo cantiere", str(Path(self._cartella_iniziale()) / f"Cantiere{self.edizione.estensione}"),
+            self.filtro, options=QFileDialog.Option.DontConfirmOverwrite,
         )
         if not percorso:
             return
@@ -365,7 +368,30 @@ class FinestraPrincipale(QMainWindow):
         if self.progetto and percorso.resolve() == self.progetto.percorso.resolve():
             QMessageBox.warning(self, "Nuovo cantiere", "Il file è già aperto: scegliere un altro nome.")
             return
+        if percorso.exists():
+            scelta = self._scelta_file_esistente(percorso)
+            if scelta == "apri":
+                self.apri_file(percorso)
+                return
+            if scelta != "sostituisci":
+                return
         self._carica(Progetto(percorso, crea=True))
+
+    def _scelta_file_esistente(self, percorso: Path) -> str:
+        """Chiede cosa fare se il nuovo cantiere ha il nome di un file esistente: apri, sostituisci o annulla."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle("Nuovo cantiere")
+        box.setText(f"Esiste già un cantiere «{percorso.name}» in questa cartella.")
+        box.setInformativeText("Per lavorarci scegliere «Apri il cantiere». «Sostituisci» crea al suo posto un "
+                               "cantiere vuoto (resta una copia di sicurezza del vecchio).")
+        apri = box.addButton("Apri il cantiere", QMessageBox.ButtonRole.AcceptRole)
+        sostituisci = box.addButton("Sostituisci con uno vuoto", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton("Annulla", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(apri)
+        box.exec()
+        return "apri" if box.clickedButton() is apri else "sostituisci" if box.clickedButton() is sostituisci \
+            else "annulla"
 
     def apri(self) -> None:
         percorso, _ = QFileDialog.getOpenFileName(self, "Apri cantiere", self._cartella_iniziale(), self.filtro)

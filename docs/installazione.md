@@ -1,6 +1,7 @@
 # Installare SicurCantiere su Windows
 
-1. Scaricare `SicurCantiere-<versione>-setup.exe` dalla pagina della versione (sezione *Assets*).
+1. Scaricare l'installatore dell'ultima versione:
+   https://github.com/antoniogisondi/sicurcantiere/releases/latest/download/SicurCantiere-setup.exe
 2. Fare doppio clic sul file. Il programma non ha una firma digitale a pagamento, quindi
    Windows può mostrare «Windows ha protetto il PC»: fare clic su **Ulteriori informazioni**
    e poi su **Esegui comunque**.

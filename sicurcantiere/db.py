@@ -413,6 +413,7 @@ class Progetto:
     def __init__(self, percorso: str | Path, crea: bool = False):
         self.percorso = Path(percorso)
         if crea and self.percorso.exists():
+            self._backup()  # un cantiere sostituito resta recuperabile tra le copie di sicurezza
             self.percorso.unlink()
         if not crea and not self.percorso.exists():
             raise ErroreProgetto(f"File non trovato: {self.percorso}")
