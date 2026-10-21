@@ -12,6 +12,7 @@ from sicurcantiere.documenti.comune import (
     indirizzo_cantiere,
     nome_fase,
     nuovo_documento,
+    salva,
     tabella,
     tabella_voci,
 )
@@ -95,6 +96,4 @@ def genera_elenco_sostanze(repo: Repository, impresa_id: int, destinazione: str 
     doc.add_paragraph()
     aggiungi_sostanze(doc, repo, sostanze_impresa(repo, impresa_id), livello=1)
     firma(doc, "Il Datore di lavoro")
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

@@ -757,7 +757,7 @@ def test_licenza_prova_e_programma_non_incluso(app, tmp_path, monkeypatch):
     impostazioni.setValue("licenza/codice", codice)
     f = FinestraPrincipale(POS)
     f.apri_file(tmp_path / "b.spo")
-    assert f.progetto is not None and f.stato_licenza.isHidden()
+    assert f.progetto is not None and f.stato_licenza.text() == "Licenza POS · Studio Rossi"
     f.close()
     f = FinestraPrincipale(PSC)
     testi = [w.text() for w in f.findChildren(QtWidgets.QLabel)]

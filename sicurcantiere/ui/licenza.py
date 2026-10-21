@@ -45,6 +45,7 @@ def stato_corrente(programma: str) -> licenza.Stato:
     stato = licenza.stato(programma, codice_salvato(), inizio)
     if stato.tipo == licenza.PROVA and inizio is None:
         impostazioni_comuni().setValue(CHIAVE_INIZIO_PROVA, date.today().isoformat())
+    licenza.registra(stato)  # i documenti generati riportano il titolare della licenza
     return stato
 
 
@@ -61,7 +62,8 @@ def descrizione(stato: licenza.Stato, nome_programma: str) -> str:
     if stato.tipo == licenza.NON_INCLUSO:
         return (f"{nome_programma} non è incluso nella tua licenza (piano {l.nome_piano}). "
                 "Si può aggiungere passando al piano Completo.")
-    testo = f"Licenza {l.nome_piano} intestata a {l.cliente}"
+    postazioni = "1 postazione" if l.postazioni == 1 else f"{l.postazioni} postazioni"
+    testo = f"Licenza {l.nome_piano} n. {l.id} intestata a {l.cliente}, per {postazioni}"
     if l.scadenza is None:
         return testo + ", senza scadenza."
     if l.scaduta():
@@ -76,6 +78,8 @@ def testo_barra(stato: licenza.Stato) -> str:
         return f"Prova gratuita: {stato.giorni_prova} giorni"
     if stato.tipo == licenza.LICENZA and stato.scaduta:
         return "Licenza scaduta: rinnova per gli aggiornamenti"
+    if stato.tipo == licenza.LICENZA:
+        return f"Licenza {stato.licenza.nome_piano} · {stato.licenza.cliente}"
     return ""
 
 

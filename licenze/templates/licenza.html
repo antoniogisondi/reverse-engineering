@@ -6,17 +6,29 @@
 {% if precedente %}<p>Rinnovo di <a class="mono" href="{{ url_for('dettaglio_licenza', id_=precedente.id) }}">{{ precedente.codice_licenza }}</a>.</p>{% endif %}
 {% if successiva %}<p>Rinnovata con <a class="mono" href="{{ url_for('dettaglio_licenza', id_=successiva.id) }}">{{ successiva.codice_licenza }}</a>.</p>{% endif %}
 
-<div class="card"><h2>Codice da mandare al cliente <button type="button" data-copia="codice">Copia</button></h2>
+<div class="card"><h2>Codice da mandare al cliente <button type="button" data-copia="codice">Copia il codice</button></h2>
 <div class="corpo"><textarea id="codice" class="codice" readonly>{{ l.codice }}</textarea>
-<p>Testo per l'email:</p>
-<textarea class="codice" readonly>Gentile {{ l.cliente }},
-ecco il codice della sua licenza SicurCantiere (piano {{ nome_piano }}{% if l.scadenza %}, valida fino al {{ l.scadenza|data }}{% endif %}):
+<p class="riga" style="justify-content:space-between"><b>Testo dell'email</b>
+<span class="riga"><button type="button" data-copia="testo-consegna">Copia il testo</button>
+<a class="pulsante primario" href="{{ email_consegna }}">Apri l'email{% if l.email %} a {{ l.email }}{% endif %}</a></span></p>
+<textarea id="testo-consegna" class="codice" readonly>{{ consegna }}</textarea>
+<form class="riga" method="post" action="{{ url_for('registra_invio', id_=l.id) }}"><input type="hidden" name="token" value="{{ token }}">
+<input type="hidden" name="tipo" value="codice"><button>Segna il codice come consegnato oggi</button>
+{% if not l.email %}<span class="sotto">Il cliente non ha un'email: aggiungila nella sua scheda.</span>{% endif %}</form></div></div>
 
-{{ l.codice }}
+{% if rinnovo %}
+<div class="card"><h2>Promemoria di rinnovo</h2><div class="corpo">
+<p class="riga" style="justify-content:flex-end"><button type="button" data-copia="testo-rinnovo">Copia il testo</button>
+<a class="pulsante" href="{{ email_rinnovo }}">Apri l'email</a></p>
+<textarea id="testo-rinnovo" class="codice" readonly style="min-height:90px">{{ rinnovo }}</textarea>
+<form method="post" action="{{ url_for('registra_invio', id_=l.id) }}"><input type="hidden" name="token" value="{{ token }}">
+<input type="hidden" name="tipo" value="promemoria"><button>Segna il promemoria come inviato oggi</button></form></div></div>
+{% endif %}
 
-Per attivarla: aprire SicurCantiere, menu Aiuto > Licenza, incollare il codice e premere «Attiva la licenza».
-L'installatore aggiornato si scarica da:
-https://github.com/antoniogisondi/sicurcantiere/releases/latest/download/SicurCantiere-setup.exe</textarea></div></div>
+<div class="card"><h2>Registro degli invii</h2>
+{% if invii %}<table><tr><th>Data</th><th>Invio</th><th>Destinatario</th><th>Registrato da</th></tr>
+{% for i in invii %}<tr><td>{{ i.data|data }}</td><td>{{ tipi_invio[i.tipo] }}</td><td>{{ i.destinatario or "—" }}</td><td>{{ i.utente }}</td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Nessun invio registrato: dopo aver mandato il codice premi «Segna il codice come consegnato».</div>{% endif %}</div>
 
 {% if l.stato == "attiva" %}
 <div class="card"><h2>Rinnovo</h2>

@@ -170,5 +170,25 @@ def _stato_prova(inizio: date, oggi: date) -> Stato:
     return Stato(PROVA, giorni_prova=rimasti) if rimasti > 0 else Stato(PROVA_FINITA)
 
 
+# Stato della licenza del programma in uso, registrato dall'interfaccia: serve ai documenti
+# generati, che riportano a piè di pagina a chi è intestata la licenza.
+_attivo: Stato | None = None
+
+
+def registra(stato_attuale: Stato | None) -> None:
+    global _attivo
+    _attivo = stato_attuale
+
+
+def dicitura_documenti(stato_attuale: Stato | None = None) -> str:
+    """Riga in piccolo a piè di pagina dei documenti: licenza e titolare, oppure la versione di prova."""
+    s = stato_attuale or _attivo
+    if s is None or s.tipo == LIBERO:
+        return ""
+    if s.licenza is not None and s.tipo in (LICENZA, NON_INCLUSO):
+        return f"SicurCantiere · licenza {s.licenza.id} intestata a {s.licenza.cliente}"
+    return "Documento redatto con SicurCantiere in versione di prova"
+
+
 def fine_prova(inizio: date) -> date:
     return inizio + timedelta(days=GIORNI_PROVA)

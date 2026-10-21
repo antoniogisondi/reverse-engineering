@@ -11,7 +11,7 @@ from docx.shared import Cm
 
 from sicurcantiere import anagrafiche, analisi, segnaletica
 from sicurcantiere.documenti import stile
-from sicurcantiere.documenti.comune import data_it, euro, indirizzo_cantiere, nome_fase
+from sicurcantiere.documenti.comune import data_it, euro, indirizzo_cantiere, nome_fase, salva
 from sicurcantiere.documenti.sostanze import aggiungi_sostanze, sostanze_impresa
 from sicurcantiere.documenti.valutazione import aggiungi_valutazione, lavorazioni_valutazione, valutazioni_impresa
 from sicurcantiere.repository import Repository
@@ -630,6 +630,4 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                   rls["nome"] if rls else ""))
     stile.firme(doc, firme)
 
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

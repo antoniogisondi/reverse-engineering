@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block titolo %}Registro invii{% endblock %}
+{% block contenuto %}
+<h1>Registro degli invii</h1><p class="sotto">Codici consegnati e promemoria di rinnovo, dal più recente.</p>
+<div class="card">
+{% if righe %}<table><tr><th>Data</th><th>Invio</th><th>Licenza</th><th>Cliente</th><th>Destinatario</th><th>Registrato da</th></tr>
+{% for r in righe %}<tr><td>{{ r.data|data }}</td><td>{{ tipi_invio[r.tipo] }}</td>
+<td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=r.lid) }}">{{ r.codice_licenza }}</a></td>
+<td>{{ r.cliente }}</td><td>{{ r.destinatario or "—" }}</td><td>{{ r.utente }}</td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Nessun invio registrato.</div>{% endif %}</div>
+{% endblock %}

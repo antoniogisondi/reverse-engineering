@@ -15,6 +15,7 @@ from sicurcantiere.documenti.comune import (
     nome_fase,
     nuovo_documento,
     ombreggia,
+    salva,
     tabella,
     tabella_voci,
 )
@@ -91,9 +92,7 @@ def genera_tesserini(repo: Repository, impresa_id: int, destinazione: str | Path
             r.bold = i == 0
         nota = cella.add_paragraph("Tessera di riconoscimento - artt. 18, 21 e 26 D.Lgs. 81/2008")
         nota.runs[0].font.size = Pt(6)
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)
 
 
 def mansioni_lavoratore(repo: Repository, lavoratore: dict[str, Any]) -> list[dict[str, Any]]:
@@ -199,6 +198,4 @@ def genera_schede_lavoratori(repo: Repository, impresa_id: int, destinazione: st
                           "sui rischi e sulle misure relative alle proprie mansioni.")
         doc.add_paragraph("Il Datore di lavoro                                         Il Lavoratore")
         doc.add_paragraph("_____________________________            _____________________________")
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

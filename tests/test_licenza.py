@@ -104,3 +104,25 @@ def test_firma_della_libreria_e_verifica_pura(chiavi):
     pubblica = base64.b64decode(licenza.chiave_pubblica())
     assert ed25519.verifica(pubblica, dati, firma)
     assert ed25519.firma(chiavi, dati) == firma  # Ed25519 è deterministico
+
+
+def test_titolare_nei_documenti(chiavi, tmp_path):
+    from docx import Document
+
+    from sicurcantiere.db import Progetto
+    from sicurcantiere.documenti.notifica import genera_notifica
+    from sicurcantiere.repository import Repository
+
+    codice = licenza.firma(_licenza(), chiavi)
+    repo = Repository(Progetto(tmp_path / "x.scs", crea=True))
+    try:
+        licenza.registra(licenza.stato("pos", codice, None))
+        assert licenza.dicitura_documenti().endswith(f"intestata a {_licenza().cliente}")
+        doc = Document(genera_notifica(repo, tmp_path / "notifica.docx"))
+        piede = " ".join(p.text for s in doc.sections for p in s.footer.paragraphs)
+        assert _licenza().id in piede and doc.core_properties.comments == licenza.dicitura_documenti()
+        licenza.registra(licenza.stato("pos", "", date.today()))
+        assert "versione di prova" in licenza.dicitura_documenti()
+    finally:
+        licenza.registra(None)
+        repo.progetto.chiudi()

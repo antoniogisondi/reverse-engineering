@@ -15,6 +15,7 @@ from sicurcantiere.documenti.comune import (
     firma,
     indirizzo_cantiere,
     nuovo_documento,
+    salva,
     tabella,
     tabella_voci,
 )
@@ -64,6 +65,4 @@ def genera_notifica(repo: Repository, destinazione: str | Path) -> Path:
     ])
 
     firma(doc, "Il Committente o il Responsabile dei lavori")
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

@@ -10,6 +10,7 @@ from sicurcantiere.documenti.comune import (
     nome_fase,
     nuovo_documento,
     ombreggia,
+    salva,
     tabella,
     tabella_voci,
 )
@@ -129,6 +130,4 @@ def genera_valutazione(repo: Repository, valutazione_id: int, destinazione: str 
     doc.add_paragraph(f"Cantiere: {c['nome'] or '-'} - {c['comune'] or ''}".strip(" -"))
     aggiungi_valutazione(doc, repo, valutazione)
     firma(doc, "Il Datore di lavoro, in collaborazione con RSPP e medico competente")
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

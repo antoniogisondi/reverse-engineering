@@ -59,6 +59,14 @@ CREATE TABLE IF NOT EXISTS licenze (
     stato TEXT NOT NULL DEFAULT 'attiva',
     note TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS invii (
+    id INTEGER PRIMARY KEY,
+    licenza_id INTEGER NOT NULL REFERENCES licenze(id),
+    data TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    destinatario TEXT NOT NULL DEFAULT '',
+    utente TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS pagamenti (
     id INTEGER PRIMARY KEY,
     cliente_id INTEGER NOT NULL REFERENCES clienti(id),

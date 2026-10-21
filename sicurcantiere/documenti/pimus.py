@@ -10,6 +10,7 @@ from sicurcantiere.documenti.comune import (
     frontespizio,
     indirizzo_cantiere,
     nuovo_documento,
+    salva,
     tabella,
     tabella_voci,
     testo_o_segnaposto,
@@ -107,6 +108,4 @@ def genera_pimus(repo: Repository, ponteggio_id: int, destinazione: str | Path) 
     firma(doc, "Il Datore di lavoro dell'impresa che esegue il montaggio")
     doc.add_paragraph("Il Preposto alle operazioni")
     doc.add_paragraph("_______________________________")
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

@@ -4,15 +4,22 @@
 <div class="tessere">
   <div class="tessera"><div class="t">Clienti</div><div class="v">{{ numeri.clienti }}</div></div>
   <div class="tessera"><div class="t">Licenze valide</div><div class="v">{{ numeri.attive }}</div></div>
-  <div class="tessera"><div class="t">In scadenza entro 30 giorni</div><div class="v">{{ in_scadenza|length }}</div></div>
+  <div class="tessera"><div class="t">In scadenza entro {{ giorni }} giorni</div><div class="v">{{ in_scadenza|length }}</div></div>
   <div class="tessera"><div class="t">Incassato nel {{ anno }}</div><div class="v">{{ numeri.incassato|euro }}</div></div>
 </div>
-{% for titolo, righe in (("In scadenza nei prossimi 30 giorni", in_scadenza), ("Scadute e non rinnovate", scadute)) %}
+<p class="riga">Mostra le scadenze entro:
+{% for g in finestre %}<a class="pulsante{% if g == giorni %} primario{% endif %}" href="{{ url_for('cruscotto', giorni=g) }}">{{ g }} giorni</a>{% endfor %}</p>
+{% for titolo, righe in (("In scadenza nei prossimi " ~ giorni ~ " giorni", in_scadenza), ("Scadute e non rinnovate", scadute)) %}
 <div class="card"><h2>{{ titolo }} <span class="badge b-rinnovata">{{ righe|length }}</span></h2>
-{% if righe %}<table><tr><th>Licenza</th><th>Cliente</th><th>Piano</th><th>Scadenza</th><th></th></tr>
+{% if righe %}<table><tr><th>Licenza</th><th>Cliente</th><th>Piano</th><th>Scadenza</th><th>Ultimo promemoria</th><th></th></tr>
 {% for r in righe %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=r.id) }}">{{ r.codice_licenza }}</a></td>
 <td><a href="{{ url_for('cliente', id_=r.cliente_id) }}">{{ r.cliente }}</a></td><td>{{ piani[r.piano][0] }}</td>
-<td>{{ r.scadenza|data }}</td><td class="destra"><a class="pulsante" href="{{ url_for('dettaglio_licenza', id_=r.id) }}">Rinnova…</a></td></tr>{% endfor %}
+<td>{{ r.scadenza|data }}</td><td>{{ r.sollecito|data if r.sollecito else "mai" }}</td>
+<td class="destra"><div class="riga" style="justify-content:flex-end">
+<a class="pulsante" href="{{ promemoria[r.id] }}">Email di promemoria</a>
+<form method="post" action="{{ url_for('registra_invio', id_=r.id) }}"><input type="hidden" name="token" value="{{ token }}">
+<input type="hidden" name="tipo" value="promemoria"><input type="hidden" name="torna" value="{{ request.full_path }}"><button>Segna inviato</button></form>
+<a class="pulsante" href="{{ url_for('dettaglio_licenza', id_=r.id) }}">Rinnova…</a></div></td></tr>{% endfor %}
 </table>{% else %}<div class="vuoto">Nessuna.</div>{% endif %}</div>
 {% endfor %}
 <div class="card"><h2>Ultime licenze emesse</h2>

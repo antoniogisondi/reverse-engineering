@@ -16,6 +16,31 @@ from sicurcantiere import analisi
 from sicurcantiere.repository import Repository
 
 
+def salva(doc, destinazione: str | Path) -> Path:
+    """Salva il documento con la dicitura della licenza a piè di pagina e nelle proprietà del file."""
+    from docx.shared import RGBColor
+
+    from sicurcantiere import licenza
+
+    dicitura = licenza.dicitura_documenti()
+    if dicitura:
+        for sezione in doc.sections:
+            piedi = [sezione.footer]
+            if sezione.different_first_page_header_footer:
+                piedi.append(sezione.first_page_footer)
+            for piede in piedi:
+                p = piede.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                p.paragraph_format.space_before = Pt(2)
+                r = p.add_run(dicitura)
+                r.font.size = Pt(6.5)
+                r.font.color.rgb = RGBColor(0x8A, 0x95, 0xA1)
+        doc.core_properties.comments = dicitura
+    destinazione = Path(destinazione)
+    doc.save(destinazione)
+    return destinazione
+
+
 def euro(valore: float) -> str:
     testo = f"{valore:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     return f"€ {testo}"

@@ -18,6 +18,7 @@ from sicurcantiere.documenti.comune import (
     nome_fase,
     nuovo_documento,
     ombreggia,
+    salva,
     tabella,
     tabella_voci,
     testo_o_segnaposto,
@@ -218,6 +219,4 @@ def genera_psc(repo: Repository, destinazione: str | Path) -> Path:
 
     firma(doc, "Il Coordinatore per la sicurezza in fase di progettazione")
 
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

@@ -12,6 +12,7 @@ from sicurcantiere.documenti.comune import (
     frontespizio,
     indirizzo_cantiere,
     nuovo_documento,
+    salva,
     tabella,
     tabella_voci,
     testo_o_segnaposto,
@@ -79,6 +80,4 @@ def genera_fascicolo(repo: Repository, destinazione: str | Path) -> Path:
         testo_o_segnaposto(doc, "")
 
     firma(doc, "Il Coordinatore per la sicurezza")
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

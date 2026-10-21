@@ -20,3 +20,4 @@ def licenze_non_attive(monkeypatch):
     from sicurcantiere import licenza
 
     monkeypatch.setattr(licenza, "CHIAVE_PUBBLICA", "")
+    monkeypatch.setattr(licenza, "_attivo", None)

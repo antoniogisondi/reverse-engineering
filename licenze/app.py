@@ -15,7 +15,7 @@ import os
 import secrets
 import time
 from datetime import date, timedelta
-from functools import wraps
+from urllib.parse import quote
 
 from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -23,7 +23,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from licenze import archivio, totp
 from sicurcantiere import licenza
 
-GIORNI_AVVISO = 30
+GIORNI_AVVISO = 30  # «in scadenza» nello stato della licenza
+FINESTRE_CRUSCOTTO = (30, 60, 90)  # giorni di anticipo selezionabili nel cruscotto
+DOWNLOAD = "https://github.com/antoniogisondi/sicurcantiere/releases/latest/download/SicurCantiere-setup.exe"
+TIPI_INVIO = {"codice": "Codice consegnato", "promemoria": "Promemoria di rinnovo"}
 BLOCCO_SECONDI = 15 * 60
 TENTATIVI_UTENTE = 5  # tentativi sbagliati per nome utente prima del blocco
 TENTATIVI_IP = 20  # tentativi sbagliati dallo stesso indirizzo prima del blocco
@@ -49,12 +52,7 @@ def crea_app(https: bool = True) -> Flask:
         return {"piani": licenza.PIANI, "token": _token(), "oggi": date.today().isoformat(),
                 "utente": session.get("utente"), "con_2fa": session.get("2fa", False)}
 
-    @app.template_filter("data")
-    def data_it(valore):
-        if not valore:
-            return "senza scadenza"
-        anno, mese, giorno = str(valore)[:10].split("-")
-        return f"{giorno}/{mese}/{anno}"
+    app.template_filter("data")(_data)
 
     @app.template_filter("euro")
     def euro(valore):
@@ -103,6 +101,37 @@ def _stato_licenza(riga) -> str:
     if riga["scadenza"] and riga["scadenza"] <= (date.today() + timedelta(days=GIORNI_AVVISO)).isoformat():
         return "in scadenza"
     return "attiva"
+
+
+def testo_consegna(l, nome_piano: str) -> str:
+    validita = f", valida fino al {_data(l['scadenza'])}" if l["scadenza"] else ", senza scadenza"
+    return (f"Gentile {l['cliente']},\n"
+            f"ecco il codice della sua licenza SicurCantiere n. {l['codice_licenza']} (piano {nome_piano}{validita}, "
+            f"per {l['postazioni']} {'postazione' if l['postazioni'] == 1 else 'postazioni'}):\n\n{l['codice']}\n\n"
+            "Per attivarla: aprire SicurCantiere, menu Aiuto > Licenza, incollare il codice e premere «Attiva la "
+            f"licenza».\nL'installatore aggiornato si scarica da:\n{DOWNLOAD}\n\n"
+            "La licenza è personale: il nome del titolare compare nel programma e nei documenti generati.")
+
+
+def testo_promemoria(l, nome_piano: str) -> str:
+    scade = date.fromisoformat(l["scadenza"]) < date.today() if l["scadenza"] else False
+    return (f"Gentile {l['cliente']},\n"
+            f"la sua licenza SicurCantiere n. {l['codice_licenza']} (piano {nome_piano}) "
+            f"{'è scaduta' if scade else 'scade'} il {_data(l['scadenza'])}.\n\n"
+            "Il programma continua a funzionare, ma senza rinnovo non riceve più gli aggiornamenti normativi e "
+            "l'assistenza. Rinnovando ora la nuova scadenza parte da quella attuale, senza perdere giorni.\n\n"
+            "Se desidera rinnovare risponda a questa email: le invieremo il nuovo codice.")
+
+
+def _data(valore) -> str:
+    if not valore:
+        return "senza scadenza"
+    anno, mese, giorno = str(valore)[:10].split("-")
+    return f"{giorno}/{mese}/{anno}"
+
+
+def mailto(destinatario: str, oggetto: str, corpo: str) -> str:
+    return f"mailto:{quote(destinatario or '')}?subject={quote(oggetto)}&body={quote(corpo)}"
 
 
 def _nuovo_identificativo(conn) -> str:
@@ -188,10 +217,13 @@ def _rotte(app: Flask) -> None:
     def cruscotto():
         conn = _db()
         oggi = date.today()
+        giorni = request.args.get("giorni", type=int)
+        giorni = giorni if giorni in FINESTRE_CRUSCOTTO else 60
         righe = conn.execute(
-            "SELECT l.*, c.nome AS cliente FROM licenze l JOIN clienti c ON c.id = l.cliente_id "
+            "SELECT l.*, c.nome AS cliente, c.email, (SELECT MAX(data) FROM invii WHERE licenza_id = l.id AND "
+            "tipo = 'promemoria') AS sollecito FROM licenze l JOIN clienti c ON c.id = l.cliente_id "
             "WHERE l.stato = 'attiva' AND l.scadenza IS NOT NULL AND l.scadenza <= ? ORDER BY l.scadenza",
-            ((oggi + timedelta(days=GIORNI_AVVISO)).isoformat(),)).fetchall()
+            ((oggi + timedelta(days=giorni)).isoformat(),)).fetchall()
         in_scadenza = [r for r in righe if r["scadenza"] >= oggi.isoformat()]
         scadute = [r for r in righe if r["scadenza"] < oggi.isoformat()]
         numeri = {
@@ -203,8 +235,11 @@ def _rotte(app: Flask) -> None:
         }
         recenti = conn.execute("SELECT l.*, c.nome AS cliente FROM licenze l JOIN clienti c ON c.id = l.cliente_id "
                                "ORDER BY l.id DESC LIMIT 8").fetchall()
+        promemoria = {r["id"]: mailto(r["email"], f"Rinnovo licenza SicurCantiere {r['codice_licenza']}",
+                                      testo_promemoria(r, licenza.PIANI[r["piano"]][0])) for r in righe}
         return render_template("cruscotto.html", in_scadenza=in_scadenza, scadute=scadute, numeri=numeri,
-                               recenti=recenti, anno=oggi.year)
+                               recenti=recenti, anno=oggi.year, giorni=giorni, finestre=FINESTRE_CRUSCOTTO,
+                               promemoria=promemoria)
 
     @app.route("/clienti")
     def clienti():
@@ -276,8 +311,37 @@ def _rotte(app: Flask) -> None:
             abort(404)
         precedente = conn.execute("SELECT id, codice_licenza FROM licenze WHERE id = ?", (l["rinnovo_di"],)).fetchone()
         successiva = conn.execute("SELECT id, codice_licenza FROM licenze WHERE rinnovo_di = ?", (id_,)).fetchone()
-        return render_template("licenza.html", l=l, stato=_stato_licenza(l), precedente=precedente,
-                               successiva=successiva, nome_piano=licenza.PIANI[l["piano"]][0])
+        nome_piano = licenza.PIANI[l["piano"]][0]
+        consegna, rinnovo = testo_consegna(l, nome_piano), testo_promemoria(l, nome_piano) if l["scadenza"] else ""
+        invii = conn.execute("SELECT * FROM invii WHERE licenza_id = ? ORDER BY data DESC, id DESC", (id_,)).fetchall()
+        return render_template(
+            "licenza.html", l=l, stato=_stato_licenza(l), precedente=precedente, successiva=successiva,
+            nome_piano=nome_piano, consegna=consegna, rinnovo=rinnovo, invii=invii, tipi_invio=TIPI_INVIO,
+            email_consegna=mailto(l["email"], f"Licenza SicurCantiere {l['codice_licenza']}", consegna),
+            email_rinnovo=mailto(l["email"], f"Rinnovo licenza SicurCantiere {l['codice_licenza']}", rinnovo)
+            if rinnovo else "")
+
+    @app.route("/licenze/<int:id_>/invio", methods=["POST"])
+    def registra_invio(id_: int):
+        conn = _db()
+        l = conn.execute("SELECT l.id, c.email FROM licenze l JOIN clienti c ON c.id = l.cliente_id WHERE l.id = ?",
+                         (id_,)).fetchone()
+        tipo = request.form.get("tipo", "")
+        if l is None or tipo not in TIPI_INVIO:
+            abort(400)
+        conn.execute("INSERT INTO invii (licenza_id, data, tipo, destinatario, utente) VALUES (?, ?, ?, ?, ?)",
+                     (id_, date.today().isoformat(), tipo, l["email"], session.get("utente", "")))
+        conn.commit()
+        flash(f"{TIPI_INVIO[tipo]}: registrato.", "ok")
+        return redirect(request.form.get("torna") if request.form.get("torna", "").startswith("/")
+                        else url_for("dettaglio_licenza", id_=id_))
+
+    @app.route("/registro")
+    def registro():
+        righe = _db().execute(
+            "SELECT i.*, l.codice_licenza, l.id AS lid, c.nome AS cliente FROM invii i JOIN licenze l ON "
+            "l.id = i.licenza_id JOIN clienti c ON c.id = l.cliente_id ORDER BY i.data DESC, i.id DESC").fetchall()
+        return render_template("registro.html", righe=righe, tipi_invio=TIPI_INVIO)
 
     @app.route("/licenze/<int:id_>/rinnova", methods=["POST"])
     def rinnova(id_: int):

@@ -59,7 +59,7 @@ def test_cliente_licenza_rinnovo_pagamento(client):
     l = licenza.leggi(codice)  # il programma riconosce la licenza firmata dal gestionale
     assert l.cliente == "Studio Rossi" and l.piano == "completo" and l.postazioni == 2
     assert l.scadenza.isoformat() == scadenza and l.id.startswith(f"SC-{date.today().year}-")
-    assert "Aiuto > Licenza" in pagina  # testo pronto per l'email
+    assert "Aiuto &gt; Licenza" in pagina  # testo pronto per l'email
 
     id_licenza = int(r.headers["Location"].rsplit("/", 1)[1])
     r = client.post(f"/licenze/{id_licenza}/rinnova", data={"prezzo": "249", "token": t})
@@ -121,3 +121,28 @@ def test_codici_totp_rfc6238():
     assert totp.verifica(segreto, "287082", adesso=59) == 1
     assert totp.verifica(segreto, "287082", ultimo=1, adesso=59) is None
     assert totp.verifica(segreto, "287082", adesso=59 + 120) is None
+
+
+def test_promemoria_e_registro_invii(client):
+    from licenze import archivio
+
+    _accedi(client)
+    t = _token(client)
+    r = client.post("/clienti/nuovo", data={"nome": "Studio Bianchi", "email": "bianchi@example.com", "token": t})
+    cliente = int(r.headers["Location"].rsplit("/", 1)[1])
+    scadenza = (date.today() + timedelta(days=45)).isoformat()
+    r = client.post(f"/clienti/{cliente}/licenza", data={"piano": "pos", "scadenza": scadenza, "token": t})
+    id_licenza = int(r.headers["Location"].rsplit("/", 1)[1])
+    pagina = client.get(f"/licenze/{id_licenza}").get_data(as_text=True)
+    assert "mailto:bianchi%40example.com?subject=" in pagina and "Promemoria di rinnovo" in pagina
+    # scade fra 45 giorni: non compare a 30, compare a 60 (predefinito)
+    assert "Studio Bianchi" not in client.get("/?giorni=30").get_data(as_text=True).split("Ultime licenze")[0]
+    cruscotto = client.get("/").get_data(as_text=True)
+    assert "Email di promemoria" in cruscotto and "<td>mai</td>" in cruscotto
+    client.post(f"/licenze/{id_licenza}/invio", data={"tipo": "codice", "token": t})
+    client.post(f"/licenze/{id_licenza}/invio", data={"tipo": "promemoria", "token": t, "torna": "/"})
+    assert client.post(f"/licenze/{id_licenza}/invio", data={"tipo": "altro", "token": t}).status_code == 400
+    registro = client.get("/registro").get_data(as_text=True)
+    assert "Codice consegnato" in registro and "Promemoria di rinnovo" in registro and "bianchi@example.com" in registro
+    assert "<td>mai</td>" not in client.get("/").get_data(as_text=True)
+    assert archivio.connessione().execute("SELECT COUNT(*) FROM invii").fetchone()[0] == 2

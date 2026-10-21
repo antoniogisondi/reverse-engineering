@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from sicurcantiere import anagrafiche
-from sicurcantiere.documenti.comune import indirizzo_cantiere, nuovo_documento, tabella
+from sicurcantiere.documenti.comune import indirizzo_cantiere, nuovo_documento, salva, tabella
 from sicurcantiere.documenti.pos import elenco_dpi
 from sicurcantiere.repository import Repository
 
@@ -57,6 +57,4 @@ def genera_consegna_dpi(repo: Repository, impresa_id: int, destinazione: str | P
         doc.add_paragraph("Data: ____/____/________")
         doc.add_paragraph("Il Datore di lavoro (o suo delegato)            Il Lavoratore")
         doc.add_paragraph("_____________________________            _____________________________")
-    destinazione = Path(destinazione)
-    doc.save(destinazione)
-    return destinazione
+    return salva(doc, destinazione)

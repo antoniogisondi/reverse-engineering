@@ -18,6 +18,9 @@ archivi o contenuti di software commerciali.
 
 ## Funzioni
 
+L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e dei prossimi passi è in
+[docs/funzionalita.md](docs/funzionalita.md).
+
 - **Dati generali** del cantiere, con verifica automatica degli obblighi:
   PSC e coordinatori (art. 90), notifica preliminare (art. 99), picco di lavoratori presenti
 - **Soggetti** con compiti di sicurezza (committente, responsabile dei lavori, CSP, CSE, progettisti,
@@ -31,7 +34,8 @@ archivi o contenuti di software commerciali.
     certificazioni, tipologia e importo dei lavori affidati;
   - figure della sicurezza come elenco (RSPP, ASPP, medico competente, RLS/RLST, dirigenti, direttore
     tecnico, capocantiere, preposti, addetti al primo soccorso e antincendio...) con recapiti e
-    formazione; spunta per il datore di lavoro che svolge i compiti di RSPP (art. 34);
+    formazione; ruoli svolti dal datore di lavoro (RSPP, primo soccorso e antincendio secondo l'art. 34,
+    direttore tecnico, capocantiere, preposto) e figure dichiarate non presenti con la motivazione;
   - **maestranze**: nome e cognome, qualifica da elenco, data e luogo di nascita, matricola, assunzione,
     foto, idoneità sanitaria, **DPI consegnati** scelti da un elenco per parte del corpo (con quelli delle
     lavorazioni già proposti), formazione ricevuta (base, rischi della mansione, rischi del cantiere,
@@ -66,10 +70,10 @@ archivi o contenuti di software commerciali.
 - **Fascicolo dell'opera**: interventi di manutenzione e documentazione di supporto
 - **Documenti Word**: PSC, POS per impresa, fascicolo dell'opera, notifica preliminare,
   con tabella delle **revisioni** nel frontespizio
-- **Impaginazione del POS**: copertina incorniciata, capitoli su banda colorata con il riferimento
-  normativo, indice automatico, foto del cantiere, cartelli di sicurezza scelti in base ai rischi,
-  icone dei DPI per fase e attrezzatura, tabella dei rischi con il livello colorato, numeri utili
-  e documenti da tenere in cantiere
+- **Impaginazione del POS**: grafica propria con capitoli numerati nell'ordine dell'Allegato XV 3.2.1
+  (tre parti), copertina con firme, intestazione con revisione e «Pagina X di Y», indice automatico,
+  schede e tabelle leggere, livello di rischio colorato, foto del cantiere, cartelli scelti in base ai
+  rischi, icone dei DPI, numeri utili e documenti da tenere in cantiere
 - **Controlli di completezza** prima della stampa (errori e avvisi)
 - **Interfaccia** con tema chiaro e scuro e colore proprio per ogni programma (foglio di stile in
   `sicurcantiere/risorse/tema`, caratteri IBM Plex con licenza OFL in `sicurcantiere/risorse/font`):
@@ -189,7 +193,8 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 Senza licenza i programmi partono con una prova di 30 giorni e un solo cantiere; la licenza è un codice firmato
 (`sicurcantiere/licenza.py`) che il programma verifica senza collegarsi a internet. Le licenze si emettono dal
 gestionale web in `licenze/`, da installare sul server dell'ufficio: vedi `licenze/README.md`. Finché nel
-programma non c'è la chiave pubblica del gestionale, il controllo delle licenze non è attivo.
+programma non c'è la chiave pubblica del gestionale, il controllo delle licenze non è attivo. Il titolare della
+licenza compare nella barra del programma e a piè di pagina dei documenti generati.
 
 ## Prossimi passi
 
