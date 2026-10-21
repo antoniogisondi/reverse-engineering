@@ -82,14 +82,62 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
         progetto.chiudi()
 
     finestra = FinestraPrincipale(EDIZIONI[edizione])
-    finestra.apri_file(file)
+    finestra.show()
+    lampi = _finestre_comparse(finestra, lambda: _apri_e_sfoglia(finestra, file))
     assert finestra.pagine, "pagine non create"
     righe.append(f"finestra: {len(finestra.pagine)} pagine")
+    # Elementi che compaiono per un istante come finestre a sé (icone che lampeggiano nella barra
+    # delle applicazioni di Windows): non devono essercene.
+    assert not lampi, "finestre lampo all'apertura del cantiere: " + "; ".join(lampi)
+    righe.append("apertura del cantiere senza finestre lampo")
     finestra.salva()  # senza modifiche in sospeso la chiusura non chiede di salvare (niente finestre in attesa)
     assert not finestra.modifiche_non_salvate(), "modifiche non salvate dopo Salva"
     finestra.close()
     finestra.deleteLater()
     return righe
+
+
+def _apri_e_sfoglia(finestra, file: Path) -> None:
+    """Apre il cantiere e passa per tutte le pagine, lasciando lavorare la finestra."""
+    from PySide6.QtCore import QEventLoop, QTimer
+
+    def attendi(ms: int) -> None:
+        ciclo = QEventLoop()
+        QTimer.singleShot(ms, ciclo.quit)
+        ciclo.exec()
+
+    finestra.apri_file(file)
+    attendi(1500)
+    for i in range(len(finestra.pagine)):
+        finestra.navigazione.setCurrentRow(i)
+        attendi(300)
+
+
+def _finestre_comparse(principale, azione) -> list[str]:
+    """Finestre (di Qt) diverse da quella principale mostrate durante l'azione."""
+    from PySide6.QtCore import QEvent, QObject
+    from PySide6.QtWidgets import QApplication
+
+    trovate: list[str] = []
+
+    class Spia(QObject):
+        def eventFilter(self, oggetto, evento):
+            if evento.type() == QEvent.Type.Show:
+                if oggetto.isWidgetType() and oggetto.isWindow() and oggetto is not principale:
+                    trovate.append(f"{type(oggetto).__name__} {oggetto.objectName()!r} "
+                                   f"{getattr(oggetto, 'text', lambda: '')()!r}"[:120])
+                elif oggetto.isWindowType() and oggetto is not principale.windowHandle():
+                    trovate.append(f"QWindow {oggetto.objectName()!r}")
+            return False
+
+    spia = Spia()
+    app = QApplication.instance()
+    app.installEventFilter(spia)
+    try:
+        azione()
+    finally:
+        app.removeEventFilter(spia)
+    return trovate
 
 
 def _prova_licenza() -> str:
