@@ -70,3 +70,12 @@ Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\shell\open\command"; Va
 
 [Run]
 Filename: "{app}\POS\SicurCantiere POS.exe"; Description: "Avvia SicurCantiere POS"; Components: pos; Flags: nowait postinstall skipifsilent
+; Aggiornamento avviato dal programma (/aggiornamento=si /programma=POS|PSC|PiMUS): lo riapre.
+Filename: "{app}\{param:programma|POS}\SicurCantiere {param:programma|POS}.exe"; Flags: nowait runasoriginaluser; Check: RiavviaDopoAggiornamento
+
+[Code]
+function RiavviaDopoAggiornamento: Boolean;
+begin
+  Result := (ExpandConstant('{param:aggiornamento|no}') = 'si') and
+    FileExists(ExpandConstant('{app}\{param:programma|POS}\SicurCantiere {param:programma|POS}.exe'));
+end;

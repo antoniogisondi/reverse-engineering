@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 from sicurcantiere import __version__, controlli
 from sicurcantiere.db import ErroreProgetto, Progetto, anteprima
 from sicurcantiere.repository import Repository
-from sicurcantiere.ui import archivio_anagrafiche, tema
+from sicurcantiere.ui import aggiornamenti, archivio_anagrafiche, tema
 from sicurcantiere.ui.edizioni import ESTENSIONI, PSC, Edizione
 from sicurcantiere.ui.icone import icona, icona_applicazione
 from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI
@@ -230,6 +230,8 @@ class FinestraPrincipale(QMainWindow):
         self.azione_tema.setCheckable(True)
         self.azione_tema.setChecked(self.scuro)
         self.azione_info = self._azione("&Informazioni", self._informazioni)
+        self.azione_aggiornamenti = self._azione(
+            "Controlla &aggiornamenti...", lambda: aggiornamenti.controlla(self, manuale=True))
         self.azione_ai = self._azione("Impostazioni assistente &AI...", lambda: DialogoImpostazioniAI(self).exec())
         self.azione_archivio = self._azione("Archivio &anagrafiche...", lambda: archivio_anagrafiche.gestisci(self))
         self.azioni_progetto = [self.azione_salva, self.azione_salva_con_nome, self.azione_chiudi,
@@ -259,6 +261,7 @@ class FinestraPrincipale(QMainWindow):
         vista.addAction(self.azione_tema)
 
         aiuto = self.menuBar().addMenu("&Aiuto")
+        aiuto.addAction(self.azione_aggiornamenti)
         aiuto.addAction(self.azione_info)
 
     def _crea_barra_strumenti(self) -> None:

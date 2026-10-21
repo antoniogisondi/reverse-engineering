@@ -1,12 +1,19 @@
-# Compila i programmi per Windows, li prova (eseguibili e installatore) e pubblica
-# l'installatore come versione scaricabile del repository.
+# Compila i programmi per Windows e li prova (eseguibili e installatore) a ogni push.
+# La versione scaricabile si pubblica solo su richiesta: dalla scheda Actions con
+# «Run workflow» spuntando «pubblica», oppure con un tag v<versione>.
 name: Installatore Windows
 
 on:
   push:
     branches: [main, claude/dazzling-pasteur-upt4ur]
     paths-ignore: ["docs/**", "README.md"]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      pubblica:
+        description: "Pubblica la versione per gli utenti"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -65,6 +72,7 @@ jobs:
           path: dist/SicurCantiere-*-setup.exe
 
       - name: Pubblica la versione
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.pubblica)
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

@@ -80,6 +80,12 @@ def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
 
     finestra = FinestraPrincipale(scelta)
     finestra.show()
+    from PySide6.QtCore import QTimer
+
+    from sicurcantiere.ui import aggiornamenti
+
+    # Controllo delle nuove versioni poco dopo l'avvio, in background (al massimo una volta al giorno).
+    QTimer.singleShot(4000, lambda: aggiornamenti.controlla(finestra))
     if len(argv) > 1:
         finestra.apri_file(argv[1])
     codice = app.exec()

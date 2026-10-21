@@ -606,3 +606,25 @@ def test_nuovo_su_cantiere_esistente_non_lo_cancella(app, tmp_path, monkeypatch)
     copie = sorted(cartella_copie().glob("Cliente-*.spo"))
     assert copie and Repository(Progetto(copie[-1])).cantiere()["nome"] == "Scuola di Bari"
     f.close()
+
+
+def test_controllo_aggiornamenti(app, monkeypatch):
+    from sicurcantiere import aggiornamenti
+    from sicurcantiere.ui import aggiornamenti as ui_aggiornamenti
+    from sicurcantiere.ui.edizioni import POS
+
+    nuova = aggiornamenti.Versione("99.0.0", "https://example.com/s.exe", "https://example.com", "")
+    monkeypatch.setattr(aggiornamenti, "ultima_versione", lambda: nuova)
+    proposte = []
+    monkeypatch.setattr(ui_aggiornamenti, "proponi", lambda finestra, v: proposte.append(v))
+    f = FinestraPrincipale(POS)
+    ui_aggiornamenti.controlla(f, manuale=True)
+    QtCore.QThreadPool.globalInstance().waitForDone(5000)
+    QtWidgets.QApplication.processEvents()
+    assert proposte == [nuova]
+    assert f.avviso_aggiornamento.text() == "Aggiornamento disponibile: versione 99.0.0"
+    # Il controllo automatico si ripete al massimo una volta al giorno.
+    monkeypatch.setattr(aggiornamenti, "ultima_versione", lambda: pytest.fail("controllo ripetuto"))
+    ui_aggiornamenti.controlla(f)
+    QtCore.QThreadPool.globalInstance().waitForDone(5000)
+    f.close()
