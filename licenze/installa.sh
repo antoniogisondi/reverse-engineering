@@ -140,6 +140,8 @@ ProtectHome=true
 ProtectKernelTunables=true
 ProtectControlGroups=true
 ReadWritePaths=$DATI
+WorkingDirectory=$DATI
+Environment=HOME=$DATI
 
 [Install]
 WantedBy=multi-user.target
@@ -157,9 +159,9 @@ SICURCANTIERE_AI_STANDARD_CHIAVE=
 SICURCANTIERE_AI_STANDARD_MODELLO=deepseek-flash
 SICURCANTIERE_AI_STANDARD_URL=
 SICURCANTIERE_AI_STANDARD_SEDE=DeepSeek, con trattamento dei dati in Cina
-# Lunghezza massima delle risposte (token); vuoto = 8000. Alzarla se nel registro compaiono
-# «Risposta troncata» e il modello lo permette.
-SICURCANTIERE_AI_STANDARD_MAX_TOKEN=
+# Lunghezza massima delle risposte (token): i modelli che «ragionano» prima di rispondere ne usano
+# molti. Se il fornitore rifiuta il valore, provare 16000 (vuoto = 8000).
+SICURCANTIERE_AI_STANDARD_MAX_TOKEN=32000
 #
 # Motore avanzato (solo piano Studio): Claude di Anthropic.
 SICURCANTIERE_AI_AVANZATO_CHIAVE=
@@ -189,6 +191,8 @@ ProtectHome=true
 ProtectKernelTunables=true
 ProtectControlGroups=true
 ReadWritePaths=$DATI
+WorkingDirectory=$DATI
+Environment=HOME=$DATI
 
 [Install]
 WantedBy=multi-user.target

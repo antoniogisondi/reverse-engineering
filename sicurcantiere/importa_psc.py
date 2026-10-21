@@ -27,7 +27,7 @@ from typing import Any
 
 from sicurcantiere import anagrafiche
 
-CARATTERI_PER_PARTE = 20_000  # circa 6 mila token per richiesta, con risposte brevi
+CARATTERI_PER_PARTE = 12_000  # circa 3-4 mila token per richiesta: risposte che stanno nel limite
 CARATTERI_PER_TOKEN = 3.6  # stima per l'italiano
 CHIAVE_ANALISI = "analisi_psc"
 CHIAVE_ORIGINE = "origine_psc"
@@ -180,9 +180,9 @@ SCHEMA = _oggetto({
         "zona": _stringa("Zona o area del cantiere, se indicata"),
         "rischi": _elenco({
             "rischio": _stringa("Rischio, in breve"),
-            "misure": _stringa("Misure di prevenzione e protezione del PSC per questo rischio, al massimo 250 caratteri"),
+            "misure": _stringa("Misure di prevenzione e protezione del PSC per questo rischio, al massimo 150 caratteri"),
         }, "Rischi della fase con le misure del PSC"),
-        "prescrizioni": _stringa("Prescrizioni operative e DPI richiesti dal PSC per la fase, al massimo 300 caratteri"),
+        "prescrizioni": _stringa("Prescrizioni operative e DPI richiesti dal PSC per la fase, al massimo 200 caratteri"),
     }, "Fasi di lavoro del PSC o del cronoprogramma"),
     "interferenze": _elenco({
         "fasi": _stringa("Fasi o lavorazioni che interferiscono"),
@@ -198,7 +198,8 @@ SCHEMA = _oggetto({
 
 ISTRUZIONI = (
     "Leggi questa parte ({n} di {totale}) del piano di sicurezza e coordinamento (PSC) di un cantiere e "
-    "riporta i dati richiesti dallo schema, così come sono scritti nel documento. Non inventare: se un dato "
+    "riporta i dati richiesti dallo schema, così come sono scritti nel documento, in forma breve e senza "
+    "ragionamenti o commenti: solo il JSON. Non inventare: se un dato "
     "non c'è lascia il campo vuoto o l'elenco vuoto. Riassumi i testi lunghi in modo fedele. Le altre parti "
     "del documento vengono lette a parte: riporta solo quello che trovi qui.\n\n<psc>\n{testo}\n</psc>"
 )
