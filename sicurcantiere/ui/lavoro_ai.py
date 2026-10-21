@@ -1,4 +1,8 @@
-"""Integrazione dell'assistente AI nell'interfaccia: impostazioni ed esecuzione in background."""
+"""Integrazione dell'assistente AI nell'interfaccia: impostazioni ed esecuzione in background.
+
+L'assistente è incluso nella licenza e passa dal server SicurCantiere (nessuna chiave API sul PC):
+senza una licenza valida non è disponibile e i suoi pulsanti non compaiono.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +18,6 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
     QProgressDialog,
     QPushButton,
@@ -22,55 +25,76 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sicurcantiere.ai import (
-    ANTHROPIC,
-    AVANZATO,
-    DEEPSEEK,
-    FORNITORE_PREDEFINITO,
-    FORNITORI,
-    INTEGRATO,
-    OPENAI,
-    STANDARD,
-    VARIABILI_AMBIENTE,
-    AssistenteAI,
-    ErroreAI,
-    server_ai,
-)
+from sicurcantiere import licenza
+from sicurcantiere.ai import AVANZATO, FORNITORI, INTEGRATO, STANDARD, AssistenteAI, ErroreAI, server_ai
 
-CHIAVE_FORNITORE = "ai/fornitore"
 CHIAVE_ATTIVO = "ai/attivo"
+CHIAVE_MOTORE = "ai/motore"
+NOME = FORNITORI[INTEGRATO].nome
 
-# Dove il fornitore tratta i dati (dalle informative dei fornitori): da dire a chi attiva l'assistente.
+# Dove viene elaborato il testo (dalle informative dei fornitori usati dal server).
 SEDI = {
-    DEEPSEEK: "in Cina, fuori dall'Unione europea",
-    OPENAI: "negli Stati Uniti, fuori dall'Unione europea",
-    ANTHROPIC: "negli Stati Uniti, fuori dall'Unione europea",
-    INTEGRATO: ("passando dal server SicurCantiere: con il motore Standard il testo è elaborato da DeepSeek "
-                "(in Cina, fuori dall'Unione europea), con l'Avanzato da Claude di Anthropic (negli Stati Uniti). "
-                "Il credito si verifica qui sotto"),
+    STANDARD: "DeepSeek, in Cina (fuori dall'Unione europea)",
+    AVANZATO: "Claude di Anthropic, negli Stati Uniti (fuori dall'Unione europea)",
 }
+SEDI[INTEGRATO] = (f"passando dal server SicurCantiere: con il motore Standard il testo è elaborato da "
+                   f"{SEDI[STANDARD]}, con l'Avanzato da {SEDI[AVANZATO]}")
 
 DATI_INVIATI = (
     "<b>Cosa viene inviato</b>, solo quando premi un pulsante dell'assistente:"
     "<ul><li>le descrizioni di lavorazioni, rischi, macchine e attrezzature;</li>"
     "<li>i dati generali dell'opera (natura, comune, importo, descrizione) e i testi del POS di cui chiedi la bozza;</li>"
     "<li>la descrizione dell'attività da valutare;</li>"
-    "<li>il testo della scheda di sicurezza che importi.</li></ul>"
+    "<li>il testo della scheda di sicurezza o del PSC che importi;</li>"
+    "<li>il codice di licenza, per il controllo del credito.</li></ul>"
     "<b>Cosa non viene inviato</b>: nomi, dati e idoneità dei lavoratori, nominativi di committente, "
-    "coordinatori e imprese, indirizzo del cantiere. Non scrivere dati personali nelle descrizioni."
+    "coordinatori e imprese, indirizzo del cantiere (salvo quelli scritti nel PSC che importi). "
+    "Non scrivere dati personali nelle descrizioni."
 )
 
-# Pulsanti dell'assistente, nascosti quando è spento.
+# Pulsanti dell'assistente, nascosti quando non è disponibile o è spento.
 _pulsanti_ai: "weakref.WeakSet[QWidget]" = weakref.WeakSet()
 
 
+def impostazioni_comuni() -> QSettings:
+    """Impostazioni condivise da tutti i programmi SicurCantiere."""
+    return QSettings(QCoreApplication.organizationName() or "SicurCantiere", "Comune")
+
+
+def codice_licenza() -> str:
+    return impostazioni_comuni().value("licenza/codice", "", type=str)
+
+
+def licenza_ai() -> licenza.Licenza | None:
+    """La licenza che dà diritto all'assistente: valida e non scaduta (altrimenti None)."""
+    try:
+        l = licenza.leggi(codice_licenza())
+    except (licenza.ErroreLicenza, ValueError):
+        return None
+    return None if l.scaduta() else l
+
+
+def ai_disponibile() -> bool:
+    """L'assistente c'è: licenza valida e server SicurCantiere configurato."""
+    return bool(server_ai()) and licenza_ai() is not None
+
+
 def ai_attiva() -> bool:
-    """Assistente spento di serie; acceso se l'utente lo ha attivato (o aveva già una chiave salvata)."""
+    """Assistente disponibile e acceso dall'utente (spento di serie)."""
+    _togli_chiavi_vecchie()
+    valore = impostazioni_comuni().value(CHIAVE_ATTIVO, None)
+    return ai_disponibile() and str(valore).lower() in ("1", "true")
+
+
+def _togli_chiavi_vecchie() -> None:
+    """Le chiavi API delle versioni precedenti non servono più: si cancellano da questo PC."""
     impostazioni = impostazioni_comuni()
-    valore = impostazioni.value(CHIAVE_ATTIVO, None)
-    if valore is None:
-        return any(impostazioni.value(_chiave_api(f), "", type=str) for f in FORNITORI)
-    return str(valore).lower() in ("1", "true")
+    for fornitore in FORNITORI:
+        for voce in (f"ai/{fornitore}/chiave", f"ai/{fornitore}/modello"):
+            if impostazioni.contains(voce):
+                impostazioni.remove(voce)
+    if impostazioni.contains("ai/fornitore"):
+        impostazioni.remove("ai/fornitore")
 
 
 def registra_pulsante_ai(pulsante: QWidget) -> None:
@@ -84,86 +108,56 @@ def aggiorna_pulsanti_ai() -> None:
         pulsante.setVisible(attiva)
 
 
-def impostazioni_comuni() -> QSettings:
-    """Impostazioni condivise da tutti i programmi SicurCantiere (la chiave si inserisce una volta)."""
-    return QSettings(QCoreApplication.organizationName() or "SicurCantiere", "Comune")
-
-
-def _chiave_api(fornitore: str) -> str:
-    return f"ai/{fornitore}/chiave"
-
-
-def _chiave_modello(fornitore: str) -> str:
-    return f"ai/{fornitore}/modello"
-
-
-def fornitori_disponibili() -> list[str]:
-    """Fornitori da proporre: l'assistente incluso solo se il server SicurCantiere è attivo."""
-    return [f for f in FORNITORI if f != INTEGRATO or server_ai()]
-
-
-def fornitore_predefinito() -> str:
-    return INTEGRATO if server_ai() else FORNITORE_PREDEFINITO
-
-
-def codice_licenza() -> str:
-    return impostazioni_comuni().value("licenza/codice", "", type=str)
+def motore() -> str:
+    """Motore scelto; l'avanzato solo con il piano Studio."""
+    scelto = impostazioni_comuni().value(CHIAVE_MOTORE, STANDARD, type=str)
+    l = licenza_ai()
+    return AVANZATO if scelto == AVANZATO and l is not None and l.piano == "studio" else STANDARD
 
 
 def assistente() -> AssistenteAI:
-    impostazioni = impostazioni_comuni()
-    fornitore = impostazioni.value(CHIAVE_FORNITORE, fornitore_predefinito(), type=str)
-    if fornitore not in fornitori_disponibili():
-        fornitore = fornitore_predefinito()
-    if fornitore == INTEGRATO:
-        modello = impostazioni.value(_chiave_modello(INTEGRATO), STANDARD, type=str)
-        return AssistenteAI(fornitore=INTEGRATO, api_key=codice_licenza() or None,
-                            modello=modello if modello in (STANDARD, AVANZATO) else STANDARD)
-    return AssistenteAI(
-        fornitore=fornitore,
-        api_key=impostazioni.value(_chiave_api(fornitore), "", type=str) or None,
-        modello=impostazioni.value(_chiave_modello(fornitore), "", type=str) or None,
-    )
+    return AssistenteAI(fornitore=INTEGRATO, api_key=codice_licenza() or None, modello=motore())
+
+
+def perche_non_disponibile() -> str:
+    if licenza_ai() is None:
+        return (f"{NOME}: l'assistente AI è incluso nella licenza e si usa senza chiavi né account. "
+                "Si attiva inserendo una licenza valida in Aiuto > Licenza.")
+    if not server_ai():
+        return "L'assistente AI non è ancora disponibile in questa versione del programma."
+    return ("L'assistente AI è spento: si accende da Strumenti > Impostazioni assistente AI, dove è spiegato "
+            "quali dati vengono inviati.")
 
 
 class DialogoImpostazioniAI(QDialog):
+    """Accensione dell'assistente incluso nella licenza, scelta del motore e credito."""
+
     def __init__(self, genitore: QWidget | None = None):
         super().__init__(genitore)
         self.setWindowTitle("Impostazioni dell'assistente AI")
         self.setMinimumWidth(560)
         self.impostazioni = impostazioni_comuni()
-        self.fornitore = QComboBox()
-        for chiave in fornitori_disponibili():
-            self.fornitore.addItem(FORNITORI[chiave].nome, chiave)
-        self.chiave = QLineEdit()
-        self.chiave.setEchoMode(QLineEdit.EchoMode.Password)
-        self.modello = QComboBox()
-        self.modello.setEditable(True)
-        self.modello.setToolTip("Si può anche scrivere il nome di un altro modello disponibile sull'account.")
-        self._valori: dict[str, tuple[str, str]] = {}
-        attuale = self.impostazioni.value(CHIAVE_FORNITORE, fornitore_predefinito(), type=str)
-        self.fornitore.setCurrentIndex(max(self.fornitore.findData(attuale), 0))
-        self._corrente = self.fornitore.currentData()
-        self._carica_fornitore(self._corrente)
-        self.fornitore.currentIndexChanged.connect(self._cambia_fornitore)
+        disponibile = ai_disponibile()
+        l = licenza_ai()
 
         self.attiva = QCheckBox("Usa l'assistente AI")
         self.attiva.setChecked(ai_attiva())
+        self.attiva.setEnabled(disponibile)
         self.attiva.toggled.connect(self._mostra_stato)
-        spiegazione = QLabel("L'assistente è spento di serie: finché non lo attivi, i suoi pulsanti non compaiono "
-                             "e nessun dato lascia questo computer.")
+        spiegazione = QLabel(
+            f"{NOME}: l'assistente è incluso nella licenza, senza chiavi né account da creare, con un credito "
+            "mensile secondo il piano. È spento di serie: finché non lo accendi i suoi pulsanti non compaiono e "
+            "nessun dato lascia questo computer." if disponibile else perche_non_disponibile())
         spiegazione.setWordWrap(True)
         spiegazione.setObjectName("hint")
-        self.destinazione = QLabel()
-        self.destinazione.setWordWrap(True)
-        self.destinazione.setObjectName("warningMessage")
-        dati = QLabel(DATI_INVIATI)
-        dati.setWordWrap(True)
-        nota = QLabel("L'assistente propone valori e testi che vanno sempre verificati prima dell'uso. "
-                      "Le chiavi vengono salvate nelle impostazioni di questo computer.")
-        nota.setWordWrap(True)
-        nota.setObjectName("hint")
-        self.credito = QLabel()
+
+        self.motore = QComboBox()
+        self.motore.addItem("Standard", STANDARD)
+        if l is not None and l.piano == "studio":
+            self.motore.addItem("Avanzato, con Claude (consuma 8 crediti per token)", AVANZATO)
+        self.motore.setCurrentIndex(max(self.motore.findData(motore()), 0))
+        self.motore.currentIndexChanged.connect(self._mostra_stato)
+        self.credito = QLabel("Credito mensile secondo il piano della licenza.")
         self.credito.setWordWrap(True)
         verifica = QPushButton("Verifica il credito")
         verifica.clicked.connect(self._verifica_credito)
@@ -172,11 +166,16 @@ class DialogoImpostazioniAI(QDialog):
         lay_credito.setContentsMargins(0, 0, 0, 0)
         lay_credito.addWidget(self.credito, 1)
         lay_credito.addWidget(verifica)
+        self.destinazione = QLabel()
+        self.destinazione.setWordWrap(True)
+        self.destinazione.setObjectName("warningMessage")
+        dati = QLabel(DATI_INVIATI)
+        dati.setWordWrap(True)
+        nota = QLabel("L'assistente propone valori e testi che vanno sempre verificati prima dell'uso.")
+        nota.setWordWrap(True)
+        nota.setObjectName("hint")
         modulo = QFormLayout()
-        self.modulo = modulo
-        modulo.addRow("Fornitore", self.fornitore)
-        modulo.addRow("Chiave API", self.chiave)
-        modulo.addRow("Modello", self.modello)
+        modulo.addRow("Motore", self.motore)
         modulo.addRow("Credito AI", riga_credito)
         self.campi_ai = QWidget()
         lay_campi = QVBoxLayout(self.campi_ai)
@@ -185,7 +184,9 @@ class DialogoImpostazioniAI(QDialog):
         lay_campi.addWidget(self.destinazione)
         lay_campi.addWidget(dati)
         lay_campi.addWidget(nota)
+        self.campi_ai.setVisible(disponibile)
         pulsanti = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        pulsanti.button(QDialogButtonBox.StandardButton.Save).setEnabled(disponibile)
         pulsanti.accepted.connect(self._salva)
         pulsanti.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
@@ -197,17 +198,8 @@ class DialogoImpostazioniAI(QDialog):
 
     def _mostra_stato(self) -> None:
         self.campi_ai.setEnabled(self.attiva.isChecked())
-        integrato = self._corrente == INTEGRATO
-        self.modulo.setRowVisible(self.chiave, not integrato)
-        self.modulo.setRowVisible(self.modulo.rowCount() - 1, integrato)
-        self.modello.setEditable(not integrato)
-        f = FORNITORI[self._corrente]
-        if integrato:
-            self.destinazione.setText(f"Incluso nella licenza, senza chiavi da inserire: i dati vanno {SEDI[INTEGRATO]}.")
-            if not self.credito.text():
-                self.credito.setText("Quota mensile secondo il piano della licenza.")
-        else:
-            self.destinazione.setText(f"I dati vanno a {f.nome}, che li elabora {SEDI.get(self._corrente, '')}.")
+        scelto = self.motore.currentData() or STANDARD
+        self.destinazione.setText(f"I dati passano dal server SicurCantiere e sono elaborati da {SEDI[scelto]}.")
 
     def _verifica_credito(self) -> None:
         try:
@@ -221,41 +213,9 @@ class DialogoImpostazioniAI(QDialog):
             f"milioni, usati {c.get('usati_mese', 0) / 1e6:.2f}; ricariche {c.get('extra', 0) / 1e6:.2f})."
             .replace(".", ","))
 
-    def _carica_fornitore(self, fornitore: str) -> None:
-        f = FORNITORI[fornitore]
-        chiave, modello = self._valori.get(fornitore) or (
-            self.impostazioni.value(_chiave_api(fornitore), "", type=str),
-            self.impostazioni.value(_chiave_modello(fornitore), "", type=str) or f.modello_predefinito,
-        )
-        self.chiave.setText(chiave)
-        if fornitore in VARIABILI_AMBIENTE:
-            self.chiave.setPlaceholderText(f"Vuoto: usa la variabile d'ambiente {VARIABILI_AMBIENTE[fornitore]}")
-        self.modello.clear()
-        for valore, nome in f.modelli:
-            self.modello.addItem(nome, valore)
-        indice = self.modello.findData(modello)
-        if indice >= 0:
-            self.modello.setCurrentIndex(indice)
-        else:
-            self.modello.setEditText(modello)
-
-    def _modello_scelto(self) -> str:
-        indice = self.modello.findText(self.modello.currentText())
-        return self.modello.itemData(indice) if indice >= 0 else self.modello.currentText().strip()
-
-    def _cambia_fornitore(self) -> None:
-        self._valori[self._corrente] = (self.chiave.text().strip(), self._modello_scelto())
-        self._corrente = self.fornitore.currentData()
-        self._carica_fornitore(self._corrente)
-        self._mostra_stato()
-
     def _salva(self) -> None:
-        self._valori[self._corrente] = (self.chiave.text().strip(), self._modello_scelto())
-        for fornitore, (chiave, modello) in self._valori.items():
-            self.impostazioni.setValue(_chiave_api(fornitore), chiave)
-            self.impostazioni.setValue(_chiave_modello(fornitore), modello)
-        self.impostazioni.setValue(CHIAVE_FORNITORE, self._corrente)
         self.impostazioni.setValue(CHIAVE_ATTIVO, self.attiva.isChecked())
+        self.impostazioni.setValue(CHIAVE_MOTORE, self.motore.currentData() or STANDARD)
         aggiorna_pulsanti_ai()
         self.accept()
 
@@ -314,8 +274,7 @@ def esegui_ai(genitore: QWidget, messaggio: str, funzione: Callable[[AssistenteA
               al_termine: Callable[[Any], None]) -> None:
     """Esegue `funzione(assistente)` in un thread separato mostrando un'attesa."""
     if not ai_attiva():
-        QMessageBox.information(genitore, "Assistente AI", "L'assistente AI non è attivo: si attiva da "
-                                "Strumenti > Impostazioni assistente AI, dove è spiegato quali dati vengono inviati.")
+        QMessageBox.information(genitore, "Assistente AI", perche_non_disponibile())
         return
     attesa = QProgressDialog(messaggio, "", 0, 0, genitore)
     attesa.setWindowTitle("Assistente AI")

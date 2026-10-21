@@ -156,7 +156,7 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   esempio: DURC o idoneità scaduti, figure obbligatorie mancanti, rischi senza misure,
   valutazioni da eseguire, sostanze senza scheda.
 
-### Assistente AI (facoltativo, spento all'inizio)
+### Assistente AI (incluso nella licenza, spento all'inizio)
 - **Incluso nella licenza**: "SicurCantiere AI" funziona senza chiavi API, passando dal server ponte
   dell'ufficio.
   - **Quota mensile per piano**: 1,5 milioni di crediti per i singoli, 3 milioni per il Completo,
@@ -165,9 +165,9 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   - **Motori**: Standard (DeepSeek) per tutti; Avanzato (Claude) nel piano Studio, a 8 crediti per
     token.
   - **Credito**: si verifica in *Strumenti > Impostazioni assistente AI*.
-- **Chiave propria**: in alternativa si può usare la propria chiave DeepSeek, OpenAI o Claude,
-  senza limiti di quota.
-- **Fornitori**: DeepSeek (predefinito), OpenAI o Claude, con la chiave del cliente.
+- **Solo con licenza**: durante la prova gratuita, o con la licenza scaduta, l'assistente non è
+  disponibile e i suoi pulsanti non compaiono. Nel programma non ci sono chiavi API: quelle delle
+  versioni precedenti vengono cancellate dal PC.
 - **Cosa fa**: suggerisce rischi, misure e DPI di fasi, macchine e attrezzature, scrive bozze dei
   testi, compila i parametri delle valutazioni dichiarando le ipotesi e completa le schede delle
   sostanze.

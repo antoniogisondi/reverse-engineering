@@ -35,7 +35,7 @@ from sicurcantiere.ui.icone import icona, icona_applicazione
 from sicurcantiere import licenza
 from sicurcantiere.ui import licenza as licenza_ui
 from sicurcantiere.ui.guida import DialogoGuida
-from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI
+from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI, aggiorna_pulsanti_ai
 from sicurcantiere.ui.pagine import Pagina, primario
 
 MAX_RECENTI = 8
@@ -472,6 +472,7 @@ class FinestraPrincipale(QMainWindow):
     def mostra_licenza(self) -> None:
         licenza_ui.DialogoLicenza(self.edizione.chiave, self.edizione.nome, self).exec()
         self._aggiorna_licenza()
+        aggiorna_pulsanti_ai()  # l'assistente incluso dipende dalla licenza
         if not self.pagine:
             self._mostra_benvenuto()
 

@@ -27,8 +27,10 @@ correggere. Poi premi <b>Genera</b> (Ctrl+P) e rileggi il documento in Word prim
 <li>Archivio personale di anagrafiche e lavorazioni: <code>%APPDATA%\\SicurCantiere\\archivio.db</code>.</li>
 </ul>
 <h3>Assistente AI</h3>
-<p>È spento di serie. Si attiva da <i>Strumenti &gt; Impostazioni assistente AI</i>, dove è spiegato
-quali dati vengono inviati e a quale fornitore. Le sue proposte vanno sempre verificate.</p>
+<p>È incluso nella licenza, senza chiavi né account, con un credito mensile secondo il piano. È spento
+di serie: si accende da <i>Strumenti &gt; Impostazioni assistente AI</i>, dove è spiegato quali dati
+vengono inviati e dove si verifica il credito. Durante la prova gratuita non è disponibile. Le sue
+proposte vanno sempre verificate.</p>
 <h3>Aggiornamenti</h3>
 <p>Il programma controlla da solo le nuove versioni e le segnala in basso a destra; si può controllare
 anche da <i>Aiuto &gt; Controlla aggiornamenti</i>. Cantieri e archivio restano dopo l'aggiornamento.</p>

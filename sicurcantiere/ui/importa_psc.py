@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from sicurcantiere import importa_psc
-from sicurcantiere.ai import FORNITORI, ErroreAI
+from sicurcantiere.ai import ErroreAI
 from sicurcantiere.ui import lavoro_ai
 
 
@@ -115,9 +115,10 @@ def avvia(finestra) -> None:
     if not lavoro_ai.ai_attiva():
         QMessageBox.information(
             finestra, TITOLO,
-            "Per leggere un PSC fatto con un altro programma serve l'assistente AI: si attiva da "
-            "Strumenti > Impostazioni assistente AI.\n\nSe il PSC è stato fatto con SicurCantiere PSC non serve: "
-            "basta aprirlo in SicurCantiere PSC e usare «Prepara il POS dell'impresa...» nella pagina Imprese.")
+            "Per leggere un PSC fatto con un altro programma serve l'assistente AI. "
+            + lavoro_ai.perche_non_disponibile()
+            + "\n\nSe il PSC è stato fatto con SicurCantiere PSC l'assistente non serve: basta aprirlo in "
+            "SicurCantiere PSC e usare «Prepara il POS dell'impresa...» nella pagina Imprese.")
         return
     percorso, _ = QFileDialog.getOpenFileName(finestra, "Scegli il PSC del coordinatore", "",
                                               "PSC (*.pdf *.docx)")
@@ -135,13 +136,14 @@ def avvia(finestra) -> None:
 
 def _conferma_e_analizza(finestra, percorso: str, testo: str) -> None:
     ai = lavoro_ai.assistente()
-    fornitore = FORNITORI[ai.fornitore].nome
+    fornitore = f"SicurCantiere AI ({'Avanzato' if ai.modello == 'avanzato' else 'Standard'})"
     token = importa_psc.stima_token(testo)
     n_parti = len(importa_psc.parti(testo))
     if QMessageBox.question(
             finestra, TITOLO,
-            f"Il PSC verrà letto dall'assistente {fornitore} ({lavoro_ai.SEDI[ai.fornitore]}), in "
-            f"{n_parti} richieste per circa {token:,} token in tutto".replace(",", ".")
+            f"Il PSC verrà letto dall'assistente {fornitore}, elaborato da {lavoro_ai.SEDI[ai.modello]}, in "
+            f"{n_parti} richieste per circa {token * (8 if ai.modello == 'avanzato' else 1):,} crediti AI"
+            .replace(",", ".") + (" (motore Avanzato: 8 crediti per token)" if ai.modello == "avanzato" else "")
             + ". La lettura si fa una volta sola e serve per i POS di tutte le imprese del PSC.\n\n"
             "Il PSC contiene nomi e recapiti dei soggetti e delle imprese: verranno inviati al fornitore insieme "
             "al resto del testo.\n\nContinuare?") != QMessageBox.StandardButton.Yes:

@@ -694,7 +694,7 @@ def test_assistente_ai_spento_di_serie(app, monkeypatch):
     chiamate = []
     lavoro_ai.esegui_ai(None, "x", lambda ai: chiamate.append(ai), lambda r: None)
     assert chiamate == []  # niente parte verso il fornitore
-    assert "Stati Uniti" in lavoro_ai.SEDI["openai"] and "Cina" in lavoro_ai.SEDI["deepseek"]
+    assert "Stati Uniti" in lavoro_ai.SEDI["avanzato"] and "Cina" in lavoro_ai.SEDI["standard"]
 
 
 def test_contesto_ai_senza_dati_personali(tmp_path):
@@ -824,23 +824,52 @@ def test_lettura_in_background_senza_bloccare(app):
 
 
 def test_assistente_incluso_nella_licenza(app, monkeypatch):
-    from sicurcantiere import ai
+    import base64
+    from datetime import date
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from sicurcantiere import ai, licenza
     from sicurcantiere.ui import lavoro_ai
 
-    monkeypatch.delenv("SICURCANTIERE_SERVER_AI", raising=False)
-    monkeypatch.setattr(ai, "SERVER_AI", "")
-    assert ai.INTEGRATO not in lavoro_ai.fornitori_disponibili()  # server non ancora attivo
+    privata = Ed25519PrivateKey.generate()
+    grezza = privata.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
+                                   serialization.NoEncryption())
+    monkeypatch.setenv("SICURCANTIERE_CHIAVE_LICENZE", base64.b64encode(privata.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw)).decode())
     monkeypatch.setenv("SICURCANTIERE_SERVER_AI", "https://vm.esempio.ts.net")
-    assert lavoro_ai.fornitore_predefinito() == ai.INTEGRATO
-    lavoro_ai.impostazioni_comuni().remove(lavoro_ai.CHIAVE_FORNITORE)
-    lavoro_ai.impostazioni_comuni().setValue("licenza/codice", "SC1-codice.firma")
-    a = lavoro_ai.assistente()
-    assert a.fornitore == ai.INTEGRATO and a.api_key == "SC1-codice.firma" and a.modello == ai.STANDARD
+    imp = lavoro_ai.impostazioni_comuni()
+    imp.setValue("ai/anthropic/chiave", "sk-vecchia")  # chiave di una versione precedente
+    imp.setValue(lavoro_ai.CHIAVE_ATTIVO, True)
+
+    # senza licenza: l'assistente non c'è, anche se era acceso
+    imp.remove("licenza/codice")
+    assert not lavoro_ai.ai_attiva() and not imp.contains("ai/anthropic/chiave")
     d = lavoro_ai.DialogoImpostazioniAI()
-    assert d.fornitore.currentData() == ai.INTEGRATO
-    assert not d.modulo.isRowVisible(d.chiave)  # nessuna chiave da inserire
-    assert "server SicurCantiere" in d.destinazione.text()
-    d.fornitore.setCurrentIndex(d.fornitore.findData(ai.DEEPSEEK))
-    assert d.modulo.isRowVisible(d.chiave)
+    assert not d.attiva.isEnabled() and "Aiuto > Licenza" in lavoro_ai.perche_non_disponibile()
     d.close()
-    lavoro_ai.impostazioni_comuni().remove("licenza/codice")
+
+    # licenza Completo: motore Standard, nessuna chiave da inserire
+    imp.setValue("licenza/codice", licenza.firma(licenza.Licenza("L-1", "Studio", "completo", date.today()), grezza))
+    assert lavoro_ai.ai_attiva()
+    imp.setValue(lavoro_ai.CHIAVE_MOTORE, ai.AVANZATO)
+    a = lavoro_ai.assistente()
+    assert a.fornitore == ai.INTEGRATO and a.modello == ai.STANDARD  # l'avanzato è solo nello Studio
+    d = lavoro_ai.DialogoImpostazioniAI()
+    assert d.attiva.isEnabled() and d.motore.count() == 1 and "server SicurCantiere" in d.destinazione.text()
+    d.close()
+
+    # piano Studio: c'è anche Claude
+    imp.setValue("licenza/codice", licenza.firma(licenza.Licenza("L-2", "Studio", "studio", date.today()), grezza))
+    assert lavoro_ai.assistente().modello == ai.AVANZATO
+    d = lavoro_ai.DialogoImpostazioniAI()
+    assert d.motore.count() == 2
+    d.close()
+
+    # licenza scaduta: niente assistente
+    imp.setValue("licenza/codice", licenza.firma(licenza.Licenza(
+        "L-3", "Studio", "studio", date(2020, 1, 1), scadenza=date(2021, 1, 1)), grezza))
+    assert not lavoro_ai.ai_attiva()
+    for voce in ("licenza/codice", lavoro_ai.CHIAVE_ATTIVO, lavoro_ai.CHIAVE_MOTORE):
+        imp.remove(voce)
