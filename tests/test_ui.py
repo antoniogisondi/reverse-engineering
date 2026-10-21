@@ -791,6 +791,10 @@ def test_nuovo_pos_da_psc(app, tmp_path, monkeypatch):
     scelte = dialogo.scelte()
     assert [i["ragione_sociale"] for i, _ in scelte] == ["Beta Gru"]
     assert len(scelte[0][1]) == 2
+    dialogo._tutte_le_fasi(False)
+    assert dialogo.scelte()[0][1] == []
+    dialogo._tutte_le_fasi(True)  # «Seleziona tutte»
+    assert len(dialogo.scelte()[0][1]) == dialogo.fasi.count() == 2
 
     f = FinestraPrincipale(POS)
     assert "Nuovo POS da un &PSC..." in [a.text() for a in f.menuBar().actions()[0].menu().actions()]

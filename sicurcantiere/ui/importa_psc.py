@@ -11,11 +11,13 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFileDialog,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
     QProgressDialog,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -254,7 +256,16 @@ class DialogoImpresePSC(QDialog):
                        "assegna le fasi alle imprese, spunta qui quelle che svolge.")
         aiuto.setWordWrap(True)
         layout.addWidget(aiuto)
-        layout.addWidget(self.impresa_fasi)
+        riga_fasi = QHBoxLayout()
+        riga_fasi.addWidget(self.impresa_fasi, 1)
+        tutte = QPushButton("Seleziona tutte")
+        tutte.setToolTip("Spunta tutte le fasi del PSC per l'impresa scelta")
+        tutte.clicked.connect(lambda: self._tutte_le_fasi(True))
+        nessuna = QPushButton("Deseleziona tutte")
+        nessuna.clicked.connect(lambda: self._tutte_le_fasi(False))
+        riga_fasi.addWidget(tutte)
+        riga_fasi.addWidget(nessuna)
+        layout.addLayout(riga_fasi)
         layout.addWidget(self.fasi, 3)
         layout.addWidget(pulsanti)
         self._mostra_fasi()
@@ -272,6 +283,11 @@ class DialogoImpresePSC(QDialog):
                                else Qt.CheckState.Unchecked)
             self.fasi.addItem(voce)
         self.fasi.blockSignals(False)
+
+    def _tutte_le_fasi(self, spuntate: bool) -> None:
+        stato = Qt.CheckState.Checked if spuntate else Qt.CheckState.Unchecked
+        for i in range(self.fasi.count()):
+            self.fasi.item(i).setCheckState(stato)  # _fase_cambiata aggiorna le scelte dell'impresa
 
     def _fase_cambiata(self, voce: QListWidgetItem) -> None:
         scelte = self._fasi_scelte.setdefault(self.impresa_fasi.currentIndex(), set())
