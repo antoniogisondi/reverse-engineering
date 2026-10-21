@@ -21,3 +21,12 @@ def licenze_non_attive(monkeypatch):
 
     monkeypatch.setattr(licenza, "CHIAVE_PUBBLICA", "")
     monkeypatch.setattr(licenza, "_attivo", None)
+
+
+@pytest.fixture(autouse=True)
+def senza_server_ai(monkeypatch):
+    # I test non contattano il server ponte reale: chi lo prova lo imposta da sé.
+    from sicurcantiere import ai
+
+    monkeypatch.setattr(ai, "SERVER_AI", "")
+    monkeypatch.delenv("SICURCANTIERE_SERVER_AI", raising=False)

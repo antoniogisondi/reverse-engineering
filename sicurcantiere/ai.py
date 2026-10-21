@@ -31,7 +31,7 @@ URL_DEEPSEEK = "https://api.deepseek.com"
 
 # Server ponte di SicurCantiere: l'assistente incluso nella licenza, senza chiave API del cliente.
 # Vuoto = non ancora attivo. La variabile d'ambiente serve ai test e alle prove.
-SERVER_AI = ""
+SERVER_AI = "https://vm-sicurcantiere.taile4e697.ts.net"
 STANDARD, AVANZATO = "standard", "avanzato"
 
 
