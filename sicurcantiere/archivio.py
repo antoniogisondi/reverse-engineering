@@ -533,3 +533,15 @@ def per_categoria(tipologia: str | None = None) -> dict[str, list[dict[str, Any]
         if tipologia is None or tipologia in lav["tipologie"]:
             gruppi[lav["categoria"]].append(lav)
     return {c: l for c, l in gruppi.items() if l}
+
+
+PREFISSO_UTENTE = "UT"  # fasi create a mano senza una lavorazione dell'archivio
+
+
+def prefisso_lavorazione(lavorazione: str) -> str | None:
+    """Sigla dell'archivio per la lavorazione (es. «ST» per le strutture), se è una lavorazione nota."""
+    cercata = (lavorazione or "").strip().lower()
+    for lav in LAVORAZIONI:
+        if lav["gruppo"].lower() == cercata:
+            return lav["codice"].split(".")[0]
+    return None

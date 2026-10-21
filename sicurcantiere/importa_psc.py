@@ -400,7 +400,8 @@ def crea_spo(analisi: Analisi, impresa: dict[str, str], destinazione: str | Path
             if modello is not None:
                 fase_id = repo.importa_lavorazione(modello)
             else:
-                fase_id = repo.inserisci("fasi", codice="", descrizione=f["descrizione"],
+                fase_id = repo.inserisci("fasi", codice=repo.codice_automatico(f.get("lavorazione", "")),
+                                         descrizione=f["descrizione"],
                                          lavorazione=f.get("lavorazione", ""))
             noti = {r["descrizione"].lower() for r in repo.rischi(fase_id=fase_id)}
             for r in f["rischi"]:

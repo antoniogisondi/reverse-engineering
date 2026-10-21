@@ -8,11 +8,12 @@ from pathlib import Path
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QLabel,
+    QLineEdit,
     QMessageBox,
-    QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -122,10 +123,14 @@ class DialogoLicenza(QDialog):
         self.setMinimumWidth(560)
         self.stato = QLabel()
         self.stato.setWordWrap(True)
-        self.codice = QPlainTextEdit()
+        # il codice è personale: nascosto come una password, si può mostrare per controllarlo
+        self.codice = QLineEdit()
+        self.codice.setEchoMode(QLineEdit.EchoMode.Password)
         self.codice.setPlaceholderText("Incolla qui il codice di licenza ricevuto (inizia con SC1-)")
-        self.codice.setMaximumHeight(90)
-        self.codice.setPlainText(codice_salvato())
+        self.codice.setText(codice_salvato())
+        self.mostra = QCheckBox("Mostra il codice")
+        self.mostra.toggled.connect(lambda si: self.codice.setEchoMode(
+            QLineEdit.EchoMode.Normal if si else QLineEdit.EchoMode.Password))
         self.errore = QLabel()
         self.errore.setObjectName("errorMessage")
         self.errore.setWordWrap(True)
@@ -140,6 +145,7 @@ class DialogoLicenza(QDialog):
         layout.addWidget(self.stato)
         layout.addWidget(QLabel("Codice di licenza"))
         layout.addWidget(self.codice)
+        layout.addWidget(self.mostra)
         layout.addWidget(self.errore)
         if licenza.CONTATTO_ACQUISTO:
             acquisto = QPushButton("Come acquistare o rinnovare la licenza")
@@ -153,7 +159,7 @@ class DialogoLicenza(QDialog):
         self.stato.setText(descrizione(stato_corrente(self.programma), self.nome_programma))
 
     def _attiva(self) -> None:
-        codice = "".join(self.codice.toPlainText().split())
+        codice = "".join(self.codice.text().split())
         try:
             l = licenza.leggi(codice)
         except licenza.ErroreLicenza as e:

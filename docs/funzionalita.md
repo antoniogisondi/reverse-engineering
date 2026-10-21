@@ -4,7 +4,7 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.17.0, ottobre 2026.*
+*Ultimo aggiornamento: versione 0.18.0, ottobre 2026.*
 
 ## Lo scopo
 
@@ -76,6 +76,9 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   - rischi con probabilità × danno e livello colorato, misure e DPI;
   - rischi dichiarati "non presenti" con la motivazione;
   - vista Struttura con lavoratori, attrezzi, macchine, rischi, misure e DPI.
+- **Codici delle fasi automatici**: non si inseriscono a mano. Le fasi dell'archivio tengono il
+  loro codice; quelle create da zero prendono la sigla della lavorazione (per esempio ST.xx per le
+  strutture), oppure UT.xx finché la lavorazione non viene indicata.
 - **Valutazioni specifiche automatiche**: le valutazioni necessarie nascono da sole dai rischi
   delle lavorazioni e delle macchine, e restano "da eseguire" finché non si inseriscono i dati.
 
@@ -195,6 +198,8 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 - **Alla scadenza** il programma continua a funzionare, ma non riceve più gli aggiornamenti
   pubblicati dopo la scadenza né l'assistenza.
 - **Programmi non inclusi** nel piano: compare la pagina "Non incluso nella tua licenza".
+- **Codice nascosto**: il codice di licenza è nascosto come una password in *Aiuto > Licenza*, con
+  la spunta "Mostra il codice" per controllarlo.
 - **Titolare in vista**: il nome compare nella barra del programma, in *Aiuto > Licenza* e in
   piccolo a piè di pagina di ogni documento generato, oltre che nelle proprietà del file. Passare
   il codice ad altri significa stampare documenti con il nome di un altro studio.

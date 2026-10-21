@@ -209,7 +209,9 @@ class Pagina(QWidget):
         intestazione = QVBoxLayout()
         intestazione.setSpacing(2)
         intestazione.addWidget(_titolo(self.titolo))
-        self.etichetta_sottotitolo = QLabel(self.sottotitolo)
+        # con il genitore da subito: un widget senza genitore reso visibile diventa per un istante una
+        # finestra a sé (su Windows compare e sparisce nella barra delle applicazioni)
+        self.etichetta_sottotitolo = QLabel(self.sottotitolo, self)
         self.etichetta_sottotitolo.setObjectName("pageSubtitle")
         self.etichetta_sottotitolo.setWordWrap(True)
         self.etichetta_sottotitolo.setVisible(bool(self.sottotitolo))
@@ -505,6 +507,7 @@ class PaginaImprese(Pagina):
             if chiave in self.schede_visibili:
                 self.schede.addTab(widget, titolo)
         self.schede.setEnabled(False)
+        self.schede.setParent(self)
         self.schede.setVisible(bool(self.schede_visibili))
         # Le schede non mostrate restano figlie della pagina: senza un genitore
         # Qt le distruggerebbe mentre la pagina le usa ancora.
@@ -727,7 +730,6 @@ class PaginaFasi(Pagina):
     def __init__(self, repo: Repository):
         super().__init__(repo)
         self.fasi = TabellaCrud(repo, "fasi", [
-            Colonna("codice", "Codice", larghezza=60),
             Colonna("lavorazione", "Lavorazione (gruppo di fasi)", "scelta", scelta_libera=True, larghezza=210,
                     scelte=lambda: [(g, g) for g in sorted({f["lavorazione"] for f in self.repo.elenco("fasi")
                                                              if f["lavorazione"]})],
@@ -747,7 +749,10 @@ class PaginaFasi(Pagina):
             Colonna("data_fine", "Fine", "data", larghezza=95),
             Colonna("uomini_giorno", "Uomini-giorno", "calcolata",
                     calcola=lambda f: str(analisi.uomini_giorno([f]) or "")),
-        ] if self.cronoprogramma else []), valida=_valida_fase)
+        ] if self.cronoprogramma else []), valida=_valida_fase,
+            valori_nuovo=lambda: {"codice": self.repo.codice_automatico()})
+        # il codice delle fasi lo assegna il programma: si aggiorna quando si indica la lavorazione
+        self.fasi.modificata.connect(self._aggiorna_codici)
         self.fasi.imposta_titolo("Fasi di lavoro")
         archivio = primario(QPushButton("Importa da archivio..."))
         archivio.clicked.connect(self._importa)
@@ -897,6 +902,23 @@ class PaginaFasi(Pagina):
 
     def salva_in_sospeso(self) -> None:
         self.descrizione_fase.salva_in_sospeso()
+
+    def _aggiorna_codici(self) -> None:
+        """Le fasi create a mano (sigla «UT») prendono la sigla della lavorazione appena indicata."""
+        from sicurcantiere.archivio import PREFISSO_UTENTE
+
+        cambiati = False
+        for f in self.repo.elenco("fasi"):
+            if f["lavorazione"].strip() and (not f["codice"] or f["codice"].startswith(PREFISSO_UTENTE + ".")):
+                nuovo = self.repo.codice_automatico(f["lavorazione"], escludi=f["id"])
+                if not nuovo.startswith(PREFISSO_UTENTE + "."):
+                    self.repo.aggiorna("fasi", f["id"], codice=nuovo)
+                    cambiati = True
+        if cambiati:
+            selezionata = self.fasi.id_selezionato()
+            self.fasi.ricarica()
+            if selezionata is not None:
+                self.fasi.seleziona(selezionata)
 
     def _aggiorna_gantt(self) -> None:
         imprese = {i["id"]: i["ragione_sociale"] or f"Impresa {i['id']}" for i in self.repo.elenco("imprese")}

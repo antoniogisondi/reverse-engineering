@@ -536,7 +536,7 @@ def test_attrezzature_suggerite_e_completate_con_ai(app, tmp_path, monkeypatch):
     pagina = _pagina(f, PaginaFasiPOS)
     repo = pagina.repo
     fase = repo.inserisci("fasi", codice="A", descrizione="Tagli di murature")
-    assert "raggruppa" in pagina.fasi.vista.horizontalHeaderItem(1).toolTip()
+    assert "raggruppa" in pagina.fasi.vista.horizontalHeaderItem(0).toolTip()  # il codice non è una colonna
     monkeypatch.setattr(type(pagina), "_scegli_proposte", lambda self, t, n, testi: list(range(len(testi))))
 
     rumore = {"descrizione": "Rumore", "probabilita": 3, "danno": 2, "misure": "Cuffie", "dpi": "Otoprotettori"}
@@ -873,3 +873,61 @@ def test_assistente_incluso_nella_licenza(app, monkeypatch):
     assert not lavoro_ai.ai_attiva()
     for voce in ("licenza/codice", lavoro_ai.CHIAVE_ATTIVO, lavoro_ai.CHIAVE_MOTORE):
         imp.remove(voce)
+
+
+@pytest.mark.parametrize("chiave", ["pos", "psc", "pimus"])
+def test_apertura_senza_finestre_lampo(app, tmp_path, chiave):
+    """Aprendo un cantiere nessun elemento deve comparire come finestra a sé (icone che lampeggiano)."""
+    from sicurcantiere.ui.edizioni import EDIZIONI
+
+    edizione = EDIZIONI[chiave]
+    file = tmp_path / f"c{edizione.estensione}"
+    Progetto(file, crea=True).chiudi()
+    f = FinestraPrincipale(edizione)
+    f.show()
+    app.processEvents()
+    lampi = []
+
+    class Spia(QtCore.QObject):
+        def eventFilter(self, oggetto, evento):
+            if evento.type() == QtCore.QEvent.Type.Show and oggetto.isWidgetType() and oggetto.isWindow() \
+                    and oggetto is not f:
+                lampi.append(type(oggetto).__name__)
+            return False
+
+    spia = Spia()
+    app.installEventFilter(spia)
+    try:
+        f.apri_file(file)
+        app.processEvents()
+        for i in range(len(f.pagine)):
+            f.navigazione.setCurrentRow(i)
+            app.processEvents()
+    finally:
+        app.removeEventFilter(spia)
+        f.close()
+    assert lampi == []
+
+
+def test_codice_fase_automatico_e_licenza_nascosta(app, tmp_path):
+    from sicurcantiere import archivio
+    from sicurcantiere.ui import licenza as licenza_ui
+    from sicurcantiere.ui.edizioni import POS, PaginaFasiPOS
+
+    Progetto(tmp_path / "c.spo", crea=True).chiudi()
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "c.spo")
+    pagina = _pagina(f, PaginaFasiPOS)
+    f.navigazione.setCurrentRow(f.pagine.index(pagina))
+    pagina.fasi.aggiungi()
+    fase = pagina.repo.elenco("fasi")[0]
+    assert fase["codice"] == "UT.01"  # nessun codice da inventare
+    pagina.fasi.salva_cella(0, 0, archivio.LAVORAZIONI[0]["gruppo"])  # la lavorazione dà la sigla
+    assert pagina.repo.leggi("fasi", fase["id"])["codice"].startswith("AL.")
+    f.close()
+
+    d = licenza_ui.DialogoLicenza("pos", "SicurCantiere POS")
+    assert d.codice.echoMode() == QtWidgets.QLineEdit.EchoMode.Password
+    d.mostra.setChecked(True)
+    assert d.codice.echoMode() == QtWidgets.QLineEdit.EchoMode.Normal
+    d.close()

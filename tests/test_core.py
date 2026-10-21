@@ -876,3 +876,18 @@ def test_prepara_pos_dal_psc(repo, tmp_path):
         pos.progetto.chiudi()
     assert len(repo.elenco("imprese")) == 3 and repo.prescrizioni()  # il PSC resta com'era
     assert sub
+
+
+def test_codice_automatico_delle_fasi(repo):
+    from sicurcantiere import archivio
+
+    assert repo.codice_automatico() == "UT.01"
+    a = repo.inserisci("fasi", codice=repo.codice_automatico(), descrizione="Fase a mano")
+    assert repo.codice_automatico() == "UT.02"
+    gruppo = archivio.LAVORAZIONI[0]["gruppo"]  # «Preparazione delle aree di cantiere», sigla AL
+    codice = repo.codice_automatico(gruppo, escludi=a)
+    assert codice.startswith("AL.") and codice not in {l["codice"] for l in archivio.LAVORAZIONI}
+    # lavorazione nuova: prende la sigla delle altre fasi con la stessa lavorazione
+    repo.inserisci("fasi", codice="XY.03", descrizione="b", lavorazione="Opere speciali")
+    assert repo.codice_automatico("Opere speciali") == "XY.04"
+    assert repo.codice_automatico("Lavorazione mai vista") == "UT.02"

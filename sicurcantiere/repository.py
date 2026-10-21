@@ -66,6 +66,22 @@ class Repository:
         righe = self.progetto.query(f"SELECT * FROM {tabella} WHERE id = ?", (id_,))
         return dict(righe[0]) if righe else None
 
+    def codice_automatico(self, lavorazione: str = "", escludi: int | None = None) -> str:
+        """Codice di una fase creata a mano: la sigla della sua lavorazione (quella dell'archivio o delle
+        altre fasi con la stessa lavorazione, altrimenti «UT») e il primo numero libero."""
+        from sicurcantiere.archivio import LAVORAZIONI, PREFISSO_UTENTE, prefisso_lavorazione
+
+        fasi = [f for f in self.elenco("fasi") if f["id"] != escludi]
+        prefisso = prefisso_lavorazione(lavorazione)
+        if prefisso is None and lavorazione.strip():
+            prefisso = next((f["codice"].split(".")[0] for f in fasi if f["lavorazione"] == lavorazione
+                             and "." in f["codice"] and not f["codice"].startswith(PREFISSO_UTENTE + ".")), None)
+        prefisso = prefisso or PREFISSO_UTENTE
+        usati = {c for c in [f["codice"] for f in fasi] + [l["codice"] for l in LAVORAZIONI]
+                 if c.startswith(prefisso + ".")}
+        numeri = [int(c.split(".", 1)[1]) for c in usati if c.split(".", 1)[1].isdigit()]
+        return f"{prefisso}.{max(numeri, default=0) + 1:02d}"
+
     def inserisci(self, tabella: str, **valori: Any) -> int:
         self._verifica(tabella, valori.keys())
         with self.progetto.transazione() as c:
