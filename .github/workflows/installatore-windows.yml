@@ -1,5 +1,5 @@
-# Compila i programmi per Windows e li prova (eseguibili e installatore) a ogni push.
-# La versione scaricabile si pubblica solo su richiesta: dalla scheda Actions con
+# Compila i programmi per Windows e li prova (eseguibili e installatore) a ogni push, senza
+# pubblicarli. La versione scaricabile si pubblica solo su richiesta: dalla scheda Actions con
 # «Run workflow» spuntando «pubblica», oppure con un tag v<versione>.
 name: Installatore Windows
 
@@ -18,9 +18,10 @@ on:
 permissions:
   contents: write
 
+# Un nuovo push annulla la prova precedente ancora in corso, ma mai una pubblicazione.
 concurrency:
-  group: installatore-windows-${{ github.ref }}
-  cancel-in-progress: true
+  group: installatore-windows-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   windows:
