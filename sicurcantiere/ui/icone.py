@@ -57,6 +57,8 @@ _FORME: dict[str, str] = {
     "controlli": '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
     "tema": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>',
+    "errore": '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>',
+    "avviso": '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
 }
 
 NOMI = tuple(_FORME)

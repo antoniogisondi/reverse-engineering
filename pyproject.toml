@@ -21,7 +21,7 @@ sicurcantiere-pimus = "sicurcantiere.app:main_pimus"
 include = ["sicurcantiere*"]
 
 [tool.setuptools.package-data]
-sicurcantiere = ["risorse/segnali/*.png"]
+sicurcantiere = ["risorse/segnali/*.png", "risorse/tema/*.qss", "risorse/font/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

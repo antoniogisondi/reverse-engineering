@@ -9,9 +9,11 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 from sicurcantiere import anagrafiche, analisi, controlli
 from sicurcantiere.documenti.comune import data_it, euro
 from sicurcantiere.repository import Repository
+from sicurcantiere.ui import tema
 
-# Stati dei riquadri: determinano il colore del bordo sinistro (vedi tema.py).
+# Stati dei riquadri: errori e avvisi colorano la tessera (vedi risorse/tema/sicurcantiere.qss).
 OK, ATTENZIONE, ERRORE, NEUTRO = "ok", "attenzione", "errore", "neutro"
+STATI_TEMA = {ERRORE: "error", ATTENZIONE: "warning"}
 
 
 @dataclass(frozen=True)
@@ -125,34 +127,32 @@ def calcola_pos(repo: Repository) -> list[Voce]:
 class Tessera(QFrame):
     def __init__(self) -> None:
         super().__init__()
-        self.setObjectName("tessera")
+        self.setObjectName("tile")
         self.titolo = QLabel()
-        self.titolo.setObjectName("tesseraTitolo")
+        self.titolo.setObjectName("tileTitle")
+        self.titolo.setWordWrap(True)
         self.valore = QLabel()
-        self.valore.setObjectName("tesseraValore")
+        self.valore.setObjectName("tileValue")
+        self.valore.setWordWrap(True)
         self.nota = QLabel()
-        self.nota.setObjectName("tesseraNota")
+        self.nota.setObjectName("tileNote")
         self.nota.setWordWrap(True)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 10, 12, 10)
+        layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(2)
         layout.addWidget(self.titolo)
         layout.addWidget(self.valore)
         layout.addWidget(self.nota)
 
     def imposta(self, voce: Voce) -> None:
-        self.titolo.setText(voce.titolo.upper())
+        self.titolo.setText(voce.titolo)
         self.valore.setText(voce.valore)
         self.nota.setText(voce.nota)
-        if self.property("stato") != voce.stato:
-            self.setProperty("stato", voce.stato)
-            # Riapplica il foglio di stile per il nuovo valore della proprietà.
-            self.style().unpolish(self)
-            self.style().polish(self)
+        tema.imposta_stato(self, STATI_TEMA.get(voce.stato))
 
 
 class Riepilogo(QWidget):
-    COLONNE = 3
+    MAX_COLONNE = 7
 
     def __init__(self, funzione=calcola) -> None:
         super().__init__()
@@ -163,9 +163,12 @@ class Riepilogo(QWidget):
         self.tessere: dict[str, Tessera] = {}
 
     def aggiorna(self, repo: Repository) -> None:
-        for n, voce in enumerate(self.funzione(repo)):
+        voci = self.funzione(repo)
+        righe = -(-len(voci) // self.MAX_COLONNE)
+        colonne = -(-len(voci) // max(righe, 1))
+        for n, voce in enumerate(voci):
             tessera = self.tessere.get(voce.chiave)
             if tessera is None:
                 tessera = self.tessere[voce.chiave] = Tessera()
-                self.griglia.addWidget(tessera, n // self.COLONNE, n % self.COLONNE)
+                self.griglia.addWidget(tessera, n // colonne, n % colonne)
             tessera.imposta(voce)

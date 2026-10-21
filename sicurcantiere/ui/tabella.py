@@ -14,8 +14,10 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QDoubleSpinBox,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QPlainTextEdit,
@@ -46,6 +48,7 @@ class Colonna:
     massimo: float = 1_000_000_000
     larghezza: int | None = None
     suggerimento: str = ""  # spiegazione mostrata passando sull'intestazione
+    disegno: Callable[[QWidget], QStyledItemDelegate] | None = None  # delegato che disegna la cella (badge)
 
 
 def formatta(colonna: Colonna, riga: dict[str, Any]) -> str:
@@ -139,8 +142,8 @@ class _Delegato(QStyledItemDelegate):
         self.tabella.salva_cella(indice.row(), indice.column(), valore)
 
 
-class TabellaCrud(QWidget):
-    """Elenco di record con pulsanti Aggiungi/Elimina."""
+class TabellaCrud(QFrame):
+    """Elenco di record con pulsanti Aggiungi/Elimina, in un riquadro con intestazione."""
 
     modificata = Signal()
     selezione_cambiata = Signal(object)  # id del record selezionato o None
@@ -164,7 +167,16 @@ class TabellaCrud(QWidget):
         for n, c in enumerate(colonne):
             if c.suggerimento:
                 self.vista.horizontalHeaderItem(n).setToolTip(c.suggerimento)
+            if c.disegno is not None:
+                self.vista.setItemDelegateForColumn(n, c.disegno(self.vista))
         self.vista.setItemDelegate(_Delegato(self))
+        self.vista.setShowGrid(False)
+        self.vista.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.vista.verticalHeader().setMinimumSectionSize(32)
+        # Altezza delle righe secondo il testo, ma rifatta quando cambia la larghezza delle colonne:
+        # misurata a tabella nascosta (colonne strettissime) darebbe righe altissime.
+        self.vista.verticalHeader().setMaximumSectionSize(180)
+        self.vista.horizontalHeader().sectionResized.connect(lambda *_: self._adatta_righe())
         self.vista.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.vista.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.vista.setEditTriggers(
@@ -195,10 +207,43 @@ class TabellaCrud(QWidget):
         self.pulsanti.addWidget(self.btn_elimina)
         self.pulsanti.addStretch()
 
+        # Intestazione del riquadro: titolo facoltativo con il numero di righe, poi i pulsanti.
+        self.setObjectName("card")
+        self.titolo = QLabel()
+        self.titolo.setObjectName("cardTitle")
+        self.conteggio = QLabel()
+        self.conteggio.setObjectName("countBadge")
+        self.titolo.hide()
+        self.conteggio.hide()
+        intestazione = QFrame()
+        intestazione.setObjectName("cardHeader")
+        lay_intestazione = QHBoxLayout(intestazione)
+        lay_intestazione.setContentsMargins(12, 6, 10, 6)
+        lay_intestazione.addWidget(self.titolo)
+        lay_intestazione.addWidget(self.conteggio)
+        lay_intestazione.addSpacing(8)
+        lay_intestazione.addLayout(self.pulsanti, 1)
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(self.pulsanti)
+        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setSpacing(0)
+        layout.addWidget(intestazione)
         layout.addWidget(self.vista)
+
+    def _adatta_righe(self) -> None:
+        if self.isVisible():
+            self.vista.resizeRowsToContents()
+
+    def showEvent(self, evento) -> None:
+        super().showEvent(evento)
+        self.vista.resizeRowsToContents()
+
+    def imposta_titolo(self, testo: str) -> None:
+        """Titolo del riquadro (per esempio «Imprese»), con il numero di righe accanto."""
+        self.titolo.setText(testo)
+        self.titolo.setVisible(bool(testo))
+        self.conteggio.setVisible(bool(testo))
+        self.conteggio.setText(str(len(self._righe)))
 
     def aggiungi_pulsante(self, testo: str, azione) -> QPushButton:
         """Pulsante aggiuntivo accanto ad Aggiungi ed Elimina."""
@@ -234,8 +279,14 @@ class TabellaCrud(QWidget):
             self._mostra_riga(r)
         self.vista.blockSignals(False)
         self.vista.resizeRowsToContents()
+        self.conteggio.setText(str(len(self._righe)))
         self.seleziona(selezionato)
         self.selezione_cambiata.emit(self.id_selezionato())
+
+    def seleziona_prima(self) -> None:
+        """Seleziona la prima riga se non ce n'è una selezionata (la parte sotto non resta vuota)."""
+        if self.id_selezionato() is None and self._righe:
+            self.vista.selectRow(0)
 
     def seleziona(self, id_: int | None) -> None:
         for r, riga in enumerate(self._righe):

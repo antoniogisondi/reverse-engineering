@@ -45,6 +45,12 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     mancanti = [s.chiave for s in segnaletica.SEGNALI.values() if not s.file.is_file()]
     assert not mancanti, f"cartelli mancanti: {mancanti}"
     righe.append(f"cartelli: {len(segnaletica.SEGNALI)}")
+    from sicurcantiere.ui import tema
+
+    foglio = tema.foglio_di_stile(False, edizione)
+    assert len(foglio) > 5000 and "@" not in foglio, "foglio di stile mancante o incompleto"
+    tema.carica_caratteri()
+    righe.append(f"tema: {len(foglio)} caratteri, carattere {tema._corrente['sans']}")
 
     file = cartella / f"prova{EDIZIONI[edizione].estensione}"
     progetto = Progetto(file, crea=True)

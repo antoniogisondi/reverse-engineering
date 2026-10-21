@@ -75,7 +75,7 @@ class DialogoMansioni(QDialog):
         aiuto = QLabel("Spuntare le lavorazioni svolte e, al loro interno, le macchine e le attrezzature utilizzate. "
                        "In rosso le voci che non hanno ancora nessun lavoratore assegnato.")
         aiuto.setWordWrap(True)
-        aiuto.setObjectName("sottotitolo")
+        aiuto.setObjectName("pageSubtitle")
 
         assegnate = {(r["fase_id"], r["attrezzatura_id"]) for r in repo.elenco("mansioni_lavoratori")}
         fasi_assegnate = {f for f, _ in assegnate}
@@ -198,10 +198,10 @@ class PannelloLavoratori(QWidget):
         self.foto = QLabel("(Foto vuota)")
         self.foto.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.foto.setFixedSize(160, 190)
-        self.foto.setObjectName("sottotitolo")
+        self.foto.setObjectName("pageSubtitle")
         self.mansioni_testo = QLabel()
         self.mansioni_testo.setWordWrap(True)
-        self.mansioni_testo.setObjectName("sottotitolo")
+        self.mansioni_testo.setObjectName("pageSubtitle")
 
         sotto = QWidget()
         hs = QHBoxLayout(sotto)

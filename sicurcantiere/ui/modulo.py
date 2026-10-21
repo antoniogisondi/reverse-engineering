@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from sicurcantiere import anagrafiche
 from sicurcantiere.repository import Repository
+from sicurcantiere.ui import tema
 
 DATA_VUOTA = QDate(1900, 1, 1)
 FILTRO_IMMAGINI = "Immagini (*.png *.jpg *.jpeg *.bmp)"
@@ -156,7 +157,7 @@ class ModuloRecord(QWidget):
             campo, etichetta = voce[0], voce[1]
             if campo is None:
                 titolo = QLabel(etichetta)
-                titolo.setObjectName("titoloGruppo")
+                titolo.setObjectName("sectionTitle")
                 self.modulo.addRow(titolo)
                 continue
             tipo = voce[2] if len(voce) > 2 else "testo"
@@ -166,6 +167,7 @@ class ModuloRecord(QWidget):
             self.modulo.addRow("" if tipo == "spunta" else etichetta, contenitore)
             if tipo == "spunta":
                 self.campi[campo].setText(etichetta)
+        tema.stile_modulo(self.modulo)
 
     # --- creazione dei campi ---
 

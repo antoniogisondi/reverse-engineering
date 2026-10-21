@@ -21,8 +21,9 @@ from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QFileDialog,
-    QGroupBox,
+    QFrame,
     QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QPushButton,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 
 from sicurcantiere import controlli, pimus
 from sicurcantiere.repository import Repository
+from sicurcantiere.ui import tema
 from sicurcantiere.ui.pagine import (
     Pagina,
     PaginaCosti,
@@ -80,40 +82,52 @@ class PaginaDocumentiPSC(PaginaDocumenti):
 class PaginaCantierePOS(PaginaDatiGenerali):
     titolo = "Cantiere"
     voce = "Cantiere"
+    sottotitolo = "Dati generali dell'opera. I numeri qui sotto si aggiornano mentre compili le altre pagine."
     funzione_riepilogo = staticmethod(calcola_pos)
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
         self.foto = FotoCantiere(repo)
-        self.layout_.addWidget(self.foto)
+        self.corpo.addWidget(self.foto, 1)
 
     def aggiorna(self) -> None:
         super().aggiorna()
         self.foto.aggiorna()
 
 
-class FotoCantiere(QGroupBox):
-    """Foto del cantiere riportate nel POS (capitolo «Lavoro»)."""
+class FotoCantiere(QFrame):
+    """Foto del cantiere riportate nel POS (capitolo «Lavoro»), in un riquadro a destra dei dati."""
 
     def __init__(self, repo: Repository):
-        super().__init__("Foto del cantiere (nel POS)")
+        super().__init__()
         self.repo = repo
         self.elenco = QListWidget()
-        self.elenco.setIconSize(QSize(96, 72))
-        self.elenco.setMaximumHeight(110)
-        self.elenco.setFlow(QListWidget.LeftToRight)
+        self.elenco.setViewMode(QListWidget.ViewMode.IconMode)
+        self.elenco.setIconSize(QSize(120, 90))
+        self.elenco.setGridSize(QSize(136, 120))
+        self.elenco.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.elenco.setMovement(QListWidget.Movement.Static)
+        self.elenco.setWordWrap(True)
         self.elenco.setToolTip("Le foto restano nella loro cartella: il file del cantiere ne conserva il percorso.")
         aggiungi = QPushButton("Aggiungi foto...")
         aggiungi.clicked.connect(self._aggiungi)
         rimuovi = QPushButton("Rimuovi")
+        tema.imposta_variante(rimuovi, "quiet")
         rimuovi.clicked.connect(self._rimuovi)
         pulsanti = QHBoxLayout()
         pulsanti.addWidget(aggiungi)
         pulsanti.addWidget(rimuovi)
         pulsanti.addStretch()
+        corpo = QVBoxLayout()
+        corpo.addWidget(self.elenco, 1)
+        corpo.addLayout(pulsanti)
+        riquadro = tema.cornice("Foto del cantiere", corpo, (10, 10, 10, 12))
+        self.conteggio = QLabel()
+        self.conteggio.setObjectName("hint")
+        riquadro.intestazione.addWidget(self.conteggio)
         layout = QVBoxLayout(self)
-        layout.addWidget(self.elenco)
-        layout.addLayout(pulsanti)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(riquadro)
 
     def percorsi(self) -> list[str]:
         return [r for r in self.repo.testo("foto_cantiere").splitlines() if r.strip()]
@@ -124,6 +138,8 @@ class FotoCantiere(QGroupBox):
             voce = QListWidgetItem(QIcon(percorso), Path(percorso).name)
             voce.setToolTip(percorso if Path(percorso).is_file() else f"{percorso}\n(file non trovato)")
             self.elenco.addItem(voce)
+        n = self.elenco.count()
+        self.conteggio.setText(f"{n} foto" if n else "nessuna foto")
 
     def _aggiungi(self) -> None:
         file, _ = QFileDialog.getOpenFileNames(self, "Foto del cantiere", "", "Immagini (*.png *.jpg *.jpeg *.bmp)")
@@ -142,23 +158,28 @@ class FotoCantiere(QGroupBox):
 
 
 class PaginaSoggettiPOS(PaginaSoggetti):
-    titolo = "Committente, coordinatori e direzione lavori"
+    titolo = "Committente e CSE"
+    sottotitolo = "Committente, responsabile dei lavori, coordinatori e direzione lavori del cantiere."
     voce = "Committente e CSE"
 
 
 class PaginaImpresePOS(PaginaImprese):
-    titolo = "Impresa, figure della sicurezza e lavoratori"
+    titolo = "Impresa e lavoratori"
+    sottotitolo = "Seleziona un'impresa: sotto compili i suoi dati, le figure della sicurezza e le maestranze."
     voce = "Impresa e lavoratori"
 
 
 class PaginaFasiPOS(PaginaFasi):
-    titolo = "Lavorazioni, rischi, macchine e attrezzature"
+    titolo = "Lavorazioni e rischi"
+    sottotitolo = ("Importa le fasi dall'archivio: portano con sé macchine, attrezzi, rischi e misure, "
+                   "che puoi completare nelle schede qui sotto.")
     voce = "Lavorazioni e rischi"
     cronoprogramma = False
 
 
 class PaginaDocumentiPOS(PaginaDocumenti):
-    titolo = "POS, modulistica e controlli"
+    titolo = "POS e controlli"
+    sottotitolo = "Genera i documenti in Word. Prima risolvi gli errori segnalati nei controlli."
     voce = "POS e controlli"
     documenti = ("pos", "sostanze", "dpi", "tesserini", "schede")
     principale = "pos"

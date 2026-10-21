@@ -59,7 +59,7 @@ class DialogoAnagrafiche(QDialog):
         aiuto = QLabel("Le voci si aggiungono dai cantieri con il pulsante «Salva in archivio». "
                        f"File dell'archivio: {archivio.percorso}")
         aiuto.setWordWrap(True)
-        aiuto.setObjectName("sottotitolo")
+        aiuto.setObjectName("pageSubtitle")
         tasti = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel if scelta \
             else QDialogButtonBox.StandardButton.Close
         pulsanti = QDialogButtonBox(tasti)

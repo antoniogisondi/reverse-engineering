@@ -30,6 +30,7 @@ class PaginaPonteggi(Pagina):
     titolo = "Ponteggi e PiMUS"
     voce = "Ponteggi e PiMUS"
     icona = "ponteggi"
+    sezioni_controlli = ("Ponteggi", "*")
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -44,6 +45,7 @@ class PaginaPonteggi(Pagina):
             Colonna("conforme_schemi", "Secondo schemi tipo", "scelta",
                     scelte=lambda: [(1, "Sì"), (0, "No: serve il progetto")]),
         ], valori_nuovo=lambda: {"nome": "Ponteggio di facciata"})
+        self.tabella.imposta_titolo("Ponteggi")
         genera = primario(QPushButton("Genera PiMUS (.docx)..."))
         genera.clicked.connect(self._genera)
         self.tabella.pulsanti.insertWidget(2, genera)
@@ -89,6 +91,7 @@ class PaginaPonteggi(Pagina):
             Colonna("esito", "Esito", "scelta", larghezza=140, scelte=lambda: [(e, e or "Da eseguire") for e in pimus.ESITI]),
             Colonna("note", "Note", larghezza=200),
         ])
+        self.verifiche.imposta_titolo("Verifiche")
         carica = QPushButton("Carica l'elenco delle verifiche")
         carica.clicked.connect(self._carica_verifiche)
         self.verifiche.pulsanti.insertWidget(2, carica)

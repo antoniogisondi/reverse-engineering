@@ -75,7 +75,7 @@ class DialogoImpostazioniAI(QDialog):
             "personali non necessari. Le chiavi vengono salvate nelle impostazioni di questo computer."
         )
         nota.setWordWrap(True)
-        nota.setObjectName("sottotitolo")
+        nota.setObjectName("pageSubtitle")
         modulo = QFormLayout()
         modulo.addRow("Fornitore", self.fornitore)
         modulo.addRow("Chiave API", self.chiave)

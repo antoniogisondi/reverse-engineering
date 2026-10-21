@@ -32,8 +32,9 @@ from PySide6.QtWidgets import (
 
 from sicurcantiere.documenti.valutazione import genera_valutazione, lavorazioni_valutazione
 from sicurcantiere.repository import Repository
+from sicurcantiere.ui import tema
 from sicurcantiere.ui.lavoro_ai import esegui_ai
-from sicurcantiere.ui.pagine import Pagina, _riquadro, primario
+from sicurcantiere.ui.pagine import Pagina, _riquadro, pulsante_ai
 from sicurcantiere.ui.sostanze import DialogoFasi
 from sicurcantiere.ui.tabella import Colonna, TabellaCrud
 from sicurcantiere.valutazioni import COLORI, METODI, Campo, Esito, Metodo, automatiche
@@ -254,7 +255,10 @@ class PannelloEsito(QFrame):
 class PaginaValutazioni(Pagina):
     titolo = "Valutazioni dei rischi specifici"
     voce = "Valutazioni specifiche"
+    sottotitolo = ("Le valutazioni necessarie vengono create in automatico dai rischi delle lavorazioni: "
+                   "a te resta da inserire i parametri.")
     icona = "valutazioni"
+    sezioni_controlli = ("Valutazioni",)
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -272,20 +276,14 @@ class PaginaValutazioni(Pagina):
             Colonna("lavorazioni", "Lavorazioni", "calcolata", larghezza=240,
                     calcola=lambda r: lavorazioni_valutazione(self.repo, r) or "(nessuna)",
                     suggerimento="Lavorazioni in cui si presenta il rischio: pulsante «Lavorazioni...»."),
-            Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga),
+            Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga, disegno=tema.DelegatoRisultato),
         ], valori_nuovo=lambda: {"metodo": "niosh"})
+        self.tabella.imposta_titolo("Valutazioni")
         self.tabella.aggiungi_pulsante("Lavorazioni...", self._scegli_lavorazioni)
         self.avviso = QLabel()
         self.avviso.setWordWrap(True)
-        self.avviso.setObjectName("sottotitolo")
+        self.avviso.setObjectName("infoBanner")
         self.avviso.setVisible(False)
-        spiegazione = QLabel(
-            "Le valutazioni necessarie vengono create in automatico dai rischi delle lavorazioni "
-            "(movimentazione manuale dei carichi, movimenti ripetitivi, rumore, vibrazioni) e ogni "
-            "lavorazione con quel rischio viene collegata: restano da inserire i parametri del metodo.")
-        spiegazione.setWordWrap(True)
-        spiegazione.setObjectName("sottotitolo")
-        self.layout_.addWidget(spiegazione)
         self.layout_.addWidget(self.avviso)
         self.tabella.selezione_cambiata.connect(self._seleziona)
         self.tabella.modificata.connect(self._riga_modificata)
@@ -300,11 +298,11 @@ class PaginaValutazioni(Pagina):
         )
         self.descrizione.setMaximumHeight(110)
         self.descrizione.textChanged.connect(self._programma_salvataggio)
-        compila = primario(QPushButton("Compila con l'assistente AI"))
+        compila = pulsante_ai("Compila con l'assistente AI")
         compila.clicked.connect(self._compila_ai)
         self.ipotesi = QLabel()
         self.ipotesi.setWordWrap(True)
-        self.ipotesi.setObjectName("sottotitolo")
+        self.ipotesi.setObjectName("pageSubtitle")
         box_ai = QWidget()
         lai = QVBoxLayout(box_ai)
         lai.setContentsMargins(0, 0, 0, 0)
@@ -382,12 +380,12 @@ class PaginaValutazioni(Pagina):
         if metodo is None:
             return ""
         if not json.loads(riga["dati"] or "{}"):
-            return "Da eseguire"
+            return ""  # «Da eseguire» (vedi tema.DelegatoRisultato)
         try:
             esito = metodo.esegui(json.loads(riga["dati"] or "{}"))
         except ValueError:
             return ""
-        return f"{esito.indice_testo} - {esito.classe.split(' (')[0]}"
+        return f"{esito.colore}|{esito.indice_testo}|{esito.classe.split(' (')[0]}"
 
     def _seleziona(self, id_: int | None) -> None:
         self.salva_in_sospeso()
@@ -524,3 +522,4 @@ class PaginaValutazioni(Pagina):
         self.avviso.setText("<br>".join(messaggi))
         self.avviso.setVisible(bool(messaggi))
         self.tabella.ricarica()
+        self.tabella.seleziona_prima()

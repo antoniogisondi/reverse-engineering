@@ -71,8 +71,10 @@ archivi o contenuti di software commerciali.
   icone dei DPI per fase e attrezzatura, tabella dei rischi con il livello colorato, numeri utili
   e documenti da tenere in cantiere
 - **Controlli di completezza** prima della stampa (errori e avvisi)
-- **Interfaccia** con tema chiaro e scuro, barra laterale con icone, barra degli strumenti
-  e barra di stato con ultimo salvataggio e riepilogo dei controlli sempre visibili
+- **Interfaccia** con tema chiaro e scuro e colore proprio per ogni programma (foglio di stile in
+  `sicurcantiere/risorse/tema`, caratteri IBM Plex con licenza OFL in `sicurcantiere/risorse/font`):
+  barra laterale con le pagine numerate e il numero di problemi di ognuna, tabelle in riquadri,
+  livelli di rischio e risultati delle valutazioni a colori, controlli che portano alla pagina da correggere
 - **Pagina iniziale** con le schede dei cantieri recenti; **riepilogo a riquadri** del cantiere
   (importo, durata, uomini-giorno, picco di lavoratori, interferenze, obblighi, controlli)
 - **Valutazioni dei rischi specifici con metodi normati** (non semplici checklist):

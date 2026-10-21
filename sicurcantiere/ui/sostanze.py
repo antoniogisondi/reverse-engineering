@@ -90,7 +90,7 @@ class PannelloClassificazione(QWidget):
             immagine.setPixmap(immagine_pittogramma(codice))
             immagine.setAlignment(Qt.AlignmentFlag.AlignCenter)
             nome = QLabel(sostanze.PITTOGRAMMI[codice])
-            nome.setObjectName("sottotitolo")
+            nome.setObjectName("pageSubtitle")
             nome.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lr.addWidget(immagine)
             lr.addWidget(nome)
@@ -158,7 +158,9 @@ class DialogoLavorazioni(DialogoFasi):
 class PaginaSostanze(Pagina):
     titolo = "Sostanze e miscele pericolose"
     voce = "Sostanze pericolose"
+    sottotitolo = "Prodotti con frasi H usati in cantiere: importali dalla scheda di sicurezza in PDF."
     icona = "sostanze"
+    sezioni_controlli = ("Sostanze",)
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -175,6 +177,7 @@ class PaginaSostanze(Pagina):
             Colonna("pittogrammi", "Pittogrammi", "calcolata", calcola=lambda r: ", ".join(
                 sostanze.PITTOGRAMMI[p] for p in sostanze.pittogrammi(sostanze.codici_h(r["codici_h"])))),
         ], valori_nuovo=self._valori_nuovo)
+        self.tabella.imposta_titolo("Prodotti")
         importa = primario(QPushButton("Importa da scheda di sicurezza (PDF)..."))
         importa.clicked.connect(self._importa_pdf)
         self.apri_scheda = QPushButton("Apri la scheda")
@@ -294,3 +297,4 @@ class PaginaSostanze(Pagina):
 
     def aggiorna(self) -> None:
         self.tabella.ricarica()
+        self.tabella.seleziona_prima()

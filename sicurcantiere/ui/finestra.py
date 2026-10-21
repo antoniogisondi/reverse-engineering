@@ -39,106 +39,170 @@ MAX_RECENTI = 8
 INTERVALLO_STATO_MS = 3000
 
 
-class SchedaRecente(QPushButton):
-    """Scheda cliccabile di un cantiere recente."""
+def _etichetta(testo: str, nome: str, a_capo: bool = False) -> QLabel:
+    e = QLabel(testo)
+    e.setObjectName(nome)
+    e.setWordWrap(a_capo)
+    e.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+    return e
 
-    def __init__(self, percorso: str, colore_icona: str):
+
+def _data_breve(istante: datetime) -> str:
+    oggi = datetime.now().date()
+    if istante.date() == oggi:
+        return f"Oggi, {istante:%H:%M}"
+    if (oggi - istante.date()).days == 1:
+        return "Ieri"
+    return f"{istante:%d/%m/%Y}"
+
+
+class SchedaRecente(QPushButton):
+    """Scheda cliccabile di un cantiere recente: nome, luogo, file e data di modifica."""
+
+    def __init__(self, percorso: str):
         super().__init__()
-        self.setObjectName("schedaRecente")
+        self.setObjectName("recentCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.percorso = percorso
         dati = anteprima(percorso) or {}
         file = Path(percorso)
-        nome = dati.get("nome") or file.stem
         luogo = " ".join(v for v in (dati.get("comune", ""),
                                       f"({dati['provincia']})" if dati.get("provincia") else "") if v)
         try:
-            modificato = f"modificato il {datetime.fromtimestamp(file.stat().st_mtime):%d/%m/%Y %H:%M}"
+            modificato = _data_breve(datetime.fromtimestamp(file.stat().st_mtime))
         except OSError:
             modificato = ""
         self.setToolTip(percorso)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(4)
+        layout.addWidget(_etichetta(dati.get("nome") or file.stem, "recentTitle"))
+        layout.addWidget(_etichetta(luogo or " ", "pageSubtitle"))
+        riga = QHBoxLayout()
+        riga.setSpacing(8)
+        riga.addWidget(_etichetta(file.suffix, "extBadge"))
+        nome_file = _etichetta(file.stem, "hint")
+        nome_file.setProperty("mono", True)
+        riga.addWidget(nome_file, 1)
+        riga.addWidget(_etichetta(modificato, "hint"))
+        layout.addLayout(riga)
+        self.setMinimumHeight(88)
 
-        icona_lbl = QLabel()
-        icona_lbl.setPixmap(icona("cantiere", colore_icona, 32).pixmap(32, 32))
-        titolo = QLabel(nome)
-        titolo.setObjectName("schedaTitolo")
-        dettagli = QLabel(" · ".join(v for v in (luogo, modificato) if v))
-        dettagli.setObjectName("sottotitolo")
-        dettagli.setWordWrap(True)
-        nome_file = QLabel(file.name)
-        nome_file.setObjectName("sottotitolo")
+
+class PulsanteGrande(QPushButton):
+    """Pulsante della pagina iniziale: titolo, riga di spiegazione e scorciatoia."""
+
+    def __init__(self, nome_icona: str, titolo: str, nota: str, scorciatoia: str, principale: bool):
+        super().__init__()
+        self.setProperty("large", True)
+        if principale:
+            tema.imposta_variante(self, "primary")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        c = tema.correnti()
+        immagine = QLabel()
+        immagine.setPixmap(icona(nome_icona, c["acc_tx"] if principale else c["acc_s"], 24).pixmap(24, 24))
+        immagine.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         testi = QVBoxLayout()
         testi.setSpacing(2)
-        for w in (titolo, dettagli, nome_file):
-            testi.addWidget(w)
+        testi.addWidget(_etichetta(titolo, "largeTitle"))
+        testi.addWidget(_etichetta(nota, "largeNote"))
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.addWidget(icona_lbl, 0, Qt.AlignmentFlag.AlignTop)
+        layout.setContentsMargins(18, 10, 16, 10)
+        layout.setSpacing(14)
+        layout.addWidget(immagine)
         layout.addLayout(testi, 1)
-        for w in (icona_lbl, titolo, dettagli, nome_file):
-            w.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setMinimumHeight(78)
+        layout.addWidget(_etichetta(scorciatoia, "kbd"), 0, Qt.AlignmentFlag.AlignVCenter)
+        self.setMinimumHeight(70)
 
 
 class Benvenuto(QWidget):
+    """Pagina iniziale: marchio del programma, nuovo e apri, i tre passi e i cantieri recenti."""
+
     COLONNE_RECENTI = 3
     MAX_SCHEDE = 6
 
-    def __init__(self, finestra: FinestraPrincipale, colore_icona: str, recenti: list[str]):
+    def __init__(self, finestra: FinestraPrincipale, recenti: list[str]):
         super().__init__()
         edizione = finestra.edizione
-        layout = QVBoxLayout(self)
-        layout.addStretch(1)
-        logo = QLabel()
-        logo.setPixmap(icona_applicazione(edizione.colore).pixmap(96, 96))
+        sigla = edizione.nome.split()[-1]
+        colonna = QVBoxLayout()
+        colonna.setSpacing(16)
+
+        marchio = QHBoxLayout()
+        marchio.setSpacing(18)
+        logo = QLabel(f"SC\n{sigla}")
+        logo.setObjectName("logoTile")
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(logo)
-        titolo = QLabel(edizione.nome)
-        titolo.setObjectName("titoloPagina")
-        titolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(titolo)
-        sottotitolo = QLabel(f"{edizione.sottotitolo} - D.Lgs. 81/2008")
-        sottotitolo.setObjectName("sottotitolo")
-        sottotitolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(sottotitolo)
+        logo.setFixedSize(64, 64)
+        nomi = QVBoxLayout()
+        nomi.setSpacing(2)
+        nomi.addStretch()
+        nomi.addWidget(_etichetta(edizione.nome, "heroTitle"))
+        nomi.addWidget(_etichetta(f"{edizione.sottotitolo} · D.Lgs. 81/2008", "pageSubtitle", True))
+        nomi.addStretch()
+        marchio.addWidget(logo)
+        marchio.addLayout(nomi, 1)
+        colonna.addLayout(marchio)
+
         pulsanti = QHBoxLayout()
-        pulsanti.addStretch()
-        for testo, nome_icona, azione, evidenziato in (
-            ("Nuovo cantiere...", "nuovo", finestra.nuovo, True),
-            ("Apri cantiere...", "apri", finestra.apri, False),
-        ):
-            b = QPushButton(icona(nome_icona, "#FFFFFF" if evidenziato else colore_icona), testo)
-            b.setIconSize(QSize(18, 18))
-            b.setMinimumWidth(180)
-            if evidenziato:
-                primario(b)
-            b.clicked.connect(azione)
-            pulsanti.addWidget(b)
-        pulsanti.addStretch()
-        layout.addSpacing(20)
-        layout.addLayout(pulsanti)
+        pulsanti.setSpacing(12)
+        nuovo = PulsanteGrande("nuovo", "Nuovo cantiere...",
+                               f"Crea un nuovo file {edizione.estensione} e inizia dalla prima pagina", "Ctrl+N", True)
+        nuovo.clicked.connect(finestra.nuovo)
+        apri = PulsanteGrande("apri", "Apri cantiere...", "Anche da una cartella di rete", "Ctrl+O", False)
+        apri.clicked.connect(finestra.apri)
+        pulsanti.addWidget(nuovo, 1)
+        pulsanti.addWidget(apri, 1)
+        colonna.addLayout(pulsanti)
+
+        passi = QFrame()
+        passi.setObjectName("card")
+        lay_passi = QHBoxLayout(passi)
+        lay_passi.setContentsMargins(16, 12, 16, 12)
+        lay_passi.setSpacing(24)
+        for n, (titolo, nota) in enumerate((
+            ("Compila le pagine", "Dall'alto in basso, nella barra a sinistra"),
+            ("Risolvi i controlli", "Errori in rosso, avvisi in arancio"),
+            ("Genera il documento", "In Word, da rileggere e firmare"),
+        ), start=1):
+            numero = QLabel(str(n))
+            numero.setObjectName("stepNumber")
+            numero.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            testi = QVBoxLayout()
+            testi.setSpacing(1)
+            testi.addWidget(_etichetta(titolo, "sectionTitle"))
+            testi.addWidget(_etichetta(nota, "hint"))
+            passo = QHBoxLayout()
+            passo.setSpacing(10)
+            passo.addWidget(numero)
+            passo.addLayout(testi, 1)
+            lay_passi.addLayout(passo, 1)
+        colonna.addWidget(passi)
 
         if recenti:
-            layout.addSpacing(36)
-            contenitore = QWidget()
-            contenitore.setMaximumWidth(1000)
-            griglia = QGridLayout(contenitore)
-            griglia.setContentsMargins(0, 0, 0, 0)
+            colonna.addSpacing(8)
+            colonna.addWidget(_etichetta("Cantieri recenti", "sectionTitle"))
+            griglia = QGridLayout()
             griglia.setSpacing(12)
-            intestazione = QLabel("Cantieri recenti")
-            intestazione.setObjectName("schedaTitolo")
-            griglia.addWidget(intestazione, 0, 0, 1, self.COLONNE_RECENTI)
             for n, percorso in enumerate(recenti[:self.MAX_SCHEDE]):
-                scheda = SchedaRecente(percorso, colore_icona)
+                scheda = SchedaRecente(percorso)
                 scheda.clicked.connect(lambda _=False, p=percorso: finestra.apri_file(p))
-                griglia.addWidget(scheda, 1 + n // self.COLONNE_RECENTI, n % self.COLONNE_RECENTI)
+                griglia.addWidget(scheda, n // self.COLONNE_RECENTI, n % self.COLONNE_RECENTI)
             for c in range(self.COLONNE_RECENTI):
                 griglia.setColumnStretch(c, 1)
-            riga = QHBoxLayout()
-            riga.addStretch()
-            riga.addWidget(contenitore, 4)
-            riga.addStretch()
-            layout.addLayout(riga)
+            colonna.addLayout(griglia)
+
+        contenitore = QWidget()
+        contenitore.setMaximumWidth(900)
+        contenitore.setLayout(colonna)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.addStretch(1)
+        riga = QHBoxLayout()
+        riga.addStretch()
+        riga.addWidget(contenitore, 10)
+        riga.addStretch()
+        layout.addLayout(riga)
         layout.addStretch(2)
 
 
@@ -154,33 +218,46 @@ class FinestraPrincipale(QMainWindow):
         self.progetto: Progetto | None = None
         self.pagine: list[Pagina] = []
         self.scuro = self.impostazioni.value("tema_scuro", False, type=bool)
-        self.colori = tema.colori(self.scuro)
+        self.colori = tema.colori(self.scuro, edizione.chiave)
         self._modifiche_viste = 0
 
-        # Barra laterale: nome del programma ed elenco delle sezioni.
+        # Barra laterale: cantiere aperto ed elenco numerato delle pagine, con i problemi di ognuna.
         self.navigazione = QListWidget()
-        self.navigazione.setObjectName("navigazione")
-        self.navigazione.setIconSize(QSize(20, 20))
+        self.navigazione.setObjectName("nav")
+        self.navigazione.setItemDelegate(tema.DelegatoNavigazione(self.navigazione))
         self.navigazione.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.navigazione.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.navigazione.currentRowChanged.connect(self._mostra_pagina)
-        marchio = QLabel(self.edizione.nome)
-        marchio.setObjectName("marchio")
+        self.nome_cantiere = QLabel()
+        self.nome_cantiere.setObjectName("projectName")
+        self.nome_cantiere.setWordWrap(True)
+        self.luogo_cantiere = QLabel()
+        self.luogo_cantiere.setObjectName("projectPlace")
+        self.suggerimento_navigazione = QLabel("Apri o crea un cantiere per iniziare a compilare.")
+        self.suggerimento_navigazione.setObjectName("navHint")
+        self.suggerimento_navigazione.setWordWrap(True)
+        separatore = QFrame()
+        separatore.setObjectName("navRule")
         laterale = QFrame()
-        laterale.setFixedWidth(220)
+        laterale.setObjectName("sidePanel")
+        laterale.setFixedWidth(248)
         lay_laterale = QVBoxLayout(laterale)
-        lay_laterale.setContentsMargins(0, 0, 0, 0)
+        lay_laterale.setContentsMargins(10, 14, 0, 0)
         lay_laterale.setSpacing(0)
-        lay_laterale.addWidget(marchio)
+        for w in (self.nome_cantiere, self.luogo_cantiere, self.suggerimento_navigazione, separatore):
+            lay_laterale.addWidget(w)
+        lay_laterale.addSpacing(8)
         lay_laterale.addWidget(self.navigazione, 1)
 
         self.contenitore = QStackedWidget()
+        self.contenitore.setObjectName("pages")
         contenuto = QWidget()
+        contenuto.setObjectName("centralArea")
         lay_contenuto = QVBoxLayout(contenuto)
-        lay_contenuto.setContentsMargins(16, 10, 16, 10)
+        lay_contenuto.setContentsMargins(0, 0, 0, 0)
         lay_contenuto.addWidget(self.contenitore)
 
         centrale = QWidget()
+        centrale.setObjectName("centralArea")
         layout = QHBoxLayout(centrale)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -274,26 +351,25 @@ class FinestraPrincipale(QMainWindow):
             barra.addAction(a)
         barra.addSeparator()
         barra.addAction(self.azione_psc)
+        barra.widgetForAction(self.azione_psc).setObjectName("generate")
         barra.addAction(self.azione_controlli)
-        spaziatore = QWidget()
-        spaziatore.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        barra.addWidget(spaziatore)
-        barra.addAction(self.azione_tema)
         self.addToolBar(barra)
         self.barra_strumenti = barra
 
     def _crea_barra_stato(self) -> None:
         self.stato_file = QLabel()
+        self.stato_file.setObjectName("filePath")
         self.stato_salvataggio = QLabel()
+        self.stato_salvataggio.setObjectName("savedLabel")
         self.stato_controlli = QPushButton()
-        self.stato_controlli.setFlat(True)
+        self.stato_controlli.setObjectName("checksIndicator")
         self.stato_controlli.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.stato_controlli.setStyleSheet("QPushButton { border: none; padding: 2px 8px; }")
+        self.stato_controlli.setToolTip("Apre la pagina dei controlli (F7)")
         self.stato_controlli.clicked.connect(self._vai_ai_controlli)
         barra = self.statusBar()
         barra.setSizeGripEnabled(False)
-        barra.addWidget(self.stato_file, 1)
-        barra.addPermanentWidget(self.stato_salvataggio)
+        barra.addWidget(self.stato_file)
+        barra.addWidget(self.stato_salvataggio, 1)
         barra.addPermanentWidget(self.stato_controlli)
 
     def _applica_icone(self) -> None:
@@ -307,16 +383,13 @@ class FinestraPrincipale(QMainWindow):
         ):
             azione.setIcon(icona(nome, c))
         self.setWindowIcon(icona_applicazione(self.edizione.colore))
-        for r in range(self.navigazione.count()):
-            item = self.navigazione.item(r)
-            item.setIcon(icona(item.data(Qt.ItemDataRole.UserRole), self.colori.primario_testo))
 
     def _cambia_tema(self) -> None:
         self.scuro = self.azione_tema.isChecked()
         self.impostazioni.setValue("tema_scuro", self.scuro)
         app = QApplication.instance()
         if app is not None:
-            self.colori = tema.applica(app, self.scuro)
+            self.colori = tema.applica(app, self.scuro, self.edizione.chiave)
         self._applica_icone()
         if not self.pagine:
             self._mostra_benvenuto()
@@ -454,14 +527,17 @@ class FinestraPrincipale(QMainWindow):
         benvenuto = self.contenitore.widget(0)
         self.contenitore.removeWidget(benvenuto)
         benvenuto.deleteLater()
+        self.navigazione.blockSignals(True)
+        self.navigazione.clear()
+        self.navigazione.blockSignals(False)
         for classe in self.edizione.pagine:
             pagina = classe(repo)
             self.pagine.append(pagina)
             self.contenitore.addWidget(pagina)
-            item = QListWidgetItem(classe.voce or classe.titolo)
-            item.setData(Qt.ItemDataRole.UserRole, classe.icona)
-            item.setIcon(icona(classe.icona, self.colori.primario_testo))
-            self.navigazione.addItem(item)
+        self._popola_navigazione()
+        self.suggerimento_navigazione.hide()
+        self.nome_cantiere.show()
+        self.luogo_cantiere.show()
         self.navigazione.setEnabled(True)
         self.navigazione.setCurrentRow(0)
         for a in self.azioni_progetto:
@@ -478,7 +554,7 @@ class FinestraPrincipale(QMainWindow):
             w = self.contenitore.widget(0)
             self.contenitore.removeWidget(w)
             w.deleteLater()
-        self.contenitore.addWidget(Benvenuto(self, self.colori.icone, self._recenti()))
+        self.contenitore.addWidget(Benvenuto(self, self._recenti()))
 
     def _chiudi_progetto(self) -> None:
         self._salva_in_sospeso()
@@ -491,14 +567,27 @@ class FinestraPrincipale(QMainWindow):
         if self.progetto:
             self.progetto.chiudi()
             self.progetto = None
+        self._popola_navigazione()
         self.navigazione.setEnabled(False)
+        self.nome_cantiere.hide()
+        self.luogo_cantiere.hide()
+        self.suggerimento_navigazione.show()
         for a in self.azioni_progetto:
             a.setEnabled(False)
         self.setWindowTitle(self.edizione.nome)
         self.stato_file.setText("Nessun cantiere aperto")
         self.stato_salvataggio.setText("")
-        self.stato_controlli.setText("")
-        self.stato_controlli.setIcon(icona("controlli", self.colori.testo_debole))
+        self.stato_controlli.hide()
+
+    def _popola_navigazione(self) -> None:
+        """Voci numerate della barra laterale, una per pagina del programma."""
+        self.navigazione.blockSignals(True)
+        self.navigazione.clear()
+        for n, classe in enumerate(self.edizione.pagine, start=1):
+            item = QListWidgetItem(classe.voce or classe.titolo)
+            item.setData(Qt.ItemDataRole.UserRole, n)
+            self.navigazione.addItem(item)
+        self.navigazione.blockSignals(False)
 
     def _mostra_pagina(self, indice: int) -> None:
         if not (0 <= indice < len(self.pagine)):
@@ -517,6 +606,17 @@ class FinestraPrincipale(QMainWindow):
         if pagina is not None:
             self.navigazione.setCurrentRow(self.pagine.index(pagina))
 
+    def vai_a_sezione(self, sezione: str) -> None:
+        """Mostra la pagina a cui appartiene una sezione dei controlli."""
+        for r, pagina in enumerate(self.pagine):
+            if sezione in pagina.sezioni_controlli:
+                self.navigazione.setCurrentRow(r)
+                return
+        for r, pagina in enumerate(self.pagine):
+            if "*" in pagina.sezioni_controlli:
+                self.navigazione.setCurrentRow(r)
+                return
+
     def _genera_principale(self) -> None:
         pagina = self._pagina_principale()
         if pagina is not None:
@@ -531,22 +631,49 @@ class FinestraPrincipale(QMainWindow):
         modifiche = self.progetto.conn.total_changes
         if modifiche != self._modifiche_viste:
             self._modifiche_viste = modifiche
-            self.stato_salvataggio.setText(f"Salvato alle {datetime.now():%H:%M:%S}")
+            self.stato_salvataggio.setText(f"✓ Salvato alle {datetime.now():%H:%M:%S}")
         elenco = self.edizione.controlla(self.pagine[0].repo) if self.pagine else []
         errori = sum(1 for s in elenco if s.livello == controlli.ERRORE)
         avvisi = len(elenco) - errori
         testo_avvisi = f"{avvisi} avviso" if avvisi == 1 else f"{avvisi} avvisi"
         if errori:
-            colore = "#C0392B"
-            testo = (f"{errori} errore" if errori == 1 else f"{errori} errori") + f", {testo_avvisi}"
+            livello = "error"
+            testo = (f"{errori} errore" if errori == 1 else f"{errori} errori") + f" · {testo_avvisi}"
         elif avvisi:
-            colore, testo = "#B9770E", testo_avvisi
+            livello, testo = "warning", testo_avvisi
         else:
-            colore, testo = "#27AE60", "Nessun problema"
+            livello, testo = "ok", "Nessun problema"
         self.stato_controlli.setText(testo)
-        self.stato_controlli.setIcon(icona("controlli", colore))
-        self.stato_controlli.setStyleSheet(
-            f"QPushButton {{ border: none; padding: 2px 8px; color: {colore}; font-weight: 600; }}")
+        self.stato_controlli.show()
+        if self.stato_controlli.property("level") != livello:
+            self.stato_controlli.setProperty("level", livello)
+            self.stato_controlli.style().unpolish(self.stato_controlli)
+            self.stato_controlli.style().polish(self.stato_controlli)
+        self._aggiorna_navigazione(elenco)
+
+    def _aggiorna_navigazione(self, elenco: list[controlli.Segnalazione]) -> None:
+        """Nome del cantiere e problemi di ogni pagina nella barra laterale."""
+        if not self.pagine:
+            return
+        c = self.pagine[0].repo.cantiere()
+        self.nome_cantiere.setText(c["nome"] or self.progetto.percorso.stem)
+        self.luogo_cantiere.setText(" ".join(v for v in (c["comune"], f"({c['provincia']})" if c["provincia"]
+                                                         else "") if v))
+        dichiarate = {s for p in self.pagine for s in p.sezioni_controlli}
+        for r, pagina in enumerate(self.pagine):
+            proprie = [s for s in elenco if s.sezione in pagina.sezioni_controlli
+                       or ("*" in pagina.sezioni_controlli and s.sezione not in dichiarate)]
+            if not pagina.sezioni_controlli:
+                stato = None
+            elif any(s.livello == controlli.ERRORE for s in proprie):
+                stato = "error"
+            else:
+                stato = "warning" if proprie else "done"
+            item = self.navigazione.item(r)
+            if item is not None and (item.data(Qt.ItemDataRole.UserRole + 1), item.data(Qt.ItemDataRole.UserRole + 2)) \
+                    != (stato, len(proprie)):
+                item.setData(Qt.ItemDataRole.UserRole + 1, stato)
+                item.setData(Qt.ItemDataRole.UserRole + 2, len(proprie))
 
     def closeEvent(self, evento) -> None:
         self._chiudi_progetto()

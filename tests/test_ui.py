@@ -141,9 +141,13 @@ def test_icone_e_tema(app):
         assert not icona(nome, "#000000").pixmap(24, 24).toImage().isNull()
     assert {p.icona for e in EDIZIONI.values() for p in e.pagine} <= set(NOMI)
     for scuro in (True, False):
-        c = tema.applica(app, scuro)
-        assert app.palette().window().color().name().lower() == c.sfondo.lower()
-        assert "QListWidget#navigazione" in app.styleSheet()
+        for programma in ("psc", "pos", "pimus"):
+            c = tema.applica(app, scuro, programma)
+            assert app.palette().window().color().name().lower() == c["bg"].lower()
+            foglio = app.styleSheet()
+            assert "QListWidget#nav" in foglio and c["acc_s"] in foglio
+            assert "@" not in foglio  # tutti i segnaposto sostituiti
+    tema.applica(app, False, "pos")
 
 
 def test_campi_numerici_visibili(app):
@@ -627,4 +631,39 @@ def test_controllo_aggiornamenti(app, monkeypatch):
     monkeypatch.setattr(aggiornamenti, "ultima_versione", lambda: pytest.fail("controllo ripetuto"))
     ui_aggiornamenti.controlla(f)
     QtCore.QThreadPool.globalInstance().waitForDone(5000)
+    f.close()
+
+
+def test_nuovo_tema_navigazione_e_controlli(app, tmp_path):
+    from sicurcantiere.ui import tema
+    from sicurcantiere.ui.edizioni import POS, PaginaDocumentiPOS, PaginaFasiPOS, PaginaImpresePOS
+
+    p = Progetto(tmp_path / "t.spo", crea=True)
+    r = Repository(p)
+    r.aggiorna_cantiere(nome="Scuola", comune="Bari", provincia="BA")
+    r.inserisci("imprese", ragione_sociale="Alfa")  # mancano datore di lavoro e lavoratori: errori
+    p.chiudi()
+    f = FinestraPrincipale(POS)
+    assert not f.navigazione.isEnabled() and f.navigazione.count() == len(POS.pagine)  # pagine già elencate
+    f.apri_file(tmp_path / "t.spo")
+    assert f.nome_cantiere.text() == "Scuola" and f.luogo_cantiere.text() == "Bari (BA)"
+    assert f.stato_controlli.property("level") == "error"
+    imprese = f.pagine.index(_pagina(f, PaginaImpresePOS))
+    voce = f.navigazione.item(imprese)
+    assert voce.data(QtCore.Qt.ItemDataRole.UserRole) == imprese + 1
+    assert voce.data(QtCore.Qt.ItemDataRole.UserRole + 1) == "error" and voce.data(QtCore.Qt.ItemDataRole.UserRole + 2)
+    # Doppio clic su un controllo: si va alla pagina da correggere.
+    documenti = _pagina(f, PaginaDocumentiPOS)
+    f.navigazione.setCurrentRow(f.pagine.index(documenti))
+    riga = next(i for i in range(documenti.controlli.count())
+                if documenti.controlli.item(i).data(QtCore.Qt.ItemDataRole.UserRole) == "Impresa")
+    documenti._vai_al_controllo(documenti.controlli.item(riga))
+    assert f.navigazione.currentRow() == imprese
+    # La prima riga viene selezionata e le tabelle hanno il titolo con il conteggio.
+    pagina_imprese = f.pagine[imprese]
+    assert pagina_imprese.tabella.id_selezionato() is not None
+    assert pagina_imprese.tabella.conteggio.text() == "1"
+    fasi = _pagina(f, PaginaFasiPOS)
+    colonna = next(i for i, c in enumerate(fasi.rischi.colonne) if c.campo == "livello")
+    assert isinstance(fasi.rischi.vista.itemDelegateForColumn(colonna), tema.DelegatoLivello)
     f.close()

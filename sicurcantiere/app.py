@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
     # Nome distinto per programma: file recenti e finestre restano separati.
     app.setApplicationName(scelta.nome)
     app.setApplicationDisplayName(scelta.nome)
-    tema.applica(app, QSettings().value("tema_scuro", False, type=bool))
+    tema.applica(app, QSettings().value("tema_scuro", False, type=bool), edizione)
 
     if "--autoverifica" in argv:
         # Prova del programma installato: niente finestra, esito su file e nel codice di uscita.

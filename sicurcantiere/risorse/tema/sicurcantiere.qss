@@ -1,0 +1,436 @@
+/* =====================================================================
+   SicurCantiere – foglio di stile Qt (PySide6)
+   Modello unico per tema chiaro/scuro e per i tre programmi.
+   I segnaposto @nome vengono sostituiti da tema.py (build_stylesheet).
+   Non contiene ombre o sfumature: QSS non le supporta in modo affidabile.
+   ===================================================================== */
+
+/* ---------- Base ---------- */
+QWidget {
+    font-family: "@font";
+    font-size: 13px;
+    color: @tx;
+    background: transparent;
+}
+QMainWindow, QDialog {
+    background: @bg;
+}
+QWidget#centralArea, QStackedWidget#pages, QScrollArea#pageScroll > QWidget > QWidget {
+    background: @bg;
+}
+QScrollArea { border: none; background: @bg; }
+
+/* ---------- Barra dei menu e menu ---------- */
+QMenuBar {
+    background: @surface;
+    padding: 2px 4px;
+    border: none;
+}
+QMenuBar::item {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: transparent;
+}
+QMenuBar::item:selected, QMenuBar::item:pressed { background: @surface2; }
+QMenu {
+    background: @surface;
+    border: 1px solid @line2;
+    padding: 4px;
+}
+QMenu::item { padding: 6px 28px 6px 12px; border-radius: 4px; }
+QMenu::item:selected { background: @sel; color: @tx; }
+QMenu::item:disabled { color: @tx3; }
+QMenu::separator { height: 1px; background: @line; margin: 4px 6px; }
+
+/* ---------- Barra degli strumenti ---------- */
+QToolBar {
+    background: @surface;
+    border: none;
+    border-bottom: 1px solid @line;
+    padding: 6px 8px;
+    spacing: 2px;
+}
+QToolBar::separator { width: 1px; background: @line; margin: 6px 6px; }
+QToolButton {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: @tx;
+}
+QToolButton:hover { background: @surface2; border-color: @line; }
+QToolButton:pressed, QToolButton:checked { background: @sel; }
+QToolButton:disabled { color: @tx3; }
+/* pulsante principale «Genera POS/PSC/PiMUS»: objectName = "generate" */
+QToolButton#generate {
+    background: @acc_s;
+    color: @acc_tx;
+    font-weight: 600;
+    padding: 0 14px;
+}
+QToolButton#generate:hover { background: @acc_s_hover; }
+QToolButton#generate:disabled { background: @line2; color: @surface; }
+
+/* ---------- Barra di stato ---------- */
+QStatusBar {
+    background: @surface;
+    border-top: 1px solid @line;
+    color: @tx3;
+    font-size: 12px;
+    min-height: 28px;
+}
+QStatusBar::item { border: none; }
+QStatusBar QLabel { color: @tx3; font-size: 12px; padding: 0 8px; }
+QStatusBar QLabel#filePath { font-family: "@mono"; }
+QStatusBar QLabel#savedLabel { color: @ok; }
+/* indicatore errori/avvisi cliccabile: objectName = "checksIndicator", proprietà level */
+QPushButton#checksIndicator {
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0 9px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    background: @ok_bg;
+    color: @ok;
+}
+QPushButton#checksIndicator[level="warning"] { background: @warn_bg; color: @warn; }
+QPushButton#checksIndicator[level="error"]   { background: @err_bg;  color: @err; }
+
+/* ---------- Barra laterale di navigazione ---------- */
+/* QListWidget objectName = "nav". Numero, spunta e contatore li disegna NavDelegate. */
+/* contenitore della barra laterale (nome cantiere + elenco): objectName = "sidePanel" */
+QFrame#sidePanel {
+    background: @surface;
+    border: none;
+    border-right: 1px solid @line;
+}
+QListWidget#nav {
+    background: @surface;
+    border: none;
+    padding: 4px 10px 10px 10px;
+    outline: none;
+}
+QListWidget#nav::item {
+    min-height: 40px;
+    border-radius: 6px;
+    padding: 0 8px;
+    color: @tx;
+}
+QListWidget#nav::item:hover { background: @surface2; }
+QListWidget#nav::item:selected { background: @sel; color: @tx; }
+QListWidget#nav:disabled { color: @tx3; }
+QLabel#projectName { font-weight: 600; padding: 2px 8px 0 8px; }
+QLabel#projectPlace { color: @tx3; font-size: 12px; padding: 0 8px 10px 8px; }
+
+/* ---------- Titoli e testi ---------- */
+QLabel#pageTitle    { font-size: 22px; font-weight: 600; }
+QLabel#pageSubtitle { color: @tx3; }
+QLabel#heroTitle    { font-size: 28px; font-weight: 600; }
+QLabel#sectionTitle { font-size: 14px; font-weight: 600; }
+QLabel#fieldLabel   { font-size: 12px; font-weight: 600; color: @tx2; }
+QLabel#hint         { font-size: 12px; color: @tx3; }
+QLabel#errorMessage   { font-size: 12px; font-weight: 500; color: @err; }
+QLabel#warningMessage { font-size: 12px; font-weight: 500; color: @warn; }
+QLabel[mono="true"] { font-family: "@mono"; font-size: 12px; }
+
+/* ---------- Riquadri (card) e tessere del riepilogo ---------- */
+QFrame#card {
+    background: @surface;
+    border: 1px solid @line;
+    border-radius: 6px;
+}
+QFrame#cardHeader {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid @line;
+    min-height: 44px;
+}
+/* tessere: QPushButton piatti objectName = "tile", testo su più righe */
+QPushButton#tile {
+    background: @surface;
+    border: 1px solid @line;
+    border-radius: 6px;
+    padding: 10px 12px;
+    text-align: left;
+    color: @tx;
+}
+QPushButton#tile:hover { border-color: @acc_s; }
+QPushButton#tile[state="error"] { background: @err_bg; border-color: @err_bg; color: @err; }
+QPushButton#tile[state="high"]  { color: @r4t; }
+
+/* ---------- Avvisi in pagina ---------- */
+QFrame#infoBanner { background: @acc_soft; border: none; border-radius: 6px; }
+QFrame#aiBanner   { background: @ai_bg; border: none; border-bottom: 1px solid @ai_line; }
+QFrame#aiBanner QLabel { color: @ai; }
+QProgressBar#aiProgress {
+    max-height: 4px; min-height: 4px;
+    border: none; border-radius: 2px;
+    background: @ai_line;
+}
+QProgressBar#aiProgress::chunk { background: @ai; border-radius: 2px; }
+
+/* ---------- Pulsanti ---------- */
+QPushButton {
+    min-height: 28px;
+    padding: 0 11px;
+    border: 1px solid @line2;
+    border-radius: 5px;
+    background: @surface;
+    color: @tx;
+}
+QPushButton:hover   { background: @surface2; }
+QPushButton:pressed { background: @sel; }
+QPushButton:focus   { border: 2px solid @acc_s; padding: 0 10px; }
+QPushButton:disabled { color: @tx3; border-color: @line; background: @surface2; }
+QPushButton[variant="primary"] {
+    background: @acc_s;
+    border-color: @acc_s;
+    color: @acc_tx;
+    font-weight: 600;
+}
+QPushButton[variant="primary"]:hover { background: @acc_s_hover; border-color: @acc_s_hover; }
+QPushButton[variant="primary"]:focus { border: 2px solid @tx; padding: 0 10px; }
+QPushButton[variant="primary"]:disabled { background: @line2; border-color: @line2; color: @surface; }
+QPushButton[variant="ai"] {
+    background: @ai_bg;
+    border-color: @ai_line;
+    color: @ai;
+    font-weight: 500;
+}
+QPushButton[variant="ai"]:hover { border-color: @ai; }
+QPushButton[variant="ai"]:disabled { color: @ai; background: @ai_bg; border-color: @ai_line; }
+QPushButton[variant="quiet"] { background: transparent; border-color: transparent; color: @tx2; }
+QPushButton[variant="quiet"]:hover { background: @surface2; }
+QPushButton[variant="danger"] { background: @err; border-color: @err; color: @surface; font-weight: 600; }
+/* pulsanti grandi della pagina iniziale (proprietà «large»: «size» è già una proprietà di QWidget) */
+QPushButton[large="true"] { min-height: 70px; padding: 0 18px; font-size: 15px; text-align: left; border-radius: 8px; }
+
+/* ---------- Campi ---------- */
+QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit {
+    background: @surface;
+    color: @tx;
+    border: 1px solid @line2;
+    border-radius: 4px;
+    selection-background-color: @acc_s;
+    selection-color: @acc_tx;
+}
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit {
+    min-height: 28px;
+    padding: 0 8px;
+}
+QTextEdit, QPlainTextEdit { padding: 4px 6px; }
+/* bordo da 2 px: si toglie 1 px di padding per non far saltare il testo */
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus {
+    border: 2px solid @acc_s;
+    padding: 0 7px;
+}
+QTextEdit:focus, QPlainTextEdit:focus { border: 2px solid @acc_s; padding: 3px 5px; }
+QLineEdit[state="error"], QComboBox[state="error"], QSpinBox[state="error"],
+QDoubleSpinBox[state="error"], QDateEdit[state="error"], QTextEdit[state="error"], QPlainTextEdit[state="error"] {
+    border: 2px solid @err;
+    padding: 0 7px;
+}
+QLineEdit[state="warning"], QComboBox[state="warning"], QDateEdit[state="warning"] {
+    border: 2px solid @warn;
+    padding: 0 7px;
+}
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled,
+QDateEdit:disabled, QTextEdit:disabled, QPlainTextEdit:disabled {
+    background: @surface2;
+    color: @tx3;
+    border-color: @line;
+}
+QLineEdit[readOnly="true"] { background: @surface2; }
+QLineEdit[mono="true"] { font-family: "@mono"; font-size: 12px; }
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+QComboBox QAbstractItemView {
+    background: @surface;
+    border: 1px solid @line2;
+    selection-background-color: @sel;
+    selection-color: @tx;
+    outline: none;
+    padding: 2px;
+}
+QSpinBox::up-button, QSpinBox::down-button,
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button { width: 16px; border: none; }
+
+/* ---------- Caselle di spunta e radio ---------- */
+QCheckBox, QRadioButton { spacing: 8px; background: transparent; }
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid @line2;
+    background: @surface;
+}
+QCheckBox::indicator { border-radius: 3px; }
+QRadioButton::indicator { border-radius: 8px; }
+QCheckBox::indicator:checked, QRadioButton::indicator:checked {
+    background: @acc_s;
+    border-color: @acc_s;
+}
+QCheckBox::indicator:checked { image: url("@icon_check"); }
+QRadioButton::indicator:checked { image: url("@icon_dot"); }
+QCheckBox::indicator:indeterminate { background: @acc_s; border-color: @acc_s; image: url("@icon_dash"); }
+/* stessa spunta nelle tabelle e negli alberi (colonna «Non presente», albero mansioni) */
+QTableView::indicator, QTreeView::indicator, QListView::indicator {
+    width: 14px; height: 14px; border: 1px solid @line2; border-radius: 3px; background: @surface;
+}
+QTableView::indicator:checked, QTreeView::indicator:checked, QListView::indicator:checked {
+    background: @acc_s; border-color: @acc_s; image: url("@icon_check");
+}
+QTreeView::indicator:indeterminate { background: @acc_s; border-color: @acc_s; image: url("@icon_dash"); }
+QCheckBox::indicator:focus, QRadioButton::indicator:focus { border: 2px solid @acc_s; }
+QCheckBox:disabled, QRadioButton:disabled { color: @tx3; }
+
+/* ---------- Schede ---------- */
+QTabWidget::pane {
+    border: none;
+    border-top: 1px solid @line;
+    background: @surface;
+    top: -1px;
+}
+QTabBar { background: transparent; qproperty-drawBase: 0; }
+QTabBar::tab {
+    min-height: 36px;
+    padding: 0 13px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: @tx2;
+}
+QTabBar::tab:hover { color: @tx; }
+QTabBar::tab:selected { color: @tx; font-weight: 600; border-bottom: 2px solid @acc_s; }
+QTabBar::tab:disabled { color: @tx3; }
+
+/* ---------- Tabelle e alberi ---------- */
+QTableView, QTreeView, QListView {
+    background: @surface;
+    alternate-background-color: @surface;
+    border: none;
+    gridline-color: @line;
+    selection-background-color: @sel;
+    selection-color: @tx;
+    outline: none;
+}
+QTableView::item, QTreeView::item {
+    padding: 0 8px;
+    border-bottom: 1px solid @line;
+}
+QTableView::item:selected, QTreeView::item:selected { background: @sel; color: @tx; }
+QTableView::item:hover, QTreeView::item:hover { background: @surface2; }
+QTreeView::item { min-height: 27px; border-bottom: none; }
+QHeaderView { background: @surface2; border: none; }
+QHeaderView::section {
+    background: @surface2;
+    color: @tx2;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 8px;
+    border: none;
+    border-bottom: 1px solid @line;
+    border-right: 1px solid @line;
+}
+QHeaderView::section:last { border-right: none; }
+QTableCornerButton::section { background: @surface2; border: none; border-bottom: 1px solid @line; }
+
+/* ---------- Barre di scorrimento ---------- */
+QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
+QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: @line2;
+    border-radius: 4px;
+    min-height: 32px;
+    min-width: 32px;
+}
+QScrollBar::handle:hover { background: @tx3; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+
+/* ---------- Varie ---------- */
+QSplitter::handle { background: @line; }
+QSplitter::handle:horizontal { width: 1px; }
+QSplitter::handle:vertical { height: 1px; }
+QGroupBox {
+    border: 1px solid @line;
+    border-radius: 6px;
+    margin-top: 18px;
+    padding: 12px;
+    background: @surface;
+    font-weight: 600;
+}
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: @tx2; }
+QToolTip {
+    background: @tx;
+    color: @surface;
+    border: none;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+QDialogButtonBox { padding-top: 8px; }
+QMessageBox QLabel { color: @tx; }
+
+/* =====================================================================
+   Aggiunte per i widget del programma che il modello non prevede.
+   ===================================================================== */
+
+/* tessere del riepilogo (QFrame con etichette) */
+QFrame#tile {
+    background: @surface;
+    border: 1px solid @line;
+    border-radius: 6px;
+}
+QFrame#tile[state="error"]   { background: @err_bg; border-color: @err_bg; }
+QFrame#tile[state="warning"] { background: @warn_bg; border-color: @warn_bg; }
+QLabel#tileTitle { font-size: 12px; color: @tx2; }
+QLabel#tileValue { font-size: 20px; font-weight: 600; }
+QLabel#tileNote  { font-size: 11px; color: @tx3; }
+QFrame#tile[state="error"] QLabel#tileTitle, QFrame#tile[state="error"] QLabel#tileValue,
+QFrame#tile[state="error"] QLabel#tileNote { color: @err; }
+QFrame#tile[state="warning"] QLabel#tileValue { color: @warn; }
+
+/* intestazione delle tabelle (titolo e pulsanti) */
+QLabel#cardTitle { font-size: 14px; font-weight: 600; padding-left: 2px; }
+QLabel#countBadge {
+    background: @surface2; border: 1px solid @line; border-radius: 9px;
+    color: @tx2; font-size: 11px; font-weight: 600; padding: 0 6px; min-height: 16px;
+}
+
+/* pagina iniziale */
+QLabel#logoTile {
+    background: @acc_s; color: @acc_tx; border-radius: 8px;
+    font-size: 18px; font-weight: 700;
+}
+QPushButton[large="true"] QLabel { background: transparent; }
+QLabel#largeTitle { font-size: 15px; font-weight: 600; }
+QLabel#largeNote  { font-size: 12px; color: @tx2; }
+QPushButton[variant="primary"] QLabel { color: @acc_tx; }
+QLabel#kbd {
+    font-family: "@mono"; font-size: 11px; color: @tx2;
+    border: 1px solid @line2; border-radius: 3px; padding: 0 4px;
+}
+QPushButton[variant="primary"] QLabel#kbd { color: @acc_tx; border-color: @acc_tx; }
+QLabel#stepNumber {
+    border: 1px solid @acc_s; border-radius: 12px; color: @acc_s;
+    font-size: 12px; font-weight: 600; min-width: 22px; max-width: 22px; min-height: 22px; max-height: 22px;
+}
+QPushButton#recentCard {
+    background: @surface; border: 1px solid @line; border-radius: 6px; text-align: left; padding: 0; min-height: 88px;
+}
+QPushButton#recentCard:hover { border-color: @acc_s; }
+QPushButton#recentCard QLabel { background: transparent; }
+QLabel#recentTitle { font-weight: 600; }
+QLabel#extBadge {
+    font-family: "@mono"; font-size: 11px; font-weight: 600; color: @acc_s;
+    background: @acc_soft; border-radius: 3px; padding: 0 4px;
+}
+QLabel#navHint { color: @tx3; font-size: 12px; padding: 0 8px 10px 8px; }
+QFrame#navRule { background: @line; max-height: 1px; min-height: 1px; border: none; margin: 0 8px; }
+QLabel#infoBanner { padding: 8px 12px; color: @tx; }
+QPushButton[variant="primary"] QLabel#largeNote { color: @acc_tx; }
+QLabel#kbd { max-height: 18px; }

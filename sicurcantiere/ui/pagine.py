@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
@@ -51,7 +52,7 @@ from sicurcantiere.documenti.pos import SEZIONI_POS, chiave_testo, genera_pos
 from sicurcantiere.documenti.psc import genera_psc
 from sicurcantiere.relazione import SEZIONI
 from sicurcantiere.repository import Repository
-from sicurcantiere.ui import archivio_anagrafiche
+from sicurcantiere.ui import archivio_anagrafiche, tema
 from sicurcantiere.ui.icone import icona
 from sicurcantiere.ui.lavoro_ai import esegui_ai
 from sicurcantiere.ui.maestranze import PannelloLavoratori
@@ -69,14 +70,20 @@ TIPI_ATTREZZATURA = ["Macchina", "Attrezzo", "Opera provvisionale"]
 
 def _titolo(testo: str) -> QLabel:
     etichetta = QLabel(testo)
-    etichetta.setObjectName("titoloPagina")
+    etichetta.setObjectName("pageTitle")
+    etichetta.setWordWrap(True)
     return etichetta
 
 
 def primario(pulsante: QPushButton) -> QPushButton:
-    """Evidenzia il pulsante con il colore di accento del tema."""
-    pulsante.setProperty("primario", True)
-    return pulsante
+    """Pulsante principale della pagina, nel colore del programma."""
+    return tema.imposta_variante(pulsante, "primary")
+
+
+def pulsante_ai(testo: str) -> QPushButton:
+    """Pulsante che chiede qualcosa all'assistente AI (viola, come gli avvisi dell'assistente)."""
+    pulsante = QPushButton(icona("ai", tema.correnti()["ai"]), testo)
+    return tema.imposta_variante(pulsante, "ai")
 
 
 def _riquadro(titolo: str, widget: QWidget) -> QGroupBox:
@@ -127,7 +134,7 @@ class TestiLiberi(QWidget):
             editor.textChanged.connect(lambda s=sezione: self._modificato(s))
             riquadro = _riquadro(titolo, editor)
             if contesto_ai is not None:
-                bozza = QPushButton(icona("ai", "#E8792B"), "Bozza con l'assistente AI")
+                bozza = pulsante_ai("Bozza con l'assistente AI")
                 bozza.setToolTip("Scrive o migliora il testo della sezione partendo dai dati del progetto")
                 bozza.clicked.connect(lambda _=False, s=sezione: self._bozza_ai(s))
                 riquadro.layout().addWidget(bozza, alignment=Qt.AlignmentFlag.AlignRight)
@@ -175,12 +182,26 @@ class Pagina(QWidget):
     titolo = ""
     voce = ""  # nome breve nella barra di navigazione
     icona = "cantiere"  # nome in ui/icone.py
+    sottotitolo = ""  # una riga sotto il titolo
+    # Sezioni dei controlli che riguardano la pagina: il loro numero compare nella barra
+    # laterale; "*" raccoglie quelle che nessuna pagina dichiara.
+    sezioni_controlli: tuple[str, ...] = ()
 
     def __init__(self, repo: Repository):
         super().__init__()
         self.repo = repo
         self.layout_ = QVBoxLayout(self)
-        self.layout_.addWidget(_titolo(self.titolo))
+        self.layout_.setContentsMargins(24, 16, 24, 14)
+        self.layout_.setSpacing(12)
+        intestazione = QVBoxLayout()
+        intestazione.setSpacing(2)
+        intestazione.addWidget(_titolo(self.titolo))
+        self.etichetta_sottotitolo = QLabel(self.sottotitolo)
+        self.etichetta_sottotitolo.setObjectName("pageSubtitle")
+        self.etichetta_sottotitolo.setWordWrap(True)
+        self.etichetta_sottotitolo.setVisible(bool(self.sottotitolo))
+        intestazione.addWidget(self.etichetta_sottotitolo)
+        self.layout_.addLayout(intestazione)
 
     def aggiorna(self) -> None:
         """Ricarica i dati quando la pagina viene mostrata."""
@@ -197,6 +218,7 @@ class PaginaDatiGenerali(Pagina):
     titolo = "Dati generali del cantiere"
     voce = "Dati generali"
     icona = "cantiere"
+    sezioni_controlli = ("Cantiere", "Dati generali")
     funzione_riepilogo = staticmethod(calcola_riepilogo)
     CAMPI = [
         ("nome", "Denominazione dell'opera"),
@@ -214,29 +236,41 @@ class PaginaDatiGenerali(Pagina):
         self.riepilogo = Riepilogo(self.funzione_riepilogo) if self.funzione_riepilogo else None
         if self.riepilogo is not None:
             self.layout_.addWidget(self.riepilogo)
-        self.layout_.addSpacing(8)
-        modulo = QFormLayout()
         self.campi: dict[str, QLineEdit] = {}
-        for campo, etichetta in self.CAMPI:
+        etichette = dict(self.CAMPI)
+        for campo in etichette:
             e = QLineEdit()
             e.editingFinished.connect(lambda c=campo, w=e: self.repo.aggiorna_cantiere(**{c: w.text()}))
-            modulo.addRow(etichetta, e)
             self.campi[campo] = e
         self.campi["provincia"].setMaxLength(2)
-
         self.importo = self._numero(" €", "importo_lavori")
-        modulo.addRow("Importo presunto dei lavori", self.importo)
         self.costo_ug = self._numero(" €", "costo_uomo_giorno")
         self.costo_ug.setToolTip("Costo medio di un uomo-giorno, usato per stimare la durata delle fasi.")
-        modulo.addRow("Costo medio uomo-giorno", self.costo_ug)
-
         self.descrizione = QPlainTextEdit()
         self.descrizione.setPlaceholderText("Descrizione sintetica dell'opera")
         self._timer = QTimer(self, singleShot=True, interval=700)
         self._timer.timeout.connect(self._salva_descrizione)
         self.descrizione.textChanged.connect(self._timer.start)
-        modulo.addRow("Descrizione", self.descrizione)
-        self.layout_.addLayout(modulo)
+
+        # Griglia a quattro colonne: (riga, colonna, ampiezza) di ogni campo.
+        griglia = QGridLayout()
+        griglia.setHorizontalSpacing(14)
+        griglia.setVerticalSpacing(10)
+        for campo, (r, c, ampiezza) in {"nome": (0, 0, 4), "natura_opera": (1, 0, 2),
+                                        "titolo_abilitativo": (1, 2, 2), "indirizzo": (2, 0, 1),
+                                        "cap": (2, 1, 1), "comune": (2, 2, 1), "provincia": (2, 3, 1)}.items():
+            griglia.addLayout(tema.campo_con_etichetta(etichette[campo], self.campi[campo]), r, c, 1, ampiezza)
+        griglia.addLayout(tema.campo_con_etichetta("Importo presunto dei lavori", self.importo), 3, 0, 1, 2)
+        griglia.addLayout(tema.campo_con_etichetta("Costo medio uomo-giorno", self.costo_ug), 3, 2, 1, 2)
+        griglia.addLayout(tema.campo_con_etichetta("Descrizione sintetica", self.descrizione), 4, 0, 1, 4)
+        for c, peso in enumerate((3, 1, 3, 1)):
+            griglia.setColumnStretch(c, peso)
+        griglia.setRowStretch(4, 1)
+        self.riquadro_dati = tema.cornice("Dati dell'opera", griglia)
+        self.corpo = QHBoxLayout()
+        self.corpo.setSpacing(12)
+        self.corpo.addWidget(self.riquadro_dati, 2)
+        self.layout_.addLayout(self.corpo, 1)
 
 
     def _numero(self, suffisso: str, campo: str) -> QDoubleSpinBox:
@@ -287,6 +321,7 @@ class PaginaSoggetti(Pagina):
     titolo = "Soggetti con compiti di sicurezza"
     voce = "Soggetti"
     icona = "soggetti"
+    sezioni_controlli = ("Committente", "Soggetti")
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -308,6 +343,7 @@ class PaginaSoggetti(Pagina):
             Colonna("email", "Email", larghezza=170),
             Colonna("pec", "PEC"),
         ])
+        self.tabella.imposta_titolo("Soggetti")
         self.tabella.aggiungi_pulsante("Dall'archivio...", self._dall_archivio)
         self.tabella.aggiungi_pulsante("Salva in archivio", lambda: archivio_anagrafiche.salva_persona(
             self, self.repo, "soggetti", self.tabella.id_selezionato()))
@@ -332,6 +368,7 @@ class PaginaImprese(Pagina):
     titolo = "Imprese, lavoratori e dati per il POS"
     voce = "Imprese e lavoratori"
     icona = "imprese"
+    sezioni_controlli = ("Impresa", "Imprese", "Figure della sicurezza", "Lavoratori", "Testi del POS")
     # Schede di dettaglio mostrate dal programma: dati, figure, lavoratori, autonomi, pos.
     schede_visibili: tuple[str, ...] = ("dati", "figure", "lavoratori", "autonomi", "pos")
 
@@ -385,6 +422,7 @@ class PaginaImprese(Pagina):
             Colonna("referente", "Referente", larghezza=150),
             Colonna("telefono", "Telefono"),
         ])
+        self.tabella.imposta_titolo("Imprese")
         self.tabella.aggiungi_pulsante("Dall'archivio...", self._impresa_dall_archivio)
         self.tabella.aggiungi_pulsante("Salva in archivio", lambda: archivio_anagrafiche.salva_impresa(
             self, self.repo, self.tabella.id_selezionato()))
@@ -420,7 +458,7 @@ class PaginaImprese(Pagina):
         lf.addWidget(self.figure)
         aiuto = QLabel("Una riga per persona e per ruolo: RSPP, medico competente, RLS o RLST, preposti, "
                        "direttore tecnico, capocantiere, addetti al primo soccorso e antincendio.")
-        aiuto.setObjectName("sottotitolo")
+        aiuto.setObjectName("pageSubtitle")
         aiuto.setWordWrap(True)
         lf.addWidget(aiuto)
         lf.addWidget(self.elenco_figure)
@@ -501,6 +539,7 @@ class PaginaImprese(Pagina):
 
     def aggiorna(self) -> None:
         self.tabella.ricarica()
+        self.tabella.seleziona_prima()
 
 
 def _valida_fase(fase: dict) -> str | None:
@@ -654,6 +693,7 @@ class PaginaFasi(Pagina):
     titolo = "Fasi di lavoro e cronoprogramma (Gantt analitico)"
     voce = "Fasi e cronoprogramma"
     icona = "fasi"
+    sezioni_controlli = ("Fasi", "Lavorazioni", "Rischi")
     # Nel PSC importi, squadre, date e Gantt delle fasi; nel POS non servono.
     cronoprogramma = True
 
@@ -681,6 +721,7 @@ class PaginaFasi(Pagina):
             Colonna("uomini_giorno", "Uomini-giorno", "calcolata",
                     calcola=lambda f: str(analisi.uomini_giorno([f]) or "")),
         ] if self.cronoprogramma else []), valida=_valida_fase)
+        self.fasi.imposta_titolo("Fasi di lavoro")
         archivio = primario(QPushButton("Importa da archivio..."))
         archivio.clicked.connect(self._importa)
         self.fasi.pulsanti.insertWidget(2, archivio)
@@ -692,24 +733,24 @@ class PaginaFasi(Pagina):
         self.fasi.aggiungi_pulsante("Salva nell'archivio utente", self._salva_in_archivio)
 
         self.rischi = TabellaCrud(repo, "rischi", [
-            Colonna("descrizione", "Rischio", "testo_lungo"),
+            Colonna("descrizione", "Rischio", "testo_lungo", larghezza=220),
             Colonna("fonte", "Origine", larghezza=130),
             Colonna("probabilita", "P", "intero", minimo=1, massimo=4, larghezza=40),
             Colonna("danno", "D", "intero", minimo=1, massimo=4, larghezza=40),
-            Colonna("livello", "Livello", "calcolata", larghezza=110, calcola=lambda r: (
-                f"{(l := analisi.livello_rischio(r['probabilita'], r['danno']))} "
-                f"{analisi.classe_rischio(l)}")),
+            Colonna("livello", "Livello P×D", "calcolata", larghezza=130, disegno=tema.DelegatoLivello,
+                    calcola=lambda r: "" if r["non_presente"]
+                    else str(analisi.livello_rischio(r["probabilita"], r["danno"]))),
             Colonna("misure", "Misure di prevenzione e protezione", "testo_lungo"),
-            Colonna("dpi", "DPI", "testo_lungo"),
+            Colonna("dpi", "DPI", "testo_lungo", larghezza=200),
             Colonna("valutazione_id", "Valutazione specifica", "scelta", scelte=self._valutazioni, larghezza=200),
             Colonna("non_presente", "Non presente", "spunta", larghezza=95, suggerimento=(
                 "Spuntare se il rischio, valutato, non è presente nella fase (per esempio macchina "
                 "silenziata o lavorazione che non lo comporta): resta fuori da valutazioni specifiche, "
                 "segnaletica e DPI, e nel POS compare con la motivazione.")),
-            Colonna("motivazione", "Motivazione (se non presente)", "testo_lungo"),
+            Colonna("motivazione", "Motivazione (se non presente)", "testo_lungo", larghezza=180),
         ])
         self.rischi.modificata.connect(self._aggiorna_gantt)
-        suggerisci = QPushButton(icona("ai", "#E8792B"), "Suggerisci rischi con l'AI")
+        suggerisci = pulsante_ai("Suggerisci rischi con l'AI")
         suggerisci.clicked.connect(self._suggerisci_rischi)
         self.rischi.pulsanti.insertWidget(2, suggerisci)
 
@@ -730,11 +771,11 @@ class PaginaFasi(Pagina):
         self.attrezzature.pulsanti.insertWidget(3, self.scelta_archivio)
         self.attrezzature.pulsanti.insertWidget(4, aggiungi_archivio)
         self.attrezzature.modificata.connect(self._rischi_delle_attrezzature)
-        suggerisci_attrezzature = QPushButton(icona("ai", "#E8792B"), "Suggerisci con l'AI")
+        suggerisci_attrezzature = pulsante_ai("Suggerisci con l'AI")
         suggerisci_attrezzature.setToolTip("Macchine, attrezzi e opere provvisionali per la fase, con scheda d'uso "
                                            "e rischi, compresi rumore, vibrazioni e movimentazione dei carichi.")
         suggerisci_attrezzature.clicked.connect(self._suggerisci_attrezzature)
-        completa_attrezzatura = QPushButton(icona("ai", "#E8792B"), "Completa rischi e scheda con l'AI")
+        completa_attrezzatura = pulsante_ai("Completa rischi e scheda con l'AI")
         completa_attrezzatura.setToolTip("Per l'attrezzatura selezionata: descrizione, misure prima, durante e "
                                          "dopo l'uso, DPI e rischi mancanti.")
         completa_attrezzatura.clicked.connect(self._completa_attrezzatura)
@@ -775,7 +816,7 @@ class PaginaFasi(Pagina):
         barra_gantt.addWidget(self.zoom)
         barra_gantt.addStretch()
         aiuto = QLabel("Trascina una barra per spostare la fase, dal bordo destro per cambiarne la durata.")
-        aiuto.setObjectName("sottotitolo")
+        aiuto.setObjectName("pageSubtitle")
         barra_gantt.addWidget(aiuto)
         riquadro_gantt = QWidget()
         lay_gantt = QVBoxLayout(riquadro_gantt)
@@ -817,6 +858,10 @@ class PaginaFasi(Pagina):
         self.descrizione_fase.carica(id_)
         self.rischi.imposta_filtro(fase_id=filtro)
         self.attrezzature.imposta_filtro(fase_id=filtro)
+        fase = self.repo.leggi("fasi", id_) if id_ is not None else None
+        nome = f"{fase['codice']} {fase['descrizione']}".strip() if fase else ""
+        self.rischi.imposta_titolo(nome)
+        self.attrezzature.imposta_titolo(nome)
         self._aggiorna_struttura()
 
     def _aggiorna_struttura(self) -> None:
@@ -1067,6 +1112,7 @@ class PaginaFasi(Pagina):
 
     def aggiorna(self) -> None:
         self.fasi.ricarica()
+        self.fasi.seleziona_prima()
         self._aggiorna_gantt()
 
 
@@ -1074,6 +1120,7 @@ class PaginaInterferenze(Pagina):
     titolo = "Interferenze e prescrizioni di coordinamento"
     voce = "Interferenze"
     icona = "interferenze"
+    sezioni_controlli = ("Interferenze",)
     COLONNE = ["Fase", "Fase interferente", "Zona", "Periodo", "Gravità", "Prescrizioni del coordinatore"]
 
     def __init__(self, repo: Repository):
@@ -1137,6 +1184,7 @@ class PaginaCosti(Pagina):
     titolo = "Stima dei costi della sicurezza"
     voce = "Costi della sicurezza"
     icona = "costi"
+    sezioni_controlli = ("Costi",)
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -1149,6 +1197,7 @@ class PaginaCosti(Pagina):
             Colonna("importo", "Importo", "calcolata", larghezza=120,
                     calcola=lambda r: euro(r["quantita"] * r["prezzo_unitario"])),
         ])
+        self.tabella.imposta_titolo("Costi della sicurezza")
         self.totale = QLabel()
         self.totale.setAlignment(Qt.AlignmentFlag.AlignRight)
         font = self.totale.font()
@@ -1203,12 +1252,14 @@ class PaginaFascicolo(Pagina):
             Colonna("misure_in_dotazione", "Misure in dotazione dell'opera", "testo_lungo"),
             Colonna("misure_ausiliarie", "Misure ausiliarie", "testo_lungo"),
         ])
+        self.interventi.imposta_titolo("Interventi di manutenzione")
         self.elaborati = TabellaCrud(repo, "elaborati", [
             Colonna("titolo", "Elaborato tecnico", larghezza=320),
             Colonna("autore", "Autore", larghezza=200),
             Colonna("data", "Data", "data", larghezza=100),
             Colonna("collocazione", "Collocazione"),
         ])
+        self.elaborati.imposta_titolo("Elaborati tecnici")
         divisore = QSplitter(Qt.Orientation.Vertical)
         divisore.addWidget(_riquadro("Schede II: interventi di manutenzione e misure di sicurezza",
                                      self.interventi))
@@ -1268,6 +1319,9 @@ class PaginaDocumenti(Pagina):
         layout.addStretch()
 
         self.controlli = QListWidget()
+        self.controlli.setSpacing(2)
+        self.controlli.itemDoubleClicked.connect(self._vai_al_controllo)
+        self.controlli.itemActivated.connect(self._vai_al_controllo)
         verifica = QPushButton("Esegui i controlli")
         verifica.clicked.connect(self._controlla)
         riquadro_controlli = QGroupBox("Controlli di completezza")
@@ -1281,6 +1335,7 @@ class PaginaDocumenti(Pagina):
             Colonna("data", "Data", "data", larghezza=100),
             Colonna("descrizione", "Descrizione delle modifiche", "testo_lungo"),
         ])
+        self.revisioni.imposta_titolo("Revisioni del documento")
 
         alto = QHBoxLayout()
         alto.addWidget(griglia, 1)
@@ -1303,11 +1358,21 @@ class PaginaDocumenti(Pagina):
         elenco = self.controlla(self.repo)
         if not elenco:
             self.controlli.addItem("Nessun problema rilevato.")
+        c = tema.correnti()
         for s in elenco:
-            item = QListWidgetItem(f"[{s.livello}] {s.sezione}: {s.messaggio}")
-            item.setForeground(QBrush(QColor("#C0392B" if s.livello == controlli.ERRORE else "#B9770E")))
+            errore = s.livello == controlli.ERRORE
+            item = QListWidgetItem(icona("errore" if errore else "avviso", c["err"] if errore else c["warn"]),
+                                   f"{s.livello} · {s.sezione}\n{s.messaggio}")
+            item.setForeground(QBrush(QColor(c["err"] if errore else c["tx"])))
+            item.setData(Qt.ItemDataRole.UserRole, s.sezione)
+            item.setToolTip("Doppio clic per andare alla pagina da correggere")
             self.controlli.addItem(item)
         return elenco
+
+    def _vai_al_controllo(self, item: QListWidgetItem) -> None:
+        vai = getattr(self.window(), "vai_a_sezione", None)
+        if vai is not None and item.data(Qt.ItemDataRole.UserRole):
+            vai(item.data(Qt.ItemDataRole.UserRole))
 
     def _salva_docx(self, nome: str, funzione: Callable[[str], Any]) -> None:
         errori = [s for s in self._controlla() if s.livello == controlli.ERRORE]

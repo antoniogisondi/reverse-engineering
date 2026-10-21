@@ -23,7 +23,7 @@ class StrutturaFase(QWidget):
         self.albero.setColumnWidth(0, 520)
         aiuto = QLabel("Riepilogo in sola lettura: rischi, misure e DPI si modificano nelle altre schede; "
                        "i lavoratori si assegnano con «Mansioni...» nella pagina dell'impresa.")
-        aiuto.setObjectName("sottotitolo")
+        aiuto.setObjectName("pageSubtitle")
         aiuto.setWordWrap(True)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
