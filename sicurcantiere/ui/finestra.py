@@ -672,6 +672,15 @@ class FinestraPrincipale(QMainWindow):
             self._chiudi_progetto()
 
     def _carica(self, progetto: Progetto) -> None:
+        # niente ridisegni a metà mentre si costruiscono le pagine: la finestra si aggiorna una volta
+        # sola, a cantiere pronto (senza, si vedono comparire e sparire pezzi di pagina)
+        self.setUpdatesEnabled(False)
+        try:
+            self._carica_pagine(progetto)
+        finally:
+            self.setUpdatesEnabled(True)
+
+    def _carica_pagine(self, progetto: Progetto) -> None:
         self._chiudi_progetto()
         self.progetto = progetto
         self._modifiche_viste = progetto.conn.total_changes
