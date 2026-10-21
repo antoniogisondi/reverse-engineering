@@ -54,6 +54,10 @@ def crea_app(https: bool = True) -> Flask:
 
     app.template_filter("data")(_data)
 
+    @app.template_filter("milioni")
+    def milioni(valore):
+        return f"{(valore or 0) / 1_000_000:.2f}".replace(".", ",") + " mln"
+
     @app.template_filter("euro")
     def euro(valore):
         return f"{float(valore or 0):,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -227,6 +231,8 @@ def _rotte(app: Flask) -> None:
         in_scadenza = [r for r in righe if r["scadenza"] >= oggi.isoformat()]
         scadute = [r for r in righe if r["scadenza"] < oggi.isoformat()]
         numeri = {
+            "token_ai": conn.execute("SELECT COALESCE(SUM(token_ingresso + token_uscita), 0) FROM consumi_ai "
+                                     "WHERE data >= ?", (oggi.isoformat()[:7] + "-01",)).fetchone()[0],
             "clienti": conn.execute("SELECT COUNT(*) FROM clienti").fetchone()[0],
             "attive": conn.execute("SELECT COUNT(*) FROM licenze WHERE stato = 'attiva' AND "
                                    "(scadenza IS NULL OR scadenza >= ?)", (oggi.isoformat(),)).fetchone()[0],
@@ -288,8 +294,37 @@ def _rotte(app: Flask) -> None:
         pagamenti = conn.execute("SELECT p.*, l.codice_licenza FROM pagamenti p LEFT JOIN licenze l "
                                  "ON l.id = p.licenza_id WHERE p.cliente_id = ? ORDER BY p.data DESC",
                                  (id_,)).fetchall()
+        from licenze import api
+
+        attiva = next((l for l in licenze_ if _stato_licenza(l) in ("attiva", "in scadenza")), None)
+        credito = api.situazione(conn, id_, attiva["piano"]) if attiva else None
+        ricariche = conn.execute("SELECT * FROM ricariche_ai WHERE cliente_id = ? ORDER BY data DESC, id DESC",
+                                 (id_,)).fetchall()
+        consumi = conn.execute("SELECT substr(data, 1, 7) AS mese, motore, SUM(token_ingresso + token_uscita) AS token, "
+                               "SUM(crediti) AS crediti, COUNT(*) AS richieste FROM consumi_ai WHERE cliente_id = ? "
+                               "GROUP BY mese, motore ORDER BY mese DESC LIMIT 12", (id_,)).fetchall()
         return render_template("cliente.html", cliente=c, licenze=licenze_, pagamenti=pagamenti,
-                               stato=_stato_licenza, metodi=METODI_PAGAMENTO)
+                               stato=_stato_licenza, metodi=METODI_PAGAMENTO, credito=credito,
+                               ricariche=ricariche, consumi=consumi)
+
+    @app.route("/clienti/<int:id_>/ricarica", methods=["POST"])
+    def nuova_ricarica(id_: int):
+        conn = _db()
+        if conn.execute("SELECT id FROM clienti WHERE id = ?", (id_,)).fetchone() is None:
+            abort(404)
+        try:
+            milioni = float((request.form.get("milioni") or "0").replace(",", "."))
+            prezzo = float((request.form.get("prezzo") or "0").replace(",", "."))
+        except ValueError:
+            abort(400, "Valori non validi.")
+        if milioni <= 0:
+            flash("Indicare quanti milioni di crediti aggiungere.", "errore")
+            return redirect(url_for("cliente", id_=id_))
+        conn.execute("INSERT INTO ricariche_ai (cliente_id, data, crediti, prezzo, note) VALUES (?, ?, ?, ?, ?)",
+                     (id_, date.today().isoformat(), int(milioni * 1_000_000), prezzo, request.form.get("note", "")))
+        conn.commit()
+        flash(f"Ricarica di {milioni:g} milioni di crediti AI aggiunta.", "ok")
+        return redirect(url_for("cliente", id_=id_))
 
     @app.route("/clienti/<int:id_>/licenza", methods=["POST"])
     def nuova_licenza(id_: int):

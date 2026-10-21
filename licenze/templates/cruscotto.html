@@ -5,6 +5,7 @@
   <div class="tessera"><div class="t">Clienti</div><div class="v">{{ numeri.clienti }}</div></div>
   <div class="tessera"><div class="t">Licenze valide</div><div class="v">{{ numeri.attive }}</div></div>
   <div class="tessera"><div class="t">In scadenza entro {{ giorni }} giorni</div><div class="v">{{ in_scadenza|length }}</div></div>
+  <div class="tessera"><div class="t">Token AI questo mese</div><div class="v">{{ numeri.token_ai|milioni }}</div></div>
   <div class="tessera"><div class="t">Incassato nel {{ anno }}</div><div class="v">{{ numeri.incassato|euro }}</div></div>
 </div>
 <p class="riga">Mostra le scadenze entro:

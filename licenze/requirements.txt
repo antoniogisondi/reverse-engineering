@@ -2,3 +2,5 @@ flask>=3
 gunicorn>=22
 cryptography>=42
 segno>=1.5
+openai>=3.30
+anthropic>=1.15

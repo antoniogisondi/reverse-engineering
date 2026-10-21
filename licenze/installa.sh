@@ -17,6 +17,7 @@ CONF=/etc/sicurcantiere-licenze
 UTENTE=sclicenze
 PORTA=8443          # solo rete interna
 PORTA_LOCALE=8000   # dietro Caddy
+PORTA_AI=8100       # server ponte dell'assistente AI (solo in locale: si pubblica con Tailscale Funnel)
 
 if [ "$(id -u)" -ne 0 ]; then echo "Eseguire come root (sudo bash licenze/installa.sh)."; exit 1; fi
 if [ ! -f licenze/app.py ] || [ ! -f sicurcantiere/licenza.py ]; then
@@ -54,7 +55,8 @@ rm -rf "$APP/codice"
 mkdir -p "$APP/codice/sicurcantiere" "$DATI"
 cp -r licenze "$APP/codice/"
 rm -rf "$APP/codice/licenze/__pycache__"
-cp sicurcantiere/__init__.py sicurcantiere/licenza.py sicurcantiere/ed25519.py "$APP/codice/sicurcantiere/"
+cp sicurcantiere/__init__.py sicurcantiere/licenza.py sicurcantiere/ed25519.py sicurcantiere/ai.py \
+    "$APP/codice/sicurcantiere/"
 chown -R root:root "$APP/codice"
 chown "$UTENTE:$UTENTE" "$DATI"
 chmod 700 "$DATI"
@@ -142,9 +144,56 @@ ReadWritePaths=$DATI
 [Install]
 WantedBy=multi-user.target
 UNIT
+
+echo "== Server ponte dell'assistente AI"
+if [ ! -f "$CONF/ai.env" ]; then
+    cat > "$CONF/ai.env" <<'AIENV'
+# Chiavi dei fornitori AI per l'assistente incluso nelle licenze (SicurCantiere AI).
+# Dopo ogni modifica: sudo systemctl restart sicurcantiere-licenze-ai
+#
+# Motore standard (tutti i piani): DeepSeek o un servizio compatibile, anche ospitato in Europa
+# (in quel caso indicare l'indirizzo, il modello e la sede del trattamento).
+SICURCANTIERE_AI_STANDARD_CHIAVE=
+SICURCANTIERE_AI_STANDARD_MODELLO=deepseek-flash
+SICURCANTIERE_AI_STANDARD_URL=
+SICURCANTIERE_AI_STANDARD_SEDE=DeepSeek, con trattamento dei dati in Cina
+#
+# Motore avanzato (solo piano Studio): Claude di Anthropic.
+SICURCANTIERE_AI_AVANZATO_CHIAVE=
+SICURCANTIERE_AI_AVANZATO_MODELLO=claude-sonnet-5-5
+AIENV
+fi
+chown root:root "$CONF/ai.env"
+chmod 600 "$CONF/ai.env"
+cat > /etc/systemd/system/sicurcantiere-licenze-ai.service <<UNIT
+[Unit]
+Description=Server ponte dell'assistente AI SicurCantiere
+After=network.target
+
+[Service]
+User=$UTENTE
+Group=$UTENTE
+Environment=SICURCANTIERE_LICENZE_DATI=$DATI
+Environment=PYTHONPATH=$APP/codice
+EnvironmentFile=$CONF/ai.env
+ExecStart=$APP/venv/bin/gunicorn --workers 3 --timeout 320 --bind 127.0.0.1:$PORTA_AI licenze.wsgi_api:app
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ReadWritePaths=$DATI
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
 systemctl daemon-reload
-systemctl enable --now sicurcantiere-licenze
-systemctl restart sicurcantiere-licenze
+systemctl enable --now sicurcantiere-licenze sicurcantiere-licenze-ai
+systemctl restart sicurcantiere-licenze sicurcantiere-licenze-ai
 
 if [ -n "$DOMINIO" ] && command -v ufw >/dev/null 2>&1; then
     echo "== Firewall: aperte solo SSH (rete interna) e le porte web 80/443"
@@ -172,6 +221,13 @@ if [ -n "$DOMINIO" ]; then
 else
     echo "Fatto. Gestionale: https://$(hostname -I | awk '{print $1}'):$PORTA  (al primo accesso il browser avvisa del certificato: è normale)"
 fi
+echo
+echo "Assistente AI incluso nelle licenze:"
+echo " 1. inserire le chiavi dei fornitori in $CONF/ai.env (sudo nano $CONF/ai.env)"
+echo "    e riavviare: sudo systemctl restart sicurcantiere-licenze-ai"
+echo " 2. renderlo raggiungibile dai programmi dei clienti (una volta sola):"
+echo "    sudo tailscale funnel --bg $PORTA_AI"
+echo "    poi mandare l'indirizzo https://...ts.net mostrato da: tailscale funnel status"
 if [ "$NUOVA_CHIAVE" = 1 ]; then
     echo "IMPORTANTE: copia $DATI/chiave_privata.pem in un posto sicuro e manda solo la chiave pubblica."
 fi

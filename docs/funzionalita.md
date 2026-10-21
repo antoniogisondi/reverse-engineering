@@ -157,6 +157,16 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   valutazioni da eseguire, sostanze senza scheda.
 
 ### Assistente AI (facoltativo, spento all'inizio)
+- **Incluso nella licenza**: "SicurCantiere AI" funziona senza chiavi API, passando dal server ponte
+  dell'ufficio.
+  - **Quota mensile per piano**: 1,5 milioni di crediti per i singoli, 3 milioni per il Completo,
+    8 milioni per lo Studio.
+  - **Limiti**: tetto giornaliero del 30% e ricariche acquistabili.
+  - **Motori**: Standard (DeepSeek) per tutti; Avanzato (Claude) nel piano Studio, a 8 crediti per
+    token.
+  - **Credito**: si verifica in *Strumenti > Impostazioni assistente AI*.
+- **Chiave propria**: in alternativa si può usare la propria chiave DeepSeek, OpenAI o Claude,
+  senza limiti di quota.
 - **Fornitori**: DeepSeek (predefinito), OpenAI o Claude, con la chiave del cliente.
 - **Cosa fa**: suggerisce rischi, misure e DPI di fasi, macchine e attrezzature, scrive bozze dei
   testi, compila i parametri delle valutazioni dichiarando le ipotesi e completa le schede delle
@@ -205,8 +215,11 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 
 ## Prossimi passi
 
-1. **Licenze, passo 2**: attivazione online con conteggio delle postazioni. Su internet va solo
-   l'indirizzo di attivazione, mentre il gestionale resta raggiungibile con Tailscale.
+1. **Licenze, passo 2**: attivazione online con conteggio delle postazioni, sullo stesso server
+   ponte dell'AI (già raggiungibile da internet con Tailscale Funnel).
+1. **Server ponte AI**: valutare un motore Standard ospitato in Europa (stesso modello DeepSeek
+   presso un fornitore UE, oppure Mistral) per il GDPR. Basta cambiare l'indirizzo, il modello e la
+   sede in `ai.env`.
 2. **Sito di vendita**: presentazione, prezzi, acquisto della licenza e download.
 3. **SicurCantiere DVR.**
 4. **Idee per distinguersi**, da scegliere:

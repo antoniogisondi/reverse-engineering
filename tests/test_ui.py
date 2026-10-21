@@ -821,3 +821,26 @@ def test_lettura_in_background_senza_bloccare(app):
         app.processEvents()  # la finestra resta reattiva mentre il lavoro procede
         time.sleep(0.01)
     assert risultati == ["fatto"] and passi == [1, 2, 3]
+
+
+def test_assistente_incluso_nella_licenza(app, monkeypatch):
+    from sicurcantiere import ai
+    from sicurcantiere.ui import lavoro_ai
+
+    monkeypatch.delenv("SICURCANTIERE_SERVER_AI", raising=False)
+    monkeypatch.setattr(ai, "SERVER_AI", "")
+    assert ai.INTEGRATO not in lavoro_ai.fornitori_disponibili()  # server non ancora attivo
+    monkeypatch.setenv("SICURCANTIERE_SERVER_AI", "https://vm.esempio.ts.net")
+    assert lavoro_ai.fornitore_predefinito() == ai.INTEGRATO
+    lavoro_ai.impostazioni_comuni().remove(lavoro_ai.CHIAVE_FORNITORE)
+    lavoro_ai.impostazioni_comuni().setValue("licenza/codice", "SC1-codice.firma")
+    a = lavoro_ai.assistente()
+    assert a.fornitore == ai.INTEGRATO and a.api_key == "SC1-codice.firma" and a.modello == ai.STANDARD
+    d = lavoro_ai.DialogoImpostazioniAI()
+    assert d.fornitore.currentData() == ai.INTEGRATO
+    assert not d.modulo.isRowVisible(d.chiave)  # nessuna chiave da inserire
+    assert "server SicurCantiere" in d.destinazione.text()
+    d.fornitore.setCurrentIndex(d.fornitore.findData(ai.DEEPSEEK))
+    assert d.modulo.isRowVisible(d.chiave)
+    d.close()
+    lavoro_ai.impostazioni_comuni().remove("licenza/codice")

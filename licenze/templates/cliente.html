@@ -22,6 +22,29 @@
 <div class="tutto"><button class="primario">Emetti e firma la licenza</button></div>
 </form></div>
 
+<div class="card"><h2>Assistente AI incluso</h2><div class="corpo">
+{% if credito %}
+<div class="tessere">
+  <div class="tessera"><div class="t">Quota del mese</div><div class="v">{{ credito.quota|milioni }}</div></div>
+  <div class="tessera"><div class="t">Usati questo mese</div><div class="v">{{ credito.usati_mese|milioni }}</div></div>
+  <div class="tessera"><div class="t">Ricariche disponibili</div><div class="v">{{ credito.extra|milioni }}</div></div>
+  <div class="tessera"><div class="t">Restanti</div><div class="v">{{ credito.residuo|milioni }}</div></div>
+</div>
+{% else %}<p class="sotto">Nessuna licenza valida: l'assistente incluso non è attivo.</p>{% endif %}
+{% if consumi %}<table><tr><th>Mese</th><th>Motore</th><th>Richieste</th><th>Token</th><th>Crediti</th></tr>
+{% for c in consumi %}<tr><td>{{ c.mese }}</td><td>{{ c.motore }}</td><td>{{ c.richieste }}</td><td>{{ c.token|milioni }}</td><td>{{ c.crediti|milioni }}</td></tr>{% endfor %}</table>{% endif %}
+<form class="griglia" method="post" action="{{ url_for('nuova_ricarica', id_=cliente.id) }}" style="margin-top:12px">
+<input type="hidden" name="token" value="{{ token }}">
+<div><label>Ricarica (milioni di crediti)</label><input name="milioni" value="2"></div>
+<div><label>Prezzo (€)</label><input name="prezzo" value="0"></div>
+<div><label>Note</label><input name="note"></div>
+<div><button class="primario">Aggiungi la ricarica</button></div>
+<div class="tutto sotto">Le ricariche non scadono e si usano dopo la quota del mese. Motore standard: 1 credito per token; motore avanzato (Claude, piano Studio): 8 crediti per token.</div>
+</form>
+{% if ricariche %}<table style="margin-top:10px"><tr><th>Data</th><th>Crediti</th><th>Prezzo</th><th>Note</th></tr>
+{% for r in ricariche %}<tr><td>{{ r.data|data }}</td><td>{{ r.crediti|milioni }}</td><td>{{ r.prezzo|euro }}</td><td>{{ r.note }}</td></tr>{% endfor %}</table>{% endif %}
+</div></div>
+
 <div class="card"><h2>Pagamenti</h2>
 {% if pagamenti %}<table><tr><th>Data</th><th>Importo</th><th>Metodo</th><th>Fattura</th><th>Licenza</th><th>Note</th></tr>
 {% for p in pagamenti %}<tr><td>{{ p.data|data }}</td><td>{{ p.importo|euro }}</td><td>{{ p.metodo }}</td><td>{{ p.fattura }}</td><td class="mono">{{ p.codice_licenza or "" }}</td><td>{{ p.note }}</td></tr>{% endfor %}</table>

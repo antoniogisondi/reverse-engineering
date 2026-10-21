@@ -19,14 +19,24 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sicurcantiere.valutazioni.base import Campo, Metodo
+if TYPE_CHECKING:  # solo per i tipi: il modulo si usa anche sul server ponte, senza il resto del programma
+    from sicurcantiere.valutazioni.base import Campo, Metodo
 
-OPENAI, ANTHROPIC, DEEPSEEK = "openai", "anthropic", "deepseek"
+OPENAI, ANTHROPIC, DEEPSEEK, INTEGRATO = "openai", "anthropic", "deepseek", "sicurcantiere"
 FORNITORE_PREDEFINITO = DEEPSEEK
 VARIABILI_AMBIENTE = {DEEPSEEK: "DEEPSEEK_API_KEY", OPENAI: "OPENAI_API_KEY", ANTHROPIC: "ANTHROPIC_API_KEY"}
 URL_DEEPSEEK = "https://api.deepseek.com"
+
+# Server ponte di SicurCantiere: l'assistente incluso nella licenza, senza chiave API del cliente.
+# Vuoto = non ancora attivo. La variabile d'ambiente serve ai test e alle prove.
+SERVER_AI = ""
+STANDARD, AVANZATO = "standard", "avanzato"
+
+
+def server_ai() -> str:
+    return (os.environ.get("SICURCANTIERE_SERVER_AI") or SERVER_AI).rstrip("/")
 
 
 @dataclass(frozen=True)
@@ -37,6 +47,10 @@ class Fornitore:
 
 
 FORNITORI: dict[str, Fornitore] = {
+    INTEGRATO: Fornitore("SicurCantiere AI, inclusa nella licenza", STANDARD, (
+        (STANDARD, "Standard"),
+        (AVANZATO, "Avanzato, con Claude (piano Studio)"),
+    )),
     DEEPSEEK: Fornitore("DeepSeek", "deepseek-flash", (
         ("deepseek-flash", "DeepSeek V4.1 Flash"),
         ("deepseek-v4-pro", "DeepSeek V4 Pro (più accurato, più lento)"),
@@ -74,7 +88,8 @@ class RispostaTroncata(ErroreAI):
     """La risposta ha superato la lunghezza massima: si può ripetere con un testo più breve."""
 
 
-SITI_CREDITO = {DEEPSEEK: "platform.deepseek.com", OPENAI: "platform.openai.com", ANTHROPIC: "console.anthropic.com"}
+SITI_CREDITO = {DEEPSEEK: "platform.deepseek.com", OPENAI: "platform.openai.com", ANTHROPIC: "console.anthropic.com",
+                INTEGRATO: "SicurCantiere"}
 
 
 def _credito_esaurito(fornitore: str, stato: int | None, messaggio: str) -> ErroreAI | None:
@@ -149,13 +164,18 @@ def _descrivi_campi(campi: tuple[Campo, ...]) -> str:
 
 class AssistenteAI:
     def __init__(self, fornitore: str = FORNITORE_PREDEFINITO, client: Any = None,
-                 api_key: str | None = None, modello: str | None = None):
+                 api_key: str | None = None, modello: str | None = None, url: str | None = None):
+        """Per INTEGRATO `api_key` è il codice di licenza e `modello` il motore (standard o avanzato);
+        `url` cambia l'indirizzo di un servizio compatibile con DeepSeek/OpenAI (es. ospitato in Europa)."""
         if fornitore not in FORNITORI:
             fornitore = FORNITORE_PREDEFINITO
         self.fornitore = fornitore
         self._client = client
         self.api_key = api_key or None
         self.modello = modello or FORNITORI[fornitore].modello_predefinito
+        self.url = url
+        self.uso = (0, 0)  # token in ingresso e in uscita dell'ultima richiesta
+        self.credito: dict[str, Any] = {}  # credito AI restante, dall'ultima risposta del server ponte
 
     @property
     def client(self) -> Any:
@@ -167,7 +187,7 @@ class AssistenteAI:
                 if not chiave:
                     raise ErroreAI("Chiave API DeepSeek mancante: inserirla in Strumenti > Impostazioni "
                                    "assistente AI oppure nella variabile d'ambiente DEEPSEEK_API_KEY.")
-                self._client = openai.OpenAI(api_key=chiave, base_url=URL_DEEPSEEK)
+                self._client = openai.OpenAI(api_key=chiave, base_url=self.url or URL_DEEPSEEK)
             elif self.fornitore == OPENAI:
                 import openai
 
@@ -178,13 +198,54 @@ class AssistenteAI:
                 self._client = anthropic.Anthropic(api_key=self.api_key) if self.api_key else anthropic.Anthropic()
         return self._client
 
-    def _richiesta(self, testo: str, schema: dict[str, Any]) -> dict[str, Any]:
+    def richiesta_grezza(self, testo: str, schema: dict[str, Any]) -> str:
+        """Testo JSON della risposta, senza controlli (lo usa anche il server ponte)."""
+        if self.fornitore == INTEGRATO:
+            return self._richiesta_server(testo, schema)
         if self.fornitore == DEEPSEEK:
-            testo_risposta = self._richiesta_deepseek(testo, schema)
-        elif self.fornitore == OPENAI:
-            testo_risposta = self._richiesta_openai(testo, schema)
-        else:
-            testo_risposta = self._richiesta_anthropic(testo, schema)
+            return self._richiesta_deepseek(testo, schema)
+        if self.fornitore == OPENAI:
+            return self._richiesta_openai(testo, schema)
+        return self._richiesta_anthropic(testo, schema)
+
+    def _richiesta_server(self, testo: str, schema: dict[str, Any]) -> str:
+        import urllib.error
+        import urllib.request
+
+        from sicurcantiere import __version__
+
+        indirizzo = server_ai()
+        if not indirizzo:
+            raise ErroreAI("L'assistente incluso nella licenza non è ancora disponibile: usare una chiave propria "
+                           "in Strumenti > Impostazioni assistente AI.")
+        if not self.api_key:
+            raise ErroreAI("L'assistente incluso richiede una licenza: inserirla in Aiuto > Licenza.")
+        corpo = json.dumps({"licenza": self.api_key, "motore": self.modello, "testo": testo, "schema": schema,
+                            "versione": __version__}).encode()
+        richiesta = urllib.request.Request(f"{indirizzo}/api/ai/richiesta", data=corpo, method="POST",
+                                           headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(richiesta, timeout=300) as r:
+                risposta = json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            try:
+                messaggio = json.loads(e.read().decode()).get("errore", "")
+            except (ValueError, AttributeError):
+                messaggio = ""
+            raise ErroreAI(messaggio or f"Errore del servizio SicurCantiere AI ({e.code}): riprovare più tardi.") from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            raise ErroreAI("Impossibile contattare il servizio SicurCantiere AI: controllare la connessione a "
+                           "internet e riprovare.") from e
+        except ValueError as e:
+            raise ErroreAI("Risposta del servizio SicurCantiere AI non leggibile.") from e
+        self.credito = risposta.get("credito") or {}
+        self.uso = tuple(risposta.get("uso") or (0, 0))
+        if risposta.get("troncata"):
+            raise RispostaTroncata("La risposta è stata troncata: provare con una descrizione più breve.")
+        return str(risposta.get("contenuto", ""))
+
+    def _richiesta(self, testo: str, schema: dict[str, Any]) -> dict[str, Any]:
+        testo_risposta = self.richiesta_grezza(testo, schema)
         try:
             dati = json.loads(testo_risposta)
         except json.JSONDecodeError as e:
@@ -242,6 +303,8 @@ class AssistenteAI:
             # Es. nessuna chiave configurata.
             raise ErroreAI(f"Assistente AI non configurato: {e}") from e
 
+        uso = getattr(risposta, "usage", None)
+        self.uso = (getattr(uso, "prompt_tokens", 0) or 0, getattr(uso, "completion_tokens", 0) or 0)
         scelta = risposta.choices[0]
         if getattr(scelta.message, "refusal", None):
             raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
@@ -278,6 +341,8 @@ class AssistenteAI:
         except anthropic.AnthropicError as e:
             raise ErroreAI(f"Assistente AI non configurato: {e}") from e
 
+        uso = getattr(risposta, "usage", None)
+        self.uso = (getattr(uso, "input_tokens", 0) or 0, getattr(uso, "output_tokens", 0) or 0)
         if risposta.stop_reason == "refusal":
             raise ErroreAI("L'assistente non ha potuto rispondere a questa richiesta.")
         if risposta.stop_reason == "max_tokens":

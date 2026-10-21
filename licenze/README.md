@@ -151,6 +151,68 @@ cd sicurcantiere && git pull && sudo bash licenze/installa.sh
 
 Il dominio scelto all'installazione viene ricordato. Dati, chiave e utenti restano.
 
+## Assistente AI incluso nelle licenze (server ponte)
+
+Con il gestionale si installa un secondo servizio, `sicurcantiere-licenze-ai`: il **server ponte**
+dell'assistente AI.
+- **Come funziona**: i programmi dei clienti non hanno chiavi dei fornitori AI. Mandano la richiesta
+  al server insieme al codice di licenza. Il server controlla licenza e credito, la inoltra al
+  fornitore con le chiavi dell'ufficio e registra il consumo.
+- **Cosa è pubblico**: il ponte è l'unica parte raggiungibile da internet. Il gestionale resta
+  privato.
+
+### Accenderlo
+
+1. **Chiavi dei fornitori**:
+   ```bash
+   sudo nano /etc/sicurcantiere-licenze/ai.env
+   ```
+   - `SICURCANTIERE_AI_STANDARD_CHIAVE`: chiave DeepSeek (motore Standard, tutti i piani);
+   - `SICURCANTIERE_AI_AVANZATO_CHIAVE`: chiave Anthropic (motore Avanzato con Claude, solo piano
+     Studio).
+
+   Poi riavviare il servizio:
+   ```bash
+   sudo systemctl restart sicurcantiere-licenze-ai
+   ```
+   Il file è leggibile solo da root e le chiavi non lasciano mai il server.
+2. **Pubblicarlo su internet con Tailscale Funnel**: niente dominio da comprare e nessuna porta da
+   aprire sul router.
+   ```bash
+   sudo tailscale funnel --bg 8100
+   tailscale funnel status
+   ```
+   - La prima volta Tailscale chiede di abilitare Funnel con un link: aprirlo e confermare.
+   - L'indirizzo mostrato (`https://vm-sicurcantiere.<nome>.ts.net`) va inserito nel programma
+     (`SERVER_AI` in `sicurcantiere/ai.py`). Da quella versione i clienti con licenza hanno
+     l'assistente senza chiavi.
+   - Funnel pubblica solo la porta 8100 del ponte: il gestionale sulla 8443 resta visibile solo a
+     chi è nella rete Tailscale.
+3. **Prova**:
+   ```bash
+   curl -s -X POST https://vm-sicurcantiere.<nome>.ts.net/api/ai/stato -H 'Content-Type: application/json' -d '{"licenza":"SC1-..."}'
+   ```
+
+### Quote e ricariche
+
+| Piano | Crediti al mese | Motori |
+| --- | --- | --- |
+| POS, PSC, PiMUS | 1,5 milioni | Standard |
+| Completo | 3 milioni | Standard |
+| Studio | 8 milioni (per tutte le postazioni) | Standard e Avanzato |
+
+- **Crediti**: un credito corrisponde a un token con il motore Standard; con l'Avanzato (Claude)
+  ogni token vale 8 crediti.
+- **Rinnovo della quota**: si rinnova il primo di ogni mese ed è conteggiata per cliente.
+- **Tetto giornaliero**: in un giorno si usa al massimo il 30% della quota mensile, contro gli
+  abusi.
+- **Ricariche**: si aggiungono dalla scheda del cliente (*Aggiungi la ricarica*), non scadono e si
+  usano dopo la quota del mese.
+- **Consumi**: per mese e per motore, nella scheda del cliente. Il totale del mese è nel
+  cruscotto.
+- **Credito finito o licenza scaduta**: l'assistente si ferma, ma il resto del programma continua a
+  funzionare.
+
 ## Come funziona una licenza
 
 - **Emissione.** Nella scheda del cliente si sceglie *Emetti una licenza*: piano (POS, PSC,

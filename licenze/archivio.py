@@ -67,6 +67,26 @@ CREATE TABLE IF NOT EXISTS invii (
     destinatario TEXT NOT NULL DEFAULT '',
     utente TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS consumi_ai (
+    id INTEGER PRIMARY KEY,
+    cliente_id INTEGER NOT NULL REFERENCES clienti(id),
+    licenza_id INTEGER REFERENCES licenze(id),
+    data TEXT NOT NULL,
+    istante REAL NOT NULL,
+    motore TEXT NOT NULL,
+    token_ingresso INTEGER NOT NULL DEFAULT 0,
+    token_uscita INTEGER NOT NULL DEFAULT 0,
+    crediti INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS consumi_ai_cliente ON consumi_ai (cliente_id, data);
+CREATE TABLE IF NOT EXISTS ricariche_ai (
+    id INTEGER PRIMARY KEY,
+    cliente_id INTEGER NOT NULL REFERENCES clienti(id),
+    data TEXT NOT NULL,
+    crediti INTEGER NOT NULL,
+    prezzo REAL NOT NULL DEFAULT 0,
+    note TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS pagamenti (
     id INTEGER PRIMARY KEY,
     cliente_id INTEGER NOT NULL REFERENCES clienti(id),
