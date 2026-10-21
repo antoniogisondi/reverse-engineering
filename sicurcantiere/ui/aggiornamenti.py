@@ -15,6 +15,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QMessageBox, QProgressDialog, QPushButton, QWidget
 
 from sicurcantiere import __version__, aggiornamenti
+from sicurcantiere.ui import licenza as licenza_ui
 from sicurcantiere.ui.lavoro_ai import impostazioni_comuni
 
 CHIAVE_ULTIMO_CONTROLLO = "aggiornamenti/ultimo_controllo"
@@ -70,6 +71,15 @@ def controlla(finestra, manuale: bool = False) -> None:
     def trovata(versione: aggiornamenti.Versione) -> None:
         impostazioni.setValue(CHIAVE_ULTIMO_CONTROLLO, time.time())
         if aggiornamenti.piu_recente(versione.numero):
+            stato = licenza_ui.stato_corrente(finestra.edizione.chiave)
+            scadenza = stato.licenza.scadenza if stato.scaduta else None
+            if not aggiornamenti.inclusa_nella_licenza(versione, scadenza):
+                mostra_avviso(finestra, versione, rinnovo=True)
+                if manuale:
+                    QMessageBox.information(finestra, "Aggiornamenti",
+                                            f"È disponibile la versione {versione.numero}, che richiede il rinnovo "
+                                            "della licenza (aggiornamenti e assistenza).")
+                return
             mostra_avviso(finestra, versione)
             if manuale:
                 proponi(finestra, versione)
@@ -84,7 +94,7 @@ def controlla(finestra, manuale: bool = False) -> None:
     _avvia(_Lavoro(lambda segnali: aggiornamenti.ultima_versione()), trovata, errore)
 
 
-def mostra_avviso(finestra, versione: aggiornamenti.Versione) -> None:
+def mostra_avviso(finestra, versione: aggiornamenti.Versione, rinnovo: bool = False) -> None:
     """Pulsante nella barra di stato: resta visibile finché il programma è aperto."""
     pulsante = getattr(finestra, "avviso_aggiornamento", None)
     if pulsante is None:
@@ -93,11 +103,13 @@ def mostra_avviso(finestra, versione: aggiornamenti.Versione) -> None:
         pulsante.setCursor(Qt.CursorShape.PointingHandCursor)
         pulsante.setStyleSheet("QPushButton { color: #1E7B34; font-weight: 600; border: none; padding: 2px 8px; }")
         finestra.statusBar().addPermanentWidget(pulsante)
-    pulsante.versione = versione  # l'ultima trovata: il clic propone sempre quella
+    pulsante.versione, pulsante.rinnovo = versione, rinnovo  # l'ultima trovata: il clic propone quella
     if not getattr(pulsante, "collegato", False):
-        pulsante.clicked.connect(lambda: proponi(finestra, pulsante.versione))
+        pulsante.clicked.connect(lambda: finestra.mostra_licenza() if pulsante.rinnovo
+                                 else proponi(finestra, pulsante.versione))
         pulsante.collegato = True
-    pulsante.setText(f"Aggiornamento disponibile: versione {versione.numero}")
+    pulsante.setText(f"Versione {versione.numero} disponibile con il rinnovo" if rinnovo
+                     else f"Aggiornamento disponibile: versione {versione.numero}")
     pulsante.show()
 
 

@@ -710,3 +710,57 @@ def test_guida_e_avviso_responsabilita(app):
     testo = d.findChild(QtWidgets.QTextBrowser).toPlainText()
     assert "Come si compila un POS" in testo and "spento di serie" in testo
     assert "firmato" in AVVISO_RESPONSABILITA
+
+
+def test_licenza_prova_e_programma_non_incluso(app, tmp_path, monkeypatch):
+    import base64
+    from datetime import date, timedelta
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from sicurcantiere import licenza
+    from sicurcantiere.ui import licenza as licenza_ui
+    from sicurcantiere.ui.edizioni import POS, PSC
+
+    impostazioni = QtCore.QSettings(str(tmp_path / "comune.ini"), QtCore.QSettings.Format.IniFormat)
+    monkeypatch.setattr(licenza_ui, "impostazioni_comuni", lambda: impostazioni)
+    privata = Ed25519PrivateKey.generate()
+    pubblica = privata.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    monkeypatch.setenv("SICURCANTIERE_CHIAVE_LICENZE", base64.b64encode(pubblica).decode())
+    grezza = privata.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
+                                   serialization.NoEncryption())
+
+    # Prova: parte al primo avvio, un solo cantiere.
+    for nome in ("a.spo", "b.spo"):
+        Progetto(tmp_path / nome, crea=True).chiudi()
+    f = FinestraPrincipale(POS)
+    assert f.stato_licenza.text().startswith("Prova gratuita: 30")
+    f.apri_file(tmp_path / "a.spo")
+    assert f.progetto is not None
+    f._chiudi_progetto()
+    f.apri_file(tmp_path / "b.spo")  # secondo cantiere: bloccato
+    assert f.progetto is None
+    f.apri_file(tmp_path / "a.spo")  # il primo resta disponibile
+    assert f.progetto is not None
+    f.close()
+
+    # Prova finita: niente cantieri, pagina iniziale con l'invito a inserire la licenza.
+    impostazioni.setValue("prova/inizio", (date.today() - timedelta(days=40)).isoformat())
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "a.spo")
+    assert f.progetto is None
+    f.close()
+
+    # Licenza POS: il POS funziona, il PSC mostra «Non incluso nella tua licenza».
+    codice = licenza.firma(licenza.Licenza("L-1", "Studio Rossi", "pos", date.today()), grezza)
+    impostazioni.setValue("licenza/codice", codice)
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "b.spo")
+    assert f.progetto is not None and f.stato_licenza.isHidden()
+    f.close()
+    f = FinestraPrincipale(PSC)
+    testi = [w.text() for w in f.findChildren(QtWidgets.QLabel)]
+    assert "Non incluso nella tua licenza" in testi
+    assert any("PSC non è incluso" in t for t in testi)
+    f.close()

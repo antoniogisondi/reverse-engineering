@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block titolo %}Cruscotto{% endblock %}
+{% block contenuto %}
+<h1>Cruscotto</h1><p class="sotto">Licenze da rinnovare e ultime emesse.</p>
+<div class="tessere">
+  <div class="tessera"><div class="t">Clienti</div><div class="v">{{ numeri.clienti }}</div></div>
+  <div class="tessera"><div class="t">Licenze valide</div><div class="v">{{ numeri.attive }}</div></div>
+  <div class="tessera"><div class="t">In scadenza entro 30 giorni</div><div class="v">{{ in_scadenza|length }}</div></div>
+  <div class="tessera"><div class="t">Incassato nel {{ anno }}</div><div class="v">{{ numeri.incassato|euro }}</div></div>
+</div>
+{% for titolo, righe in (("In scadenza nei prossimi 30 giorni", in_scadenza), ("Scadute e non rinnovate", scadute)) %}
+<div class="card"><h2>{{ titolo }} <span class="badge b-rinnovata">{{ righe|length }}</span></h2>
+{% if righe %}<table><tr><th>Licenza</th><th>Cliente</th><th>Piano</th><th>Scadenza</th><th></th></tr>
+{% for r in righe %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=r.id) }}">{{ r.codice_licenza }}</a></td>
+<td><a href="{{ url_for('cliente', id_=r.cliente_id) }}">{{ r.cliente }}</a></td><td>{{ piani[r.piano][0] }}</td>
+<td>{{ r.scadenza|data }}</td><td class="destra"><a class="pulsante" href="{{ url_for('dettaglio_licenza', id_=r.id) }}">Rinnova…</a></td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Nessuna.</div>{% endif %}</div>
+{% endfor %}
+<div class="card"><h2>Ultime licenze emesse</h2>
+{% if recenti %}<table><tr><th>Licenza</th><th>Cliente</th><th>Piano</th><th>Emessa</th><th>Scadenza</th></tr>
+{% for r in recenti %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=r.id) }}">{{ r.codice_licenza }}</a></td>
+<td>{{ r.cliente }}</td><td>{{ piani[r.piano][0] }}</td><td>{{ r.emessa|data }}</td><td>{{ r.scadenza|data }}</td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Ancora nessuna licenza: inizia da <a href="{{ url_for('modifica_cliente') }}">Nuovo cliente</a>.</div>{% endif %}</div>
+{% endblock %}

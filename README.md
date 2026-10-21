@@ -184,6 +184,13 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 | `sicurcantiere/documenti/stile.py`, `segnaletica.py` | Stile dei documenti (bande, schede, tabelle colorate, copertina) e cartelli di sicurezza; le immagini in `risorse/segnali` si rigenerano con `scripts/genera_segnali.py` |
 | `sicurcantiere/anagrafiche.py`, `archivio_utente.py` | Ruoli, figure, DPI, mansioni; archivio anagrafiche dell'utente |
 
+## Licenze
+
+Senza licenza i programmi partono con una prova di 30 giorni e un solo cantiere; la licenza è un codice firmato
+(`sicurcantiere/licenza.py`) che il programma verifica senza collegarsi a internet. Le licenze si emettono dal
+gestionale web in `licenze/`, da installare sul server dell'ufficio: vedi `licenze/README.md`. Finché nel
+programma non c'è la chiave pubblica del gestionale, il controllo delle licenze non è attivo.
+
 ## Prossimi passi
 
 - Ampliamento dell'archivio delle lavorazioni (contenuti scritti da zero)

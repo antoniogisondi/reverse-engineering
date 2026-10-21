@@ -32,6 +32,8 @@ from sicurcantiere.repository import Repository
 from sicurcantiere.ui import aggiornamenti, archivio_anagrafiche, tema
 from sicurcantiere.ui.edizioni import ESTENSIONI, PSC, Edizione
 from sicurcantiere.ui.icone import icona, icona_applicazione
+from sicurcantiere import licenza
+from sicurcantiere.ui import licenza as licenza_ui
 from sicurcantiere.ui.guida import DialogoGuida
 from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI
 from sicurcantiere.ui.pagine import Pagina, primario
@@ -145,6 +147,30 @@ class Benvenuto(QWidget):
         marchio.addLayout(nomi, 1)
         colonna.addLayout(marchio)
 
+        stato = licenza_ui.stato_corrente(edizione.chiave)
+        if not stato.utilizzabile:
+            blocco = QVBoxLayout()
+            titolo = "Non incluso nella tua licenza" if stato.tipo == licenza.NON_INCLUSO else "Prova terminata"
+            blocco.addWidget(_etichetta(titolo, "sectionTitle"))
+            blocco.addWidget(_etichetta(licenza_ui.descrizione(stato, edizione.nome), "pageSubtitle", True))
+            azioni = QHBoxLayout()
+            inserisci = QPushButton("Inserisci la licenza...")
+            tema.imposta_variante(inserisci, "primary")
+            inserisci.clicked.connect(finestra.mostra_licenza)
+            azioni.addWidget(inserisci)
+            if licenza.CONTATTO_ACQUISTO:
+                acquista = QPushButton("Come acquistarlo")
+                acquista.clicked.connect(licenza_ui.apri_acquisto)
+                azioni.addWidget(acquista)
+            azioni.addStretch()
+            blocco.addLayout(azioni)
+            riquadro = QFrame()
+            riquadro.setObjectName("card")
+            lay_riquadro = QVBoxLayout(riquadro)
+            lay_riquadro.setContentsMargins(16, 14, 16, 14)
+            lay_riquadro.addLayout(blocco)
+            colonna.addWidget(riquadro)
+
         pulsanti = QHBoxLayout()
         pulsanti.setSpacing(12)
         nuovo = PulsanteGrande("nuovo", "Nuovo cantiere...",
@@ -152,6 +178,8 @@ class Benvenuto(QWidget):
         nuovo.clicked.connect(finestra.nuovo)
         apri = PulsanteGrande("apri", "Apri cantiere...", "Anche da una cartella di rete", "Ctrl+O", False)
         apri.clicked.connect(finestra.apri)
+        nuovo.setEnabled(stato.utilizzabile)
+        apri.setEnabled(stato.utilizzabile)
         pulsanti.addWidget(nuovo, 1)
         pulsanti.addWidget(apri, 1)
         colonna.addLayout(pulsanti)
@@ -276,6 +304,7 @@ class FinestraPrincipale(QMainWindow):
         self._timer_stato.timeout.connect(self._aggiorna_stato)
 
         self._chiudi_progetto()
+        self._aggiorna_licenza()
         self.resize(1280, 820)
         geometria = self.impostazioni.value("geometria")
         if geometria is not None:
@@ -308,6 +337,7 @@ class FinestraPrincipale(QMainWindow):
         self.azione_tema.setCheckable(True)
         self.azione_tema.setChecked(self.scuro)
         self.azione_info = self._azione("&Informazioni", self._informazioni)
+        self.azione_licenza = self._azione("&Licenza...", self.mostra_licenza)
         self.azione_guida = self._azione("&Guida rapida", lambda: DialogoGuida(
             self.edizione.nome.split()[-1], self).exec(), QKeySequence.StandardKey.HelpContents)
         self.azione_aggiornamenti = self._azione(
@@ -343,6 +373,7 @@ class FinestraPrincipale(QMainWindow):
         aiuto = self.menuBar().addMenu("&Aiuto")
         aiuto.addAction(self.azione_guida)
         aiuto.addAction(self.azione_aggiornamenti)
+        aiuto.addAction(self.azione_licenza)
         aiuto.addSeparator()
         aiuto.addAction(self.azione_info)
 
@@ -375,6 +406,12 @@ class FinestraPrincipale(QMainWindow):
         barra.setSizeGripEnabled(False)
         barra.addWidget(self.stato_file)
         barra.addWidget(self.stato_salvataggio, 1)
+        self.stato_licenza = QPushButton()
+        self.stato_licenza.setObjectName("licenseIndicator")
+        tema.imposta_variante(self.stato_licenza, "quiet")
+        self.stato_licenza.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.stato_licenza.clicked.connect(self.mostra_licenza)
+        barra.addPermanentWidget(self.stato_licenza)
         barra.addPermanentWidget(self.stato_controlli)
 
     def _applica_icone(self) -> None:
@@ -420,11 +457,23 @@ class FinestraPrincipale(QMainWindow):
         for r in recenti:
             self.menu_recenti.addAction(r).triggered.connect(lambda _=False, p=r: self.apri_file(p))
 
+    def mostra_licenza(self) -> None:
+        licenza_ui.DialogoLicenza(self.edizione.chiave, self.edizione.nome, self).exec()
+        self._aggiorna_licenza()
+        if not self.pagine:
+            self._mostra_benvenuto()
+
+    def _aggiorna_licenza(self) -> None:
+        testo = licenza_ui.testo_barra(licenza_ui.stato_corrente(self.edizione.chiave))
+        self.stato_licenza.setText(testo)
+        self.stato_licenza.setVisible(bool(testo))
+
     def _informazioni(self) -> None:
         QMessageBox.about(
             self, "Informazioni",
             f"<b>{self.edizione.nome}</b> versione {__version__}<br>"
             f"{self.edizione.sottotitolo}, secondo il D.Lgs. 81/2008.<br><br>"
+            f"{licenza_ui.descrizione(licenza_ui.stato_corrente(self.edizione.chiave), self.edizione.nome)}<br><br>"
             "I documenti generati vanno riletti e firmati da chi ne risponde: il programma è uno "
             "strumento di redazione.<br><br>"
             "Caratteri IBM Plex (SIL Open Font License).",
@@ -450,6 +499,8 @@ class FinestraPrincipale(QMainWindow):
             percorso = percorso.with_suffix(self.edizione.estensione)
         if self.progetto and percorso.resolve() == self.progetto.percorso.resolve():
             QMessageBox.warning(self, "Nuovo cantiere", "Il file è già aperto: scegliere un altro nome.")
+            return
+        if not licenza_ui.consenti_cantiere(self, self.edizione.chiave, percorso):
             return
         if percorso.exists():
             scelta = self._scelta_file_esistente(percorso)
@@ -482,6 +533,8 @@ class FinestraPrincipale(QMainWindow):
             self.apri_file(percorso)
 
     def apri_file(self, percorso: str | Path) -> None:
+        if not licenza_ui.consenti_cantiere(self, self.edizione.chiave, Path(percorso)):
+            return
         try:
             progetto = Progetto(percorso)
         except (ErroreProgetto, OSError) as e:

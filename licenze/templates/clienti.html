@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block titolo %}Clienti{% endblock %}
+{% block contenuto %}
+<h1>Clienti</h1><p class="sotto">Chi ha acquistato o provato SicurCantiere.</p>
+<div class="card"><h2><form class="riga" method="get"><input name="cerca" value="{{ cerca }}" placeholder="Cerca per nome, email o partita IVA" style="width:320px"><button>Cerca</button></form>
+<a class="pulsante primario" href="{{ url_for('modifica_cliente') }}">Nuovo cliente</a></h2>
+{% if clienti %}<table><tr><th>Nome</th><th>Tipo</th><th>Email</th><th>Partita IVA</th><th>Licenze</th><th>Scadenza</th></tr>
+{% for c in clienti %}<tr><td><a href="{{ url_for('cliente', id_=c.id) }}">{{ c.nome }}</a></td><td>{{ c.tipo }}</td><td>{{ c.email }}</td>
+<td class="mono">{{ c.partita_iva }}</td><td>{{ c.n_licenze }}</td><td>{{ c.scadenza|data if c.n_licenze else "" }}</td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Nessun cliente{% if cerca %} trovato{% endif %}.</div>{% endif %}</div>
+{% endblock %}

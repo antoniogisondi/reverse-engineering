@@ -13,6 +13,7 @@ import os
 import re
 import urllib.request
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Callable
 
@@ -32,6 +33,7 @@ class Versione:
     url_installatore: str
     pagina: str
     note: str
+    pubblicata: date | None = None
 
 
 def numero(testo: str) -> tuple[int, ...]:
@@ -61,7 +63,16 @@ def ultima_versione(timeout: float = 8, apri: Callable = urllib.request.urlopen)
         (u for n, u in allegati.items() if n.lower().endswith("-setup.exe")), "")
     if not dati.get("tag_name") or not url:
         raise ErroreAggiornamento("La versione pubblicata non contiene l'installatore.")
-    return Versione(dati["tag_name"].lstrip("v"), url, dati.get("html_url", ""), dati.get("body") or "")
+    try:
+        pubblicata = date.fromisoformat(str(dati.get("published_at") or "")[:10])
+    except ValueError:
+        pubblicata = None
+    return Versione(dati["tag_name"].lstrip("v"), url, dati.get("html_url", ""), dati.get("body") or "", pubblicata)
+
+
+def inclusa_nella_licenza(versione: Versione, scadenza: date | None) -> bool:
+    """Con la licenza scaduta si ricevono solo le versioni pubblicate prima della scadenza."""
+    return scadenza is None or versione.pubblicata is None or versione.pubblicata <= scadenza
 
 
 def scarica(url: str, destinazione: str | Path, avanzamento: Callable[[int, int], bool] | None = None,

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titolo %}Licenze{% endblock %} · SicurCantiere</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='stile.css') }}">
+</head>
+<body>
+{% if utente %}
+<header>
+  <span class="marchio">SicurCantiere · Licenze</span>
+  <nav>
+    <a href="{{ url_for('cruscotto') }}">Cruscotto</a>
+    <a href="{{ url_for('clienti') }}">Clienti</a>
+    <a href="{{ url_for('modifica_cliente') }}">Nuovo cliente</a>
+    <a href="{{ url_for('esporta') }}">Esporta CSV</a>
+    <a href="{{ url_for('impostazioni') }}">Impostazioni</a>
+  </nav>
+  <form method="post" action="{{ url_for('esci') }}"><input type="hidden" name="token" value="{{ token }}"><button>Esci ({{ utente }})</button></form>
+</header>
+{% endif %}
+<main>
+{% for categoria, messaggio in get_flashed_messages(with_categories=true) %}
+  <div class="avviso {{ categoria }}">{{ messaggio }}</div>
+{% endfor %}
+{% block contenuto %}{% endblock %}
+</main>
+</body>
+</html>

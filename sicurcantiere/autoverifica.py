@@ -51,6 +51,7 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     assert len(foglio) > 5000 and "@" not in foglio, "foglio di stile mancante o incompleto"
     tema.carica_caratteri()
     righe.append(f"tema: {len(foglio)} caratteri, carattere {tema._corrente['sans']}")
+    righe.append(_prova_licenza())
 
     file = cartella / f"prova{EDIZIONI[edizione].estensione}"
     progetto = Progetto(file, crea=True)
@@ -77,3 +78,23 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     finestra.close()
     finestra.deleteLater()
     return righe
+
+
+def _prova_licenza() -> str:
+    """Firma e verifica una licenza con una chiave di prova: la crittografia è nell'eseguibile."""
+    import base64
+    from datetime import date
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from sicurcantiere import licenza
+
+    privata = Ed25519PrivateKey.generate()
+    grezza = privata.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
+                                   serialization.NoEncryption())
+    pubblica = privata.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    prova = licenza.Licenza("PROVA", "Autoverifica", "completo", date.today())
+    letta = licenza.leggi(licenza.firma(prova, grezza), base64.b64encode(pubblica).decode())
+    assert letta == prova, "verifica della licenza non riuscita"
+    return f"licenze: verifica della firma riuscita (controllo {'attivo' if licenza.controllo_attivo() else 'non attivo'})"

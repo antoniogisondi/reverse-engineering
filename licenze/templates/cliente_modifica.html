@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block titolo %}Cliente{% endblock %}
+{% block contenuto %}
+<h1>{{ cliente.nome or "Nuovo cliente" }}</h1><p class="sotto">Dati per la licenza e la fatturazione.</p>
+<div class="card"><form class="corpo griglia" method="post">
+<input type="hidden" name="token" value="{{ token }}">
+<div class="largo"><label>Nome o ragione sociale *</label><input name="nome" value="{{ cliente.nome }}" required></div>
+<div><label>Tipo</label><select name="tipo">{% for t in ("", "Coordinatore / studio tecnico", "Impresa edile", "Consulente", "Altro") %}<option {% if cliente.tipo == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+<div><label>Telefono</label><input name="telefono" value="{{ cliente.telefono }}"></div>
+<div class="largo"><label>Email (per inviare il codice)</label><input name="email" type="email" value="{{ cliente.email }}"></div>
+<div class="largo"><label>PEC</label><input name="pec" value="{{ cliente.pec }}"></div>
+<div><label>Partita IVA</label><input name="partita_iva" value="{{ cliente.partita_iva }}"></div>
+<div><label>Codice fiscale</label><input name="codice_fiscale" value="{{ cliente.codice_fiscale }}"></div>
+<div><label>Codice destinatario (SDI)</label><input name="codice_sdi" value="{{ cliente.codice_sdi }}"></div>
+<div class="tutto"><label>Indirizzo</label><input name="indirizzo" value="{{ cliente.indirizzo }}"></div>
+<div class="tutto"><label>Note</label><textarea name="note" rows="3">{{ cliente.note }}</textarea></div>
+<div class="tutto"><button class="primario">Salva</button></div>
+</form></div>
+{% endblock %}

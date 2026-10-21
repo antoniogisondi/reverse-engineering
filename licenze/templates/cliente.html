@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% block titolo %}{{ cliente.nome }}{% endblock %}
+{% block contenuto %}
+<div class="riga" style="justify-content:space-between"><h1>{{ cliente.nome }}</h1><a class="pulsante" href="{{ url_for('modifica_cliente', id_=cliente.id) }}">Modifica dati</a></div>
+<p class="sotto">{{ cliente.tipo }}{% if cliente.email %} · {{ cliente.email }}{% endif %}{% if cliente.partita_iva %} · P. IVA {{ cliente.partita_iva }}{% endif %}</p>
+
+<div class="card"><h2>Licenze</h2>
+{% if licenze %}<table><tr><th>Licenza</th><th>Piano</th><th>Emessa</th><th>Scadenza</th><th>PC</th><th>Prezzo</th><th>Stato</th></tr>
+{% for l in licenze %}{% set s = stato(l) %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=l.id) }}">{{ l.codice_licenza }}</a></td>
+<td>{{ piani[l.piano][0] }}</td><td>{{ l.emessa|data }}</td><td>{{ l.scadenza|data }}</td><td>{{ l.postazioni }}</td><td>{{ l.prezzo|euro }}</td>
+<td><span class="badge b-{{ s|replace(' ', '-') }}">{{ s }}</span></td></tr>{% endfor %}</table>
+{% else %}<div class="vuoto">Nessuna licenza.</div>{% endif %}</div>
+
+<div class="card"><h2>Emetti una licenza</h2>
+<form class="corpo griglia" method="post" action="{{ url_for('nuova_licenza', id_=cliente.id) }}">
+<input type="hidden" name="token" value="{{ token }}">
+<div><label>Piano</label><select name="piano">{% for k, v in piani.items() %}<option value="{{ k }}">{{ v[0] }}</option>{% endfor %}</select></div>
+<div><label>Scadenza</label><input type="date" name="scadenza" value="{{ (oggi[:4]|int + 1)|string + oggi[4:] }}"></div>
+<div><label>Postazioni (PC)</label><input type="number" name="postazioni" value="1" min="1"></div>
+<div><label>Prezzo (€, IVA esclusa)</label><input name="prezzo" value="0"></div>
+<div class="largo"><label><input type="checkbox" name="senza_scadenza"> Senza scadenza (uso interno, omaggio)</label></div>
+<div class="largo"><label>Note</label><input name="note"></div>
+<div class="tutto"><button class="primario">Emetti e firma la licenza</button></div>
+</form></div>
+
+<div class="card"><h2>Pagamenti</h2>
+{% if pagamenti %}<table><tr><th>Data</th><th>Importo</th><th>Metodo</th><th>Fattura</th><th>Licenza</th><th>Note</th></tr>
+{% for p in pagamenti %}<tr><td>{{ p.data|data }}</td><td>{{ p.importo|euro }}</td><td>{{ p.metodo }}</td><td>{{ p.fattura }}</td><td class="mono">{{ p.codice_licenza or "" }}</td><td>{{ p.note }}</td></tr>{% endfor %}</table>
+{% else %}<div class="vuoto">Nessun pagamento registrato.</div>{% endif %}
+<form class="corpo griglia" method="post" action="{{ url_for('nuovo_pagamento', id_=cliente.id) }}">
+<input type="hidden" name="token" value="{{ token }}">
+<div><label>Data</label><input type="date" name="data" value="{{ oggi }}"></div>
+<div><label>Importo (€)</label><input name="importo" required></div>
+<div><label>Metodo</label><select name="metodo">{% for m in metodi %}<option>{{ m }}</option>{% endfor %}</select></div>
+<div><label>N. fattura</label><input name="fattura"></div>
+<div class="largo"><label>Licenza</label><select name="licenza_id"><option value="">—</option>{% for l in licenze %}<option value="{{ l.id }}">{{ l.codice_licenza }}</option>{% endfor %}</select></div>
+<div class="largo"><label>Note</label><input name="note"></div>
+<div class="tutto"><button>Registra il pagamento</button></div>
+</form></div>
+{% endblock %}
