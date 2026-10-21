@@ -52,6 +52,10 @@ def _prove(cartella: Path, edizione: str) -> list[str]:
     tema.carica_caratteri()
     righe.append(f"tema: {len(foglio)} caratteri, carattere {tema._corrente['sans']}")
     righe.append(_prova_licenza())
+    from sicurcantiere import licenza
+
+    # La prova non deve far partire la prova gratuita né fermarsi sui suoi messaggi.
+    licenza.CHIAVE_PUBBLICA = ""
 
     file = cartella / f"prova{EDIZIONI[edizione].estensione}"
     progetto = Progetto(file, crea=True)

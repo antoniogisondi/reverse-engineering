@@ -7,3 +7,4 @@ dist/
 *.scs.bak
 *.docx
 .pytest_cache/
+*.egg-info/

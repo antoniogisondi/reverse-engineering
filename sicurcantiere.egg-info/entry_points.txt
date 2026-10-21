@@ -1,4 +1,0 @@
-[gui_scripts]
-sicurcantiere-pimus = sicurcantiere.app:main_pimus
-sicurcantiere-pos = sicurcantiere.app:main_pos
-sicurcantiere-psc = sicurcantiere.app:main_psc
