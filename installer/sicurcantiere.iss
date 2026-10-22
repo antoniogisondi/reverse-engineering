@@ -3,7 +3,7 @@
 ; L'utente sceglie quali programmi installare; ogni programma apre con un
 ; doppio clic i propri file: .scs (PSC), .spo (POS), .spm (PiMUS).
 
-#define Versione "0.21.1"
+#define Versione "0.21.2"
 
 [Setup]
 AppId={{6B1F2C3E-5A7D-4E8B-9C0D-53C1CA171E20}
@@ -44,6 +44,10 @@ Source: "..\dist\SicurCantiere POS\*"; DestDir: "{app}\POS"; Components: pos; Fl
 Source: "..\dist\SicurCantiere PiMUS\*"; DestDir: "{app}\PiMUS"; Components: pimus; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Logo senza sigla: icona dei file dei cantieri (i programmi hanno la loro, con la sigla)
 Source: "..\assets\sicurcantiere.ico"; DestDir: "{app}"; Flags: ignoreversion
+; Icone dei programmi con la sigla, con un nome proprio: Windows non riusa l'icona che ricordava per l'eseguibile
+Source: "..\assets\sicurcantiere-psc.ico"; DestDir: "{app}\PSC"; DestName: "icona-programma.ico"; Components: psc; Flags: ignoreversion
+Source: "..\assets\sicurcantiere-pos.ico"; DestDir: "{app}\POS"; DestName: "icona-programma.ico"; Components: pos; Flags: ignoreversion
+Source: "..\assets\sicurcantiere-pimus.ico"; DestDir: "{app}\PiMUS"; DestName: "icona-programma.ico"; Components: pimus; Flags: ignoreversion
 ; Caratteri Ubuntu (Ubuntu Font Licence) installati in Windows: servono a Word per i documenti generati.
 Source: "..\sicurcantiere\risorse\font\Ubuntu-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu"; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "..\sicurcantiere\risorse\font\Ubuntu-Italic.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Italic"; Flags: onlyifdoesntexist uninsneveruninstall
@@ -54,12 +58,12 @@ Source: "..\sicurcantiere\risorse\font\UbuntuMono-Regular.ttf"; DestDir: "{autof
 Source: "..\sicurcantiere\risorse\font\UbuntuMono-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Mono Bold"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
-Name: "{group}\SicurCantiere PSC"; Filename: "{app}\PSC\SicurCantiere PSC.exe"; Components: psc
-Name: "{group}\SicurCantiere POS"; Filename: "{app}\POS\SicurCantiere POS.exe"; Components: pos
-Name: "{group}\SicurCantiere PiMUS"; Filename: "{app}\PiMUS\SicurCantiere PiMUS.exe"; Components: pimus
-Name: "{autodesktop}\SicurCantiere PSC"; Filename: "{app}\PSC\SicurCantiere PSC.exe"; Components: psc; Tasks: desktopicon
-Name: "{autodesktop}\SicurCantiere POS"; Filename: "{app}\POS\SicurCantiere POS.exe"; Components: pos; Tasks: desktopicon
-Name: "{autodesktop}\SicurCantiere PiMUS"; Filename: "{app}\PiMUS\SicurCantiere PiMUS.exe"; Components: pimus; Tasks: desktopicon
+Name: "{group}\SicurCantiere PSC"; Filename: "{app}\PSC\SicurCantiere PSC.exe"; IconFilename: "{app}\PSC\icona-programma.ico"; Components: psc
+Name: "{group}\SicurCantiere POS"; Filename: "{app}\POS\SicurCantiere POS.exe"; IconFilename: "{app}\POS\icona-programma.ico"; Components: pos
+Name: "{group}\SicurCantiere PiMUS"; Filename: "{app}\PiMUS\SicurCantiere PiMUS.exe"; IconFilename: "{app}\PiMUS\icona-programma.ico"; Components: pimus
+Name: "{autodesktop}\SicurCantiere PSC"; Filename: "{app}\PSC\SicurCantiere PSC.exe"; IconFilename: "{app}\PSC\icona-programma.ico"; Components: psc; Tasks: desktopicon
+Name: "{autodesktop}\SicurCantiere POS"; Filename: "{app}\POS\SicurCantiere POS.exe"; IconFilename: "{app}\POS\icona-programma.ico"; Components: pos; Tasks: desktopicon
+Name: "{autodesktop}\SicurCantiere PiMUS"; Filename: "{app}\PiMUS\SicurCantiere PiMUS.exe"; IconFilename: "{app}\PiMUS\icona-programma.ico"; Components: pimus; Tasks: desktopicon
 
 [Registry]
 ; .scs -> PSC
@@ -79,6 +83,8 @@ Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\DefaultIcon"; ValueType
 Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\PiMUS\SicurCantiere PiMUS.exe"" ""%1"""; Components: pimus; Tasks: associa
 
 [Run]
+; aggiorna le icone che Windows tiene in memoria (altrimenti i collegamenti possono mostrare quelle vecchie)
+Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden nowait skipifdoesntexist
 Filename: "{app}\POS\SicurCantiere POS.exe"; Description: "Avvia SicurCantiere POS"; Components: pos; Flags: nowait postinstall skipifsilent
 ; Aggiornamento avviato dal programma (/aggiornamento=si /programma=POS|PSC|PiMUS): lo riapre.
 Filename: "{app}\{param:programma|POS}\SicurCantiere {param:programma|POS}.exe"; Flags: nowait runasoriginaluser; Check: RiavviaDopoAggiornamento
