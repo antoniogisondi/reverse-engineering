@@ -268,9 +268,13 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 
 1. **Licenze, passo 2**: attivazione online con conteggio delle postazioni, sullo stesso server
    ponte dell'AI (già raggiungibile da internet con Tailscale Funnel).
-1. **Server ponte AI**: valutare un motore Standard ospitato in Europa (stesso modello DeepSeek
-   presso un fornitore UE, oppure Mistral) per il GDPR. Basta cambiare l'indirizzo, il modello e la
-   sede in `ai.env`.
+1. **Server ponte AI**: per ora DeepSeek. All'arrivo dei primi clienti si decide, per il GDPR, tra:
+   - AI in locale (Ollama o vLLM su un server con GPU da circa 24 GB): i dati non escono dal server;
+   - modello aperto su un server con GPU noleggiato in Europa;
+   - stesso modello DeepSeek presso un fornitore UE, oppure Mistral.
+   In tutti i casi basta cambiare indirizzo, modello, chiave e sede in `ai.env`, senza toccare il
+   programma. Prima di passare, provare su uno o due PSC veri quante imprese e fasi trova e quanto
+   tempo impiega rispetto a DeepSeek.
 2. **Sito di vendita**: presentazione, prezzi, acquisto della licenza e download.
 3. **SicurCantiere DVR.**
 3. **SicurCantiere Formazione** (quarto programma della suite, idea approvata da sviluppare):
