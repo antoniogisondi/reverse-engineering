@@ -3,7 +3,7 @@
 ; L'utente sceglie quali programmi installare; ogni programma apre con un
 ; doppio clic i propri file: .scs (PSC), .spo (POS), .spm (PiMUS).
 
-#define Versione "0.21.0"
+#define Versione "0.21.1"
 
 [Setup]
 AppId={{6B1F2C3E-5A7D-4E8B-9C0D-53C1CA171E20}
@@ -14,7 +14,7 @@ DefaultDirName={autopf}\SicurCantiere
 DefaultGroupName=SicurCantiere
 OutputDir=..\dist
 OutputBaseFilename=SicurCantiere-{#Versione}-setup
-SetupIconFile=..\assets\sicurcantiere-pos.ico
+SetupIconFile=..\assets\sicurcantiere.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -42,6 +42,8 @@ Name: "associa"; Description: "Apri i file dei cantieri con un doppio clic"; Gro
 Source: "..\dist\SicurCantiere PSC\*"; DestDir: "{app}\PSC"; Components: psc; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\SicurCantiere POS\*"; DestDir: "{app}\POS"; Components: pos; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\SicurCantiere PiMUS\*"; DestDir: "{app}\PiMUS"; Components: pimus; Flags: ignoreversion recursesubdirs createallsubdirs
+; Logo senza sigla: icona dei file dei cantieri (i programmi hanno la loro, con la sigla)
+Source: "..\assets\sicurcantiere.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; Caratteri Ubuntu (Ubuntu Font Licence) installati in Windows: servono a Word per i documenti generati.
 Source: "..\sicurcantiere\risorse\font\Ubuntu-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu"; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "..\sicurcantiere\risorse\font\Ubuntu-Italic.ttf"; DestDir: "{autofonts}"; FontInstall: "Ubuntu Italic"; Flags: onlyifdoesntexist uninsneveruninstall
@@ -63,17 +65,17 @@ Name: "{autodesktop}\SicurCantiere PiMUS"; Filename: "{app}\PiMUS\SicurCantiere 
 ; .scs -> PSC
 Root: HKA; Subkey: "Software\Classes\.scs"; ValueType: string; ValueName: ""; ValueData: "SicurCantiere.PSC"; Flags: uninsdeletevalue; Components: psc; Tasks: associa
 Root: HKA; Subkey: "Software\Classes\SicurCantiere.PSC"; ValueType: string; ValueName: ""; ValueData: "Cantiere PSC"; Flags: uninsdeletekey; Components: psc; Tasks: associa
-Root: HKA; Subkey: "Software\Classes\SicurCantiere.PSC\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\PSC\SicurCantiere PSC.exe,0"; Components: psc; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PSC\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\sicurcantiere.ico"; Components: psc; Tasks: associa
 Root: HKA; Subkey: "Software\Classes\SicurCantiere.PSC\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\PSC\SicurCantiere PSC.exe"" ""%1"""; Components: psc; Tasks: associa
 ; .spo -> POS
 Root: HKA; Subkey: "Software\Classes\.spo"; ValueType: string; ValueName: ""; ValueData: "SicurCantiere.POS"; Flags: uninsdeletevalue; Components: pos; Tasks: associa
 Root: HKA; Subkey: "Software\Classes\SicurCantiere.POS"; ValueType: string; ValueName: ""; ValueData: "Cantiere POS"; Flags: uninsdeletekey; Components: pos; Tasks: associa
-Root: HKA; Subkey: "Software\Classes\SicurCantiere.POS\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\POS\SicurCantiere POS.exe,0"; Components: pos; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.POS\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\sicurcantiere.ico"; Components: pos; Tasks: associa
 Root: HKA; Subkey: "Software\Classes\SicurCantiere.POS\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\POS\SicurCantiere POS.exe"" ""%1"""; Components: pos; Tasks: associa
 ; .spm -> PiMUS
 Root: HKA; Subkey: "Software\Classes\.spm"; ValueType: string; ValueName: ""; ValueData: "SicurCantiere.PiMUS"; Flags: uninsdeletevalue; Components: pimus; Tasks: associa
 Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS"; ValueType: string; ValueName: ""; ValueData: "Ponteggi PiMUS"; Flags: uninsdeletekey; Components: pimus; Tasks: associa
-Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\PiMUS\SicurCantiere PiMUS.exe,0"; Components: pimus; Tasks: associa
+Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\sicurcantiere.ico"; Components: pimus; Tasks: associa
 Root: HKA; Subkey: "Software\Classes\SicurCantiere.PiMUS\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\PiMUS\SicurCantiere PiMUS.exe"" ""%1"""; Components: pimus; Tasks: associa
 
 [Run]

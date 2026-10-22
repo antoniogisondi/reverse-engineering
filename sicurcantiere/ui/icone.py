@@ -111,10 +111,13 @@ def immagine_applicazione(lato: int = 256, colore: str = "#E8792B") -> QPixmap:
 FILE_LOGO = Path(__file__).resolve().parent.parent / "risorse" / "logo" / "sicurcantiere.ico"
 
 
-def icona_applicazione(colore: str = "#E8792B") -> QIcon:
-    """Icona delle finestre: il logo della suite; senza il file, l'icona disegnata nel colore del programma."""
-    if FILE_LOGO.is_file():
-        logo = QIcon(str(FILE_LOGO))
+def icona_applicazione(colore: str = "#E8792B", chiave: str = "") -> QIcon:
+    """Icona delle finestre: il logo con la sigla del programma (PSC, POS, PiMUS), oppure il logo della
+    suite; senza i file, l'icona disegnata nel colore del programma."""
+    for file in ((FILE_LOGO.with_name(f"sicurcantiere-{chiave}.ico"),) if chiave else ()) + (FILE_LOGO,):
+        if not file.is_file():
+            continue
+        logo = QIcon(str(file))
         if not logo.isNull():
             return logo
     icona_app = QIcon()

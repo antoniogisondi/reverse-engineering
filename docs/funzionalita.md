@@ -4,7 +4,7 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.21.0, ottobre 2026.*
+*Ultimo aggiornamento: versione 0.21.1, ottobre 2026.*
 
 ## Lo scopo
 
@@ -290,6 +290,8 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 - **Anteprima ed esportazione in PDF**: per i documenti composti (pulsante «Anteprima» e «Altro >
   Esporta in PDF») e, dopo la creazione, per tutti gli altri documenti. La conversione usa Word
   (sempre presente negli studi) o LibreOffice.
+- **Icone dei programmi**: logo della suite intero con sotto un'etichetta nel colore del programma
+  (PSC arancio, POS blu, PiMUS verde); i file dei cantieri e l'installatore hanno il logo semplice.
 - **Panoramica al primo avvio** in quattro schermate, da rivedere in «Aiuto > Panoramica del
   programma».
 - **Schermi da portatile (1366×768)**: la finestra ci sta sempre; sotto i 1350 pixel la pagina dei

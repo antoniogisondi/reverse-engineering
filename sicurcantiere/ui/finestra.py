@@ -485,7 +485,7 @@ class FinestraPrincipale(QMainWindow):
             (self.azione_da_modello, "modello"), (self.azione_salva_modello, "modello"),
         ):
             azione.setIcon(icona(nome, c))
-        self.setWindowIcon(icona_applicazione(self.edizione.colore))
+        self.setWindowIcon(icona_applicazione(self.edizione.colore, self.edizione.chiave))
 
     def _cambia_tema(self) -> None:
         self.scuro = self.azione_tema.isChecked()
