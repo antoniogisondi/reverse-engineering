@@ -8,6 +8,7 @@ il tema chiaro e con quello scuro.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
@@ -100,7 +101,16 @@ def immagine_applicazione(lato: int = 256, colore: str = "#E8792B") -> QPixmap:
     return pixmap
 
 
+# Logo di SicurCantiere (casco e ingranaggio), uguale per tutti i programmi della suite.
+FILE_LOGO = Path(__file__).resolve().parent.parent / "risorse" / "logo" / "sicurcantiere.ico"
+
+
 def icona_applicazione(colore: str = "#E8792B") -> QIcon:
+    """Icona delle finestre: il logo della suite; senza il file, l'icona disegnata nel colore del programma."""
+    if FILE_LOGO.is_file():
+        logo = QIcon(str(FILE_LOGO))
+        if not logo.isNull():
+            return logo
     icona_app = QIcon()
     for lato in (16, 24, 32, 48, 64, 128, 256):
         icona_app.addPixmap(immagine_applicazione(lato, colore))

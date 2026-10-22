@@ -22,6 +22,16 @@ def main() -> None:
 
     cartella = RADICE / "assets"
     cartella.mkdir(exist_ok=True)
+    logo = RADICE / "sicurcantiere" / "risorse" / "logo" / "sicurcantiere.ico"
+    if logo.is_file():
+        # Logo della suite (casco e ingranaggio): lo stesso per tutti i programmi e per l'installatore.
+        import shutil
+
+        for chiave in EDIZIONI:
+            shutil.copyfile(logo, cartella / f"sicurcantiere-{chiave}.ico")
+            shutil.copyfile(logo.with_suffix(".png"), cartella / f"sicurcantiere-{chiave}.png")
+        print(f"Logo copiato in {cartella}")
+        return
     for chiave, edizione in EDIZIONI.items():
         immagine = immagine_applicazione(256, edizione.colore)
         base = cartella / f"sicurcantiere-{chiave}"
