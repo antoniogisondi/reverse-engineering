@@ -440,7 +440,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     # --- allegati e firme ---
     stile.capitolo(doc, "Allegati e firme")
     elaborati = repo.elenco("elaborati")
-    allegati = ["planimetria del cantiere con l'organizzazione delle aree (Allegato XV punto 2.1.3);"]
+    allegati = ["planimetria del cantiere con l'organizzazione delle aree (Allegato XV punto 2.1.4);"]
     allegati += [f"{e['titolo']}" + (f" ({e['autore']})" if e.get("autore") else "") + ";" for e in elaborati]
     allegati.append("fascicolo con le caratteristiche dell'opera (art. 91, comma 1, lettera b).")
     doc.add_paragraph("Fanno parte integrante del presente piano:")
