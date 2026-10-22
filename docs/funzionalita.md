@@ -4,7 +4,7 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.20.0, ottobre 2026.*
+*Ultimo aggiornamento: versione 0.20.0 più le modifiche per la 0.21.0 (non ancora pubblicata), ottobre 2026.*
 
 ## Lo scopo
 
@@ -64,6 +64,14 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   - tesserini di riconoscimento e schede dei lavoratori.
 - **Archivio anagrafiche personale**: persone e imprese, con figure e maestranze, si salvano una
   volta e si riprendono in ogni cantiere e in ogni programma.
+- **Idoneità e patente** (scheda delle imprese, in PSC e POS):
+  - patente a crediti (art. 27): situazione, numero, crediti (minimo 15), data di verifica sul
+    portale INL; esenzione per le imprese con SOA dalla III classe;
+  - DURC di congruità della manodopera (D.M. 143/2021);
+  - documenti dell'Allegato XVII (punto 1 per le imprese, punto 2 per i lavoratori autonomi) con
+    esito e note, e verbale di verifica dell'idoneità tecnico-professionale da stampare;
+  - controlli che segnalano patente mancante o insufficiente e documentazione incompleta; la
+    patente compare anche nelle tabelle delle imprese del PSC e dei subappalti del POS.
 
 ### Lavorazioni, rischi e attrezzature
 - **Archivio**:
@@ -162,6 +170,15 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 - Dati del ponteggio, testi base per tutte le sezioni e verifiche prima del montaggio e durante
   l'uso.
 - Avviso automatico quando serve il progetto (art. 133).
+- Documento nella stessa impaginazione di PSC e POS, in verde: copertina con le firme, capitoli
+  dell'Allegato XXII, dati mancanti evidenziati, esiti delle verifiche colorati.
+
+### Documenti brevi
+- Verbale di consegna dei DPI, tesserini di riconoscimento (a tessera, con barra colorata e
+  linea di taglio), schede dei lavoratori, elenco delle sostanze pericolose e relazione delle
+  valutazioni specifiche hanno la grafica del POS (testata con riferimento di legge, schede a
+  righe sottili, tabelle colorate, riquadri delle firme). Anche i capitoli sostanze e valutazioni
+  dentro il POS usano la stessa grafica.
 
 ### Il documento finale (POS)
 - **Capitoli nell'ordine dell'Allegato XV 3.2.1**, in tre parti:
@@ -261,6 +278,26 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 - **Tutto in italiano**, compresi i pulsanti e i menu standard (Sì/No/Annulla, Copia/Incolla).
 - **Sicurezza dei dati**: salvataggio automatico a ogni modifica e copie di sicurezza all'apertura.
   I file dei progetti vecchi si aggiornano da soli.
+- **Annulla e ripeti** (Ctrl+Z / Ctrl+Y, menu Modifica e barra degli strumenti) su tutto il cantiere:
+  annulla anche eliminazioni, importazioni dall'archivio e modifiche nelle tabelle (fino a 40 passi,
+  tenuti in memoria finché il cantiere è aperto). Nei campi di testo Ctrl+Z annulla prima la
+  scrittura nel campo.
+- **Cerca nel cantiere** (Ctrl+F): fasi, rischi, attrezzature, imprese, lavoratori, soggetti, costi
+  e testi della relazione; doppio clic per andare alla pagina.
+- **Modelli di cantiere**: «File > Salva come modello» conserva il cantiere (senza documenti
+  composti e revisioni) come punto di partenza; «Nuovo da un modello» ne crea uno nuovo. I modelli
+  stanno nella cartella dei dati del programma, separati per PSC, POS e PiMUS.
+- **Anteprima ed esportazione in PDF**: per i documenti composti (pulsante «Anteprima» e «Altro >
+  Esporta in PDF») e, dopo la creazione, per tutti gli altri documenti. La conversione usa Word
+  (sempre presente negli studi) o LibreOffice.
+- **Panoramica al primo avvio** in quattro schermate, da rivedere in «Aiuto > Panoramica del
+  programma».
+- **Schermi da portatile (1366×768)**: la finestra ci sta sempre; sotto i 1350 pixel la pagina dei
+  documenti si dispone in verticale, i moduli vanno su una o due colonne secondo lo spazio e le
+  schede lunghe scorrono.
+- **Testi rivisti** in tutto il programma, nei documenti, nell'archivio e nel gestionale delle
+  licenze: tono professionale e uniforme, riferimenti normativi nella forma «art. 90, comma 9»,
+  nessun riferimento ad altri software del settore.
 
 ## Licenze
 
@@ -324,10 +361,9 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
    - collegamento al POS: formazione dei lavoratori stampata in automatico e avviso se un corso è
      scaduto nelle date del cantiere.
 3. **Documenti composti, prossimi passi**: allegati in PDF uniti in coda con la numerazione,
-   esportazione in PDF, composizione salvata anche per il PiMUS.
+   composizione salvata anche per il PiMUS.
 3. **Strumenti del CSE durante i lavori**: verbali di sopralluogo e di riunione di coordinamento,
-   verifica dei POS ricevuti (art. 92), verifica dell'idoneità tecnico-professionale (Allegato XVII),
-   registro delle prescrizioni e delle sospensioni, avviso ai condomini o ai terzi.
+   verifica dei POS ricevuti (art. 92), registro delle prescrizioni e delle sospensioni, avviso ai condomini o ai terzi.
 4. **Idee per distinguersi**, da scegliere:
    - verifica automatica, punto per punto, che il POS risponda alle richieste del PSC letto (la
      lettura è già salvata nel file);
