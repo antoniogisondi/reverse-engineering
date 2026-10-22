@@ -4,7 +4,7 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.20.0 più le modifiche per la 0.21.0 (non ancora pubblicata), ottobre 2026.*
+*Ultimo aggiornamento: versione 0.21.0, ottobre 2026.*
 
 ## Lo scopo
 
