@@ -27,7 +27,7 @@ I contenuti vanno sempre verificati e adattati dal coordinatore al cantiere spec
 
 from __future__ import annotations
 
-from sicurcantiere.archivio_dati.base import ATTREZZO, DPI_BASE, fase, r
+from sicurcantiere.archivio_dati.base import ATTREZZO, DPI_BASE, MACCHINA, fase, r
 
 _ST = "Lavori strutturali"
 _MU = "Murature, tramezzi e partizioni"
@@ -47,7 +47,7 @@ MANCANTI: dict[str, tuple[str, str]] = {
         "sono rappresentati dalle schede della gru o dell'autogru.",
     ),
     "Macchina insufflatrice per isolanti sfusi": (
-        ATTREZZO,
+        MACCHINA,
         "Macchina con tramoggia, cardatore e soffiante che spinge in un tubo flessibile fiocchi di "
         "lana minerale, cellulosa o granuli per riempire le intercapedini esistenti attraverso fori "
         "praticati nella muratura: rischi propri (organi rotanti della tramoggia, tubo in pressione, "

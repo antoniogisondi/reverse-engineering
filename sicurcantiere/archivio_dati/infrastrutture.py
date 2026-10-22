@@ -818,7 +818,7 @@ LAVORAZIONI = [
          ["Piattaforma di lavoro elevabile", "Motosega", "Cippatrice", "Autocarro", "Utensili manuali"],
          [r("Caduta dall'alto", 2, 4,
             "Operatore abilitato alla PLE (art. 73, comma 5, D.Lgs. 81/2008, Accordo Stato-Regioni "
-            "22/02/2012); imbracatura con cordino di trattenuta corto agganciato al punto del "
+            "17 aprile 2025); imbracatura con cordino di trattenuta corto agganciato al punto del "
             "cestello indicato dal fabbricante; mai uscire dal cestello per salire sulla pianta; "
             "stabilizzatori su base solida.", DPI_BASE + ", imbracatura, cordino con assorbitore, "
             "otoprotettori, visiera protettiva"),

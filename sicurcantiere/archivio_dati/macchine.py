@@ -42,7 +42,7 @@ _LINEE = ("Prima dell'inizio individuare le linee elettriche aeree e mantenere d
           "dall'ente gestore o installare barriere e portali di limitazione (artt. 83 e 117)")
 _ROPS = ("cabina o telaio ROPS/FOPS integri e cintura di sicurezza sempre allacciata; in caso di "
          "ribaltamento restare al posto di guida")
-_MMT_ABILITAZIONE = ("operatore abilitato secondo l'Accordo Stato-Regioni 22/02/2012 (art. 73, comma 5, "
+_MMT_ABILITAZIONE = ("operatore abilitato secondo l'Accordo Stato-Regioni 17 aprile 2025 (art. 73, comma 5, "
                      "D.Lgs. 81/2008)")
 
 
@@ -136,7 +136,7 @@ ATTREZZATURE = {
     ], scheda_uso=scheda(
         "Escavatore idraulico compatto (fino a circa 6 t), cingolato o gommato, per scavi in spazi ristretti, "
         "trincee per sottoservizi e piccole demolizioni con attrezzi intercambiabili.",
-        ["verificare l'abilitazione dell'operatore (Accordo Stato-Regioni 22/02/2012)",
+        ["verificare l'abilitazione dell'operatore (Accordo Stato-Regioni 17 aprile 2025)",
          "controllare cingoli, tubi idraulici, comandi, leva di sicurezza, cintura e struttura ROPS/TOPS",
          "verificare l'aggancio dell'attrezzo all'attacco rapido e il perno di sicurezza",
          "individuare sottoservizi e linee elettriche aeree nell'area di scavo",
@@ -268,7 +268,7 @@ ATTREZZATURE = {
     ], scheda_uso=scheda(
         "Macchina gommata che riunisce una pala caricatrice anteriore e un escavatore posteriore con "
         "stabilizzatori, per scavi, carico e piccoli movimenti terra nei cantieri urbani e stradali.",
-        ["verificare l'abilitazione dell'operatore (terne, Accordo Stato-Regioni 22/02/2012)",
+        ["verificare l'abilitazione dell'operatore (terne, Accordo Stato-Regioni 17 aprile 2025)",
          "controllare pneumatici, freni, sterzo, luci, stabilizzatori e blocchi di trasporto",
          "verificare cintura, ROPS/FOPS, girofaro e segnalatore di retromarcia",
          "individuare sottoservizi e linee aeree nell'area di lavoro",
@@ -288,7 +288,7 @@ ATTREZZATURE = {
           "Salire e scendere dai pendii con il lato più pesante a monte (in salita con la benna carica "
           "avanti, in discesa in retromarcia), benna bassa durante gli spostamenti; non superare il carico "
           "operativo nominale; " + _ROPS + " (UNI EN 474-3) e barra di sicurezza del sedile abbassata; "
-          "operatore abilitato come per le pale caricatrici frontali (Accordo Stato-Regioni 22/02/2012)"),
+          "operatore abilitato come per le pale caricatrici frontali (Accordo Stato-Regioni 17 aprile 2025)"),
         r("Cesoiamenti e stritolamenti", 2, 4,
           "Mai entrare o uscire dalla cabina con i bracci sollevati; puntello di sicurezza dei bracci "
           "inserito per qualsiasi intervento sotto di essi; comandi bloccati dalla barra di sicurezza "
@@ -395,7 +395,7 @@ ATTREZZATURE = {
           "dal ciglio dello scavo o con fermo di arresto delle ruote (cordolo, trave); cassone abbassato "
           "durante la marcia; in discesa marcia con il cassone carico a monte; " + _ROPS + " (UNI EN 474-6); "
           "per i dumper cingolati operatore abilitato (autoribaltabili a cingoli, Accordo Stato-Regioni "
-          "22/02/2012), per quelli gommati formazione e addestramento (art. 73, comma 4)"),
+          "17 aprile 2025), per quelli gommati formazione e addestramento (art. 73, comma 4)"),
         _investimento("con il cassone carico la visibilità anteriore è ridotta: preferire dumper con "
                       "posto di guida girevole o telecamera e procedere in retromarcia solo se assistiti"),
         r("Trasporto improprio di persone", 2, 4,
@@ -425,7 +425,7 @@ ATTREZZATURE = {
     # ------------------------------------------------------------------ sollevamento
     "Autocarro con cestello": attrezzatura(MACCHINA, rischi=[
         r("Caduta dall'alto", 2, 4,
-          "Operatore abilitato per PLE con stabilizzatori (Accordo Stato-Regioni 22/02/2012); imbracatura "
+          "Operatore abilitato per PLE con stabilizzatori (Accordo Stato-Regioni 17 aprile 2025); imbracatura "
           "con cordino corto agganciata al punto di ancoraggio del cestello; cancelletto chiuso; vietato "
           "salire sui parapetti o usare scale nel cestello; vietato uscire dal cestello in quota salvo "
           "procedure espressamente previste dal fabbricante",
@@ -471,7 +471,7 @@ ATTREZZATURE = {
     "Sollevatore telescopico": attrezzatura(MACCHINA, rischi=[
         r("Ribaltamento della macchina", 3, 4,
           "Operatore abilitato per carrelli elevatori telescopici (o rotativi) secondo l'Accordo "
-          "Stato-Regioni 22/02/2012; rispetto del diagramma di carico per altezza e sbraccio con "
+          "Stato-Regioni 17 aprile 2025; rispetto del diagramma di carico per altezza e sbraccio con "
           "limitatore di momento attivo (UNI EN 1459); stabilizzatori estesi dove previsti; spostamenti con "
           "braccio rientrato e carico basso; livellamento del telaio prima di sollevare; verifiche "
           "periodiche annuali (Allegato VII); " + _ROPS),
@@ -508,7 +508,7 @@ ATTREZZATURE = {
 
     "Carrello elevatore": attrezzatura(MACCHINA, rischi=[
         r("Ribaltamento della macchina", 3, 4,
-          "Operatore abilitato per carrelli industriali semoventi (Accordo Stato-Regioni 22/02/2012); "
+          "Operatore abilitato per carrelli industriali semoventi (Accordo Stato-Regioni 17 aprile 2025); "
           "uso su superfici piane e compatte, o carrello fuoristrada per il cantiere; marcia con forche "
           "basse e montante inclinato all'indietro; nessuna curva con il carico sollevato; rispetto della "
           "targa di portata (UNI EN ISO 3691-1); cintura o cabina chiusa sempre utilizzate"),
