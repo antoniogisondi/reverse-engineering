@@ -710,7 +710,12 @@ def test_assistente_ai_spento_di_serie(app, monkeypatch):
     chiamate = []
     lavoro_ai.esegui_ai(None, "x", lambda ai: chiamate.append(ai), lambda r: None)
     assert chiamate == []  # niente parte verso il fornitore
-    assert "Stati Uniti" in lavoro_ai.SEDI["avanzato"] and "Cina" in lavoro_ai.SEDI["standard"]
+    assert "Stati Uniti" in lavoro_ai.SEDI["avanzato"]
+    # La sede la comunica il server (riga SEDE di ai.env) e il programma la ricorda.
+    lavoro_ai._ricorda_sedi({"motori": {"standard": {"sede": "Scaleway, in Francia (UE)", "disponibile": True}}})
+    assert lavoro_ai.sede("standard") == "Scaleway, in Francia (UE)"
+    lavoro_ai.impostazioni_comuni().remove(lavoro_ai.CHIAVE_SEDE + "standard")
+    assert lavoro_ai.sede("standard") == lavoro_ai.SEDI["standard"]
 
 
 def test_contesto_ai_senza_dati_personali(tmp_path):

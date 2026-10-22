@@ -130,6 +130,7 @@ def avvia(finestra) -> None:
     def leggi_file(avanzamento):
         grezzo = importa_psc.estrai_testo(
             percorso, lambda n, tot: avanzamento(n, tot, f"Lettura del documento: pagina {n} di {tot}..."))
+        lavoro_ai.aggiorna_sedi()  # per dire nel consenso dove viene elaborato il PSC
         return importa_psc.pulisci_testo(grezzo)
 
     in_background(finestra, TITOLO, "Lettura del documento...", leggi_file,
@@ -143,7 +144,7 @@ def _conferma_e_analizza(finestra, percorso: str, testo: str) -> None:
     n_parti = len(importa_psc.parti(testo))
     if QMessageBox.question(
             finestra, TITOLO,
-            f"Il PSC verrà letto dall'assistente {fornitore}, elaborato da {lavoro_ai.SEDI[ai.modello]}, in "
+            f"Il PSC verrà letto dall'assistente {fornitore}, elaborato da {lavoro_ai.sede(ai.modello)}, in "
             f"{n_parti} richieste per circa {token * (8 if ai.modello == 'avanzato' else 1):,} crediti AI"
             .replace(",", ".") + (" (motore Avanzato: 8 crediti per token)" if ai.modello == "avanzato" else "")
             + ". La lettura si fa una volta sola e serve per i POS di tutte le imprese del PSC.\n\n"

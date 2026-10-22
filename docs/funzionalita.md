@@ -4,8 +4,7 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.18.1 e novità della prossima versione (documenti composti, dati da
-completare), ottobre 2026.*
+*Ultimo aggiornamento: versione 0.19.0, ottobre 2026.*
 
 ## Lo scopo
 
@@ -208,7 +207,7 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   - **Quota mensile per piano**: 1,5 milioni di crediti per i singoli, 3 milioni per il Completo,
     8 milioni per lo Studio.
   - **Limiti**: tetto giornaliero del 30% e ricariche acquistabili.
-  - **Motori**: Standard (DeepSeek) per tutti; Avanzato (Claude) nel piano Studio, a 8 crediti per
+  - **Motori**: Standard (DeepSeek, oggi su Scaleway in UE) per tutti; Avanzato (Claude) nel piano Studio, a 8 crediti per
     token.
   - **Credito**: si verifica in *Strumenti > Impostazioni assistente AI*.
 - **Solo con licenza**: durante la prova gratuita, o con la licenza scaduta, l'assistente non è
@@ -268,10 +267,13 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 
 1. **Licenze, passo 2**: attivazione online con conteggio delle postazioni, sullo stesso server
    ponte dell'AI (già raggiungibile da internet con Tailscale Funnel).
-1. **Server ponte AI**: per ora DeepSeek. All'arrivo dei primi clienti si decide, per il GDPR, tra:
+1. **Server ponte AI**: da ottobre 2026 il motore Standard è DeepSeek V4.1 Flash su **Scaleway**
+   (Parigi, dati trattati nell'UE). Il programma mostra ai clienti la sede comunicata dal server (riga
+   SEDE di `ai.env`), quindi cambiando fornitore non serve una nuova versione. All'arrivo dei primi
+   clienti si valuta se restare o passare a:
    - AI in locale (Ollama o vLLM su un server con GPU da circa 24 GB): i dati non escono dal server;
    - modello aperto su un server con GPU noleggiato in Europa;
-   - stesso modello DeepSeek presso un fornitore UE, oppure Mistral.
+   - DeepSeek V4 Pro presso un altro fornitore UE (più preciso di Flash), oppure Mistral.
    In tutti i casi basta cambiare indirizzo, modello, chiave e sede in `ai.env`, senza toccare il
    programma. Prima di passare, provare su uno o due PSC veri quante imprese e fasi trova e quanto
    tempo impiega rispetto a DeepSeek.

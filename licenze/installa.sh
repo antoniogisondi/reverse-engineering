@@ -154,7 +154,12 @@ if [ ! -f "$CONF/ai.env" ]; then
 # Dopo ogni modifica: sudo systemctl restart sicurcantiere-licenze-ai
 #
 # Motore standard (tutti i piani): DeepSeek o un servizio compatibile, anche ospitato in Europa
-# (in quel caso indicare l'indirizzo, il modello e la sede del trattamento).
+# (in quel caso indicare l'indirizzo, il modello e la sede del trattamento). La SEDE è il testo che il
+# programma mostra ai clienti nelle impostazioni dell'AI e prima di leggere un PSC.
+# Esempio con Scaleway (Parigi, UE):
+#   SICURCANTIERE_AI_STANDARD_URL=https://api.scaleway.ai/<id del progetto>/v1
+#   SICURCANTIERE_AI_STANDARD_MODELLO=deepseek-v4.1-flash
+#   SICURCANTIERE_AI_STANDARD_SEDE=Scaleway, con trattamento dei dati in Francia (UE)
 SICURCANTIERE_AI_STANDARD_CHIAVE=
 SICURCANTIERE_AI_STANDARD_MODELLO=deepseek-v4-pro
 SICURCANTIERE_AI_STANDARD_URL=

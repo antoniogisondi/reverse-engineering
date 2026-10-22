@@ -32,13 +32,38 @@ CHIAVE_ATTIVO = "ai/attivo"
 CHIAVE_MOTORE = "ai/motore"
 NOME = FORNITORI[INTEGRATO].nome
 
-# Dove viene elaborato il testo (dalle informative dei fornitori usati dal server).
+# Dove viene elaborato il testo. La sede vera la dice il server SicurCantiere (riga SEDE di ai.env, così
+# cambiando fornitore non serve una nuova versione del programma): si chiede con `aggiorna_sedi` e si
+# ricorda l'ultima ricevuta. Questi testi valgono solo finché il server non ha mai risposto.
 SEDI = {
-    STANDARD: "DeepSeek, in Cina (fuori dall'Unione europea)",
+    STANDARD: "il fornitore del motore Standard indicato dal server SicurCantiere",
     AVANZATO: "Claude di Anthropic, negli Stati Uniti (fuori dall'Unione europea)",
 }
-SEDI[INTEGRATO] = (f"passando dal server SicurCantiere: con il motore Standard il testo è elaborato da "
-                   f"{SEDI[STANDARD]}, con l'Avanzato da {SEDI[AVANZATO]}")
+CHIAVE_SEDE = "ai/sede/"
+
+
+def sede(nome_motore: str) -> str:
+    """Dove viene elaborato il testo con il motore indicato: l'ultima sede comunicata dal server."""
+    ricevuta = impostazioni_comuni().value(CHIAVE_SEDE + nome_motore, "", type=str)
+    return ricevuta or SEDI.get(nome_motore, SEDI[STANDARD])
+
+
+def _ricorda_sedi(stato: dict[str, Any]) -> None:
+    impostazioni = impostazioni_comuni()
+    for nome_motore, dati in (stato.get("motori") or {}).items():
+        if isinstance(dati, dict) and str(dati.get("sede") or "").strip():
+            impostazioni.setValue(CHIAVE_SEDE + nome_motore, str(dati["sede"]).strip())
+
+
+def aggiorna_sedi() -> bool:
+    """Chiede al server dove elabora i testi ogni motore (senza mostrare errori: resta l'ultima nota)."""
+    if not server_ai() or not codice_licenza():
+        return False
+    try:
+        credito_integrato()
+    except Exception:  # noqa: BLE001 - senza risposta resta la sede già nota
+        return False
+    return True
 
 DATI_INVIATI = (
     "<b>Cosa viene inviato</b>, solo quando premi un pulsante dell'assistente:"
@@ -206,11 +231,13 @@ class DialogoImpostazioniAI(QDialog):
         layout.addWidget(self.campi_ai)
         layout.addWidget(pulsanti)
         self._mostra_stato()
+        if disponibile:
+            in_sottofondo(aggiorna_sedi, lambda _: self._mostra_stato())
 
     def _mostra_stato(self) -> None:
         self.campi_ai.setEnabled(self.attiva.isChecked())
         scelto = self.motore.currentData() or STANDARD
-        self.destinazione.setText(f"I dati passano dal server SicurCantiere e sono elaborati da {SEDI[scelto]}.")
+        self.destinazione.setText(f"I dati passano dal server SicurCantiere e sono elaborati da {sede(scelto)}.")
 
     def _verifica_credito(self) -> None:
         try:
@@ -218,6 +245,7 @@ class DialogoImpostazioniAI(QDialog):
         except ErroreAI as e:
             self.credito.setText(str(e))
             return
+        self._mostra_stato()  # la sede appena comunicata dal server
         c = stato.get("credito", {})
         self.credito.setText(
             f"Restano {c.get('residuo', 0) / 1e6:.2f} milioni di crediti (quota del mese {c.get('quota', 0) / 1e6:.1f} "
@@ -244,7 +272,7 @@ def credito_integrato() -> dict[str, Any]:
                                        headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(richiesta, timeout=15) as r:
-            return json.loads(r.read().decode())
+            stato = json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         try:
             messaggio = json.loads(e.read().decode()).get("errore", "")
@@ -253,6 +281,8 @@ def credito_integrato() -> dict[str, Any]:
         raise ErroreAI(messaggio or f"Servizio SicurCantiere AI non disponibile ({e.code}).") from e
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
         raise ErroreAI("Impossibile contattare il servizio SicurCantiere AI: controllare la connessione.") from e
+    _ricorda_sedi(stato)
+    return stato
 
 
 class _Segnali(QObject):
@@ -314,4 +344,22 @@ def esegui_ai(genitore: QWidget, messaggio: str, funzione: Callable[[AssistenteA
     # appartiene al thread principale, dove vengono quindi eseguite ok/errore.
     lavoro.segnali.completato.connect(ok, Qt.ConnectionType.QueuedConnection)
     lavoro.segnali.fallito.connect(errore, Qt.ConnectionType.QueuedConnection)
+    QThreadPool.globalInstance().start(lavoro)
+
+
+def in_sottofondo(funzione: Callable[[], Any], al_termine: Callable[[Any], None] | None = None) -> None:
+    """Esegue `funzione` in un thread separato, senza attesa né messaggi di errore."""
+    lavoro = _Lavoro(funzione)
+    _in_corso.add(lavoro)
+
+    def fine(risultato: Any = None) -> None:
+        _in_corso.discard(lavoro)
+        if al_termine is not None and risultato is not None:
+            try:
+                al_termine(risultato)
+            except RuntimeError:
+                pass  # la finestra che aspettava il risultato è già chiusa
+
+    lavoro.segnali.completato.connect(fine)
+    lavoro.segnali.fallito.connect(lambda _: _in_corso.discard(lavoro))
     QThreadPool.globalInstance().start(lavoro)
