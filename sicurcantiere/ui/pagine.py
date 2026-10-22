@@ -1451,10 +1451,10 @@ class PaginaDocumenti(Pagina):
         layout.addLayout(self._griglia_documenti)
         layout.addStretch()
         self._stretta: bool | None = None
-        avviso = QLabel(AVVISO_RESPONSABILITA)
-        avviso.setObjectName("hint")
-        avviso.setWordWrap(True)
-        layout.addWidget(avviso)
+        self._avviso = QLabel(AVVISO_RESPONSABILITA)
+        self._avviso.setObjectName("hint")
+        self._avviso.setWordWrap(True)
+        layout.addWidget(self._avviso)
 
         self.controlli = QListWidget()
         self.controlli.setSpacing(2)
@@ -1511,6 +1511,8 @@ class PaginaDocumenti(Pagina):
                                  else self.NOMI[chiave])
             self._griglia_documenti.addWidget(pulsante, n // colonne, n % colonne)
         self._alto.setDirection(QBoxLayout.Direction.TopToBottom if stretta else QBoxLayout.Direction.LeftToRight)
+        # sugli schermi bassi l'avvertenza resta solo nel messaggio che segue la generazione del documento
+        self._avviso.setVisible(not stretta)
         if self.composizioni is not None:
             self._alto.setStretch(0, 0 if stretta else 1)
             self._alto.setStretch(1, 1 if stretta else 2)
