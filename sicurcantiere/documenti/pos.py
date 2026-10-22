@@ -319,6 +319,9 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         ("Organico medio annuo", impresa["organico"]),
         ("DURC valido fino al", data_it(impresa["durc_scadenza"]) if impresa["durc_scadenza"] else
          Manca("scadenza del DURC", "Impresa", FACOLTATIVO)),
+        ("Patente a crediti (art. 27)", anagrafiche.descrizione_patente(impresa) or
+         Manca("patente a crediti dell'impresa", "Impresa", OBBLIGATORIO)),
+        ("DURC di congruità", impresa.get("durc_congruita") or ""),
         ("Documento di valutazione dei rischi del", data_it(impresa["dvr_data"]) if impresa["dvr_data"] else ""),
         ("Attestazione SOA", impresa["soa"]),
         ("Certificazioni", impresa["certificazioni"]),
@@ -336,9 +339,13 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     subaffidatari = repo.elenco("imprese", affidataria_id=impresa_id)
     if subaffidatari:
         stile.banda(doc, "Imprese subappaltatrici e lavoratori autonomi")
-        stile.tabella_colorata(doc, ["Ragione sociale", "Ruolo", "P. IVA", "Lavori affidati"], [
-            [i["ragione_sociale"], i["tipo"], i["partita_iva"], i["tipologia_lavori"]] for i in subaffidatari],
-            larghezze=[5, 3.4, 3, 6])
+        stile.tabella_colorata(doc, ["Ragione sociale", "Ruolo", "Patente a crediti", "Lavori affidati"], [
+            [i["ragione_sociale"] + (f"\nP. IVA {i['partita_iva']}" if i["partita_iva"] else ""), i["tipo"],
+             anagrafiche.descrizione_patente(i) or "—", i["tipologia_lavori"]] for i in subaffidatari],
+            larghezze=[5, 3.2, 3.6, 5.6])
+        stile.nota(doc, "L'impresa affidataria verifica l'idoneità tecnico-professionale delle imprese a cui "
+                        "subappalta e dei lavoratori autonomi, compresa la patente a crediti (art. 97, comma 2, e "
+                        "Allegato XVII).")
 
     stile.capitolo(doc, "Organizzazione della sicurezza",
                    "Allegato XV punto 3.2.1, lettera a), punti 3-6, e lettera b)")

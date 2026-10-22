@@ -421,6 +421,18 @@ MIGRAZIONI: list[str] = [
     ALTER TABLE soggetti ADD COLUMN data_incarico TEXT;
     ALTER TABLE attrezzature ADD COLUMN potenza_sonora REAL NOT NULL DEFAULT 0;
     """,
+    # v0.22: patente a crediti (art. 27), DURC di congruità (D.M. 143/2021) e verifica dell'idoneità
+    # tecnico-professionale (Allegato XVII, voci in JSON) di imprese e lavoratori autonomi.
+    """
+    ALTER TABLE imprese ADD COLUMN patente_stato TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN patente_numero TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN patente_crediti INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE imprese ADD COLUMN patente_verificata TEXT;
+    ALTER TABLE imprese ADD COLUMN durc_congruita TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN durc_congruita_data TEXT;
+    ALTER TABLE imprese ADD COLUMN idoneita TEXT NOT NULL DEFAULT '';
+    ALTER TABLE imprese ADD COLUMN idoneita_verificata TEXT;
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

@@ -72,7 +72,7 @@ class Edizione:
 class PaginaImpresePSC(PaginaImprese):
     titolo = "Imprese e lavoratori autonomi"
     voce = "Imprese"
-    schede_visibili = ()
+    schede_visibili = ("idoneita",)
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -110,7 +110,7 @@ class PaginaImpresePSC(PaginaImprese):
 
 
 class PaginaDocumentiPSC(PaginaDocumenti):
-    documenti = ("psc", "fascicolo", "notifica")
+    documenti = ("psc", "fascicolo", "notifica", "idoneita")
     principale = "psc"
 
 
@@ -218,7 +218,7 @@ class PaginaDocumentiPOS(PaginaDocumenti):
     titolo = "POS e controlli"
     sottotitolo = "Genera i documenti in Word. Prima risolvi gli errori segnalati nei controlli."
     voce = "POS e controlli"
-    documenti = ("pos", "sostanze", "dpi", "tesserini", "schede")
+    documenti = ("pos", "sostanze", "dpi", "tesserini", "schede", "idoneita")
     principale = "pos"
     controlla = staticmethod(controlli.sincronizza_e_controlla_pos)
 

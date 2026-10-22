@@ -579,14 +579,22 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
         doc.add_paragraph("Imprese e lavoratori autonomi previsti, con i datori di lavoro. L'elenco si completa "
                           "prima dell'inizio dei lavori, quando le imprese sono note.")
         affidatarie = {i["id"]: i["ragione_sociale"] for i in imprese}
-        stile.tabella_colorata(doc, ["Ragione sociale", "Ruolo", "Datore di lavoro", "P. IVA", "Lavori affidati"], [
+        stile.tabella_colorata(doc, ["Ragione sociale", "Ruolo", "Datore di lavoro", "Patente a crediti",
+                                     "Lavori affidati"], [
             [i["ragione_sociale"] + (f"\nper {affidatarie[i['affidataria_id']]}" if i.get("affidataria_id") in
-                                     affidatarie else ""), i["tipo"],
+                                     affidatarie else "") + (f"\nP. IVA {i['partita_iva']}" if i["partita_iva"] else ""),
+             i["tipo"],
              i["datore_lavoro"] or Manca("datore di lavoro di " + (i["ragione_sociale"] or "un'impresa"), IMPRESE,
                                          CONSIGLIATO),
-             i["partita_iva"], " · ".join(v for v in (i["tipologia_lavori"], euro(i["importo_lavori"])
-                                                      if i.get("importo_lavori") else "") if v)]
-            for i in imprese], larghezze=[4.2, 2.6, 3.6, 2.6, 4.4])
+             anagrafiche.descrizione_patente(i) or Manca("patente a crediti di " + (i["ragione_sociale"] or
+                                                                                   "un'impresa"), IMPRESE, CONSIGLIATO),
+             " · ".join(v for v in (i["tipologia_lavori"], euro(i["importo_lavori"])
+                                    if i.get("importo_lavori") else "") if v)]
+            for i in imprese], 8, larghezze=[4.2, 2.4, 3.2, 3.4, 4.2])
+        stile.nota(doc, "Prima dell'inizio dei lavori il committente o il responsabile dei lavori verifica l'idoneità "
+                        "tecnico-professionale delle imprese e dei lavoratori autonomi (art. 90, comma 9, e Allegato "
+                        "XVII), compresa la patente a crediti (art. 27): senza patente, o con meno di 15 crediti, non "
+                        "si può operare in cantiere.")
     else:
         stile.testo(doc, "", "imprese esecutrici e lavoratori autonomi, da indicare prima dell'inizio dei lavori",
                     IMPRESE, CONSIGLIATO)

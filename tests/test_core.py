@@ -952,7 +952,7 @@ def test_migrazione_sezione_area(tmp_path):
 
     percorso = tmp_path / "vecchio.scs"
     conn = sqlite3.connect(percorso)
-    n = len(MIGRAZIONI) - 1
+    n = next(k for k, m in enumerate(MIGRAZIONI) if "area_caratteristiche" in m)  # prima della migrazione
     conn.executescript(";".join(MIGRAZIONI[:n]) + f";PRAGMA user_version = {n};")
     conn.execute("INSERT INTO relazione (sezione, testo) VALUES ('area', 'Area pianeggiante.')")
     conn.commit()
@@ -979,3 +979,37 @@ def test_tavola_pdf_nel_psc(repo, tmp_path):
     doc = Document(genera_psc(repo, tmp_path / "psc.docx"))
     testo = _testo_docx(tmp_path / "psc.docx")
     assert "tavola.pdf · pagina 2 di 2" in testo and len(doc.inline_shapes) >= 2
+
+
+def test_patente_crediti_e_idoneita(repo, tmp_path):
+    import json
+
+    from sicurcantiere import anagrafiche, controlli
+    from sicurcantiere.documenti.idoneita import genera_verifica_idoneita
+
+    a = _cantiere_completo(repo)
+    autonomo = repo.inserisci("imprese", ragione_sociale="Rossi Mario", tipo="Lavoratore autonomo")
+    messaggi = [s.messaggio for s in controlli.controlla(repo)]
+    assert any("Alfa Costruzioni: indicare la situazione della patente" in m for m in messaggi)
+    assert any("Alfa Costruzioni: verifica dell'idoneità" in m for m in messaggi)
+
+    repo.aggiorna("imprese", a, patente_stato=anagrafiche.PATENTE_POSSEDUTA, patente_numero="PC-123",
+                  patente_crediti=10)
+    errori = [s.messaggio for s in controlli.controlla(repo) if s.livello == controlli.ERRORE]
+    assert any("meno di 15 crediti" in m for m in errori)
+    repo.aggiorna("imprese", a, patente_crediti=30, idoneita_verificata="2025-09-20", idoneita=json.dumps(
+        {k: {"esito": "Acquisito", "nota": ""} for k, _ in anagrafiche.IDONEITA_IMPRESE}))
+    impresa = repo.leggi("imprese", a)
+    assert anagrafiche.patente_regolare(impresa) and anagrafiche.esito_idoneita(impresa) == "Idonea"
+    assert anagrafiche.descrizione_patente(impresa) == "Posseduta: n. PC-123, 30 crediti"
+    messaggi = [s.messaggio for s in controlli.controlla(repo)]
+    assert not any(m.startswith("Alfa Costruzioni: indicare la situazione") or
+                   m.startswith("Alfa Costruzioni: verifica dell'idoneità") for m in messaggi)
+
+    testo = _testo_docx(genera_verifica_idoneita(repo, a, tmp_path / "v.docx"))
+    assert "Verifica dell'idoneità tecnico-professionale" in testo and "Idoneità tecnico-professionale verificata" in testo
+    assert "Posseduta: n. PC-123, 30 crediti" in testo and "20/09/2025" in testo
+    # lavoratore autonomo: le voci del punto 2 dell'Allegato XVII
+    testo = _testo_docx(genera_verifica_idoneita(repo, autonomo, tmp_path / "a.docx"))
+    assert "Allegato XVII, punto 2" in testo and "Documentazione incompleta" not in testo
+    assert "PC-123" in _testo_docx(genera_psc(repo, tmp_path / "psc.docx"))

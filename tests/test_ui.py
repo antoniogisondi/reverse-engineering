@@ -108,7 +108,8 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
 
     imprese = _pagina(f, PaginaImprese)
     f.navigazione.setCurrentRow(f.pagine.index(imprese))
-    assert not imprese.schede.isVisibleTo(imprese)  # nel PSC niente dati del POS
+    # nel PSC niente dati del POS: solo la verifica dell'idoneità e la patente a crediti
+    assert [imprese.schede.tabText(i) for i in range(imprese.schede.count())] == ["Idoneità e patente"]
     # «Prepara il POS dell'impresa...» crea il file .spo dell'impresa selezionata
     assert any(b.text() == "Prepara il POS dell'impresa..." for b in imprese.findChildren(QtWidgets.QPushButton))
     imprese.tabella.ricarica()
@@ -129,7 +130,7 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))
     assert doc.controlli.count() > 0
-    assert doc.documenti == ("psc", "fascicolo", "notifica")
+    assert doc.documenti == ("psc", "fascicolo", "notifica", "idoneita")
     assert not any(type(pg).__name__ in ("PaginaValutazioni", "PaginaPonteggi") for pg in f.pagine)
 
     f.navigazione.setCurrentRow(0)
@@ -281,7 +282,7 @@ def test_programma_pos(app, tmp_path):
     imprese = _pagina(f, PaginaImprese)
     f.navigazione.setCurrentRow(f.pagine.index(imprese))
     imprese.tabella.seleziona(a)
-    assert imprese.schede.count() == 5
+    assert imprese.schede.count() == 6
     imprese.figure.campi["datore_lavoro"].setText("Mario Bianchi")
     f.salva()  # pulsante Salva: anche il campo ancora in modifica finisce nel file
     assert repo.leggi("imprese", a)["datore_lavoro"] == "Mario Bianchi"
@@ -384,7 +385,7 @@ def test_programma_pos(app, tmp_path):
 
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))
-    assert doc.documenti == ("pos", "sostanze", "dpi", "tesserini", "schede") and doc.impresa.count() == 2
+    assert doc.documenti == ("pos", "sostanze", "dpi", "tesserini", "schede", "idoneita")
     messaggi = [doc.controlli.item(i).text() for i in range(doc.controlli.count())]
     assert any("medico competente" in m for m in messaggi)
     assert "error" in f.stato_controlli.text()

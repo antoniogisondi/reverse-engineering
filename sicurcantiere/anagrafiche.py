@@ -288,3 +288,99 @@ def dpi_lavoratore(lavoratore: dict[str, Any]) -> list[str]:
     import re
 
     return [v.strip() for v in re.split(r";|,|\n", lavoratore.get("dpi", "")) if v.strip()]
+
+
+# --- patente a crediti (art. 27), DURC di congruità e idoneità tecnico-professionale (Allegato XVII) ---
+
+PATENTE_POSSEDUTA = "Posseduta"
+PATENTE_STATI = [
+    PATENTE_POSSEDUTA,
+    "Esente: attestazione SOA in classifica III o superiore",
+    "Esente: solo forniture o prestazioni di natura intellettuale",
+    "Non posseduta",
+]
+CREDITI_MINIMI = 15  # sotto questa soglia non si può operare nei cantieri (art. 27)
+
+DURC_CONGRUITA = [
+    "Non dovuto (lavori privati sotto 70.000 euro o lavori non edili)",
+    "Da richiedere prima del saldo finale",
+    "Rilasciato: congruo",
+    "Non congruo",
+]
+
+ESITI_IDONEITA = ("", "Acquisito", "Mancante", "Non pertinente")
+
+# Documenti per la verifica dell'idoneità tecnico-professionale (Allegato XVII, punti 1 e 2), più la
+# patente a crediti (art. 27).
+IDONEITA_IMPRESE: list[tuple[str, str]] = [
+    ("cciaa", "Iscrizione alla Camera di commercio con oggetto sociale inerente all'appalto"),
+    ("dvr", "Documento di valutazione dei rischi (art. 17) o autocertificazione (art. 29, comma 5)"),
+    ("attrezzature", "Documentazione sulla conformità di macchine, attrezzature e opere provvisionali"),
+    ("dpi", "Elenco dei dispositivi di protezione individuale forniti ai lavoratori"),
+    ("nomine", "Nomina del RSPP, degli incaricati di primo soccorso, antincendio ed emergenza e del medico "
+               "competente"),
+    ("rls", "Nominativo del rappresentante dei lavoratori per la sicurezza (RLS o RLST)"),
+    ("formazione", "Attestati di formazione del RSPP, degli addetti alle emergenze, dei preposti e dei lavoratori"),
+    ("lavoratori", "Elenco dei lavoratori dal libro unico del lavoro con l'idoneità sanitaria"),
+    ("sospensione", "Dichiarazione di non essere oggetto di provvedimenti di sospensione o interdittivi (art. 14)"),
+    ("durc", "Documento unico di regolarità contributiva (DURC)"),
+    ("organico", "Dichiarazione dell'organico medio annuo e del contratto collettivo applicato"),
+    ("patente", "Patente a crediti con almeno 15 crediti, o motivo dell'esenzione (art. 27)"),
+]
+IDONEITA_AUTONOMI: list[tuple[str, str]] = [
+    ("cciaa", "Iscrizione alla Camera di commercio con oggetto sociale inerente all'appalto"),
+    ("attrezzature", "Documentazione sulla conformità di macchine, attrezzature e opere provvisionali"),
+    ("dpi", "Elenco dei dispositivi di protezione individuale in dotazione"),
+    ("formazione", "Attestati di formazione e idoneità sanitaria, ove espressamente previsti"),
+    ("durc", "Documento unico di regolarità contributiva (DURC)"),
+    ("patente", "Patente a crediti con almeno 15 crediti, o motivo dell'esenzione (art. 27)"),
+]
+
+
+def voci_idoneita(impresa: dict[str, Any]) -> list[tuple[str, str]]:
+    return IDONEITA_AUTONOMI if autonomo(impresa) else IDONEITA_IMPRESE
+
+
+def leggi_idoneita(impresa: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """{voce: {"esito": ..., "nota": ...}} dalla colonna «idoneita» (JSON)."""
+    import json
+
+    try:
+        dati = json.loads(impresa.get("idoneita") or "{}")
+    except ValueError:
+        dati = {}
+    if not isinstance(dati, dict):
+        dati = {}
+    return {k: {"esito": str((dati.get(k) or {}).get("esito") or ""),
+                "nota": str((dati.get(k) or {}).get("nota") or "")} for k, _ in voci_idoneita(impresa)}
+
+
+def patente_regolare(impresa: dict[str, Any]) -> bool | None:
+    """True se l'impresa può operare con la patente (o ne è esente), False se no, None se non indicato."""
+    stato = (impresa.get("patente_stato") or "").strip()
+    if not stato:
+        return None
+    if stato.startswith("Esente"):
+        return True
+    if stato == PATENTE_POSSEDUTA:
+        return int(impresa.get("patente_crediti") or 0) >= CREDITI_MINIMI
+    return False
+
+
+def descrizione_patente(impresa: dict[str, Any]) -> str:
+    stato = (impresa.get("patente_stato") or "").strip()
+    if stato == PATENTE_POSSEDUTA:
+        parti = [f"n. {impresa['patente_numero']}" if impresa.get("patente_numero") else "",
+                 f"{int(impresa.get('patente_crediti') or 0)} crediti" if impresa.get("patente_crediti") else ""]
+        return "Posseduta" + (": " + ", ".join(p for p in parti if p) if any(parti) else "")
+    return stato
+
+
+def esito_idoneita(impresa: dict[str, Any]) -> str:
+    """«Idonea», «Documentazione incompleta» o «Non verificata»."""
+    voci = leggi_idoneita(impresa)
+    if not impresa.get("idoneita_verificata") and not any(v["esito"] for v in voci.values()):
+        return "Non verificata"
+    if any(v["esito"] in ("", "Mancante") for v in voci.values()) or patente_regolare(impresa) is False:
+        return "Documentazione incompleta"
+    return "Idonea"

@@ -390,8 +390,8 @@ class PaginaImprese(Pagina):
     voce = "Imprese e lavoratori"
     icona = "imprese"
     sezioni_controlli = ("Impresa", "Imprese", "Figure della sicurezza", "Lavoratori", "Testi del POS")
-    # Schede di dettaglio mostrate dal programma: dati, figure, lavoratori, autonomi, pos.
-    schede_visibili: tuple[str, ...] = ("dati", "figure", "lavoratori", "autonomi", "pos")
+    # Schede di dettaglio mostrate dal programma: dati, figure, lavoratori, autonomi, idoneita, pos.
+    schede_visibili: tuple[str, ...] = ("dati", "figure", "lavoratori", "autonomi", "idoneita", "pos")
 
     CAMPI_DATI = [
         (None, "Anagrafica"),
@@ -504,11 +504,15 @@ class PaginaImprese(Pagina):
         scorrimento.setWidgetResizable(True)
         scorrimento.setWidget(self.testi_pos)
 
+        from sicurcantiere.ui.idoneita import PannelloIdoneita
+
+        self.idoneita = PannelloIdoneita(repo)
         self.schede = QTabWidget()
         for chiave, widget, titolo in (("dati", scorrimento_dati, "Dati dell'impresa"),
                                        ("figure", pannello_figure, "Figure della sicurezza"),
                                        ("lavoratori", self.lavoratori, "Maestranze"),
                                        ("autonomi", self.autonomi, "Lavoratori autonomi"),
+                                       ("idoneita", self.idoneita, "Idoneità e patente"),
                                        ("pos", scorrimento, "Testi del POS")):
             if chiave in self.schede_visibili:
                 self.schede.addTab(widget, titolo)
@@ -517,7 +521,7 @@ class PaginaImprese(Pagina):
         self.schede.setVisible(bool(self.schede_visibili))
         # Le schede non mostrate restano figlie della pagina: senza un genitore
         # Qt le distruggerebbe mentre la pagina le usa ancora.
-        for w in (scorrimento_dati, pannello_figure, self.lavoratori, self.autonomi, scorrimento):
+        for w in (scorrimento_dati, pannello_figure, self.lavoratori, self.autonomi, self.idoneita, scorrimento):
             if w.parent() is None:
                 w.setParent(self)
                 w.hide()
@@ -564,6 +568,7 @@ class PaginaImprese(Pagina):
         self.elenco_figure.imposta_filtro(impresa_id=id_ if id_ is not None else -1)
         self.lavoratori.imposta_impresa(id_)
         self.autonomi.imposta_impresa(id_)
+        self.idoneita.imposta_impresa(id_)
         self.testi_pos.carica(lambda s, i=id_ if id_ is not None else -1: chiave_testo(i, s))
 
     def salva_in_sospeso(self) -> None:
@@ -571,6 +576,7 @@ class PaginaImprese(Pagina):
         self.figure.salva_in_sospeso()
         self.lavoratori.salva_in_sospeso()
         self.autonomi.salva_in_sospeso()
+        self.idoneita.salva_in_sospeso()
         self.testi_pos.salva_in_sospeso()
 
     def aggiorna(self) -> None:
@@ -1391,7 +1397,7 @@ class PaginaDocumenti(Pagina):
     principale = "psc"
     controlla = staticmethod(controlli.controlla)
 
-    PER_IMPRESA = ("pos", "dpi", "sostanze", "tesserini", "schede")
+    PER_IMPRESA = ("pos", "dpi", "sostanze", "tesserini", "schede", "idoneita")
     # documenti principali: si compongono e restano salvati nel cantiere (bozza, emessa, consegnata)
     COMPONIBILI = {"pos": "POS", "psc": "PSC"}
     NOMI = {
@@ -1403,6 +1409,7 @@ class PaginaDocumenti(Pagina):
         "sostanze": "Elenco delle sostanze pericolose",
         "tesserini": "Tesserini di riconoscimento dei lavoratori",
         "schede": "Schede dei lavoratori (mansioni, rischi, DPI, formazione)",
+        "idoneita": "Verifica dell'idoneità tecnico-professionale (Allegato XVII)",
     }
 
     def __init__(self, repo: Repository):
@@ -1471,7 +1478,8 @@ class PaginaDocumenti(Pagina):
         if self.componibile == "psc":
             return "PSC"
         impresa = self.impresa.currentData()
-        return f"POS:{impresa}" if impresa is not None else None
+        dati = self.repo.leggi("imprese", impresa) if impresa is not None else None
+        return f"POS:{impresa}" if dati is not None and not anagrafiche.autonomo(dati) else None
 
     def _documenti(self) -> list[tuple[str, str]]:
         voci = []
@@ -1541,10 +1549,20 @@ class PaginaDocumenti(Pagina):
                 QMessageBox.information(self, "Documenti", "Inserire prima l'impresa.")
                 return
             nome = self.impresa.currentText()
+            dati_impresa = self.repo.leggi("imprese", impresa) or {}
+            if anagrafiche.autonomo(dati_impresa) and chiave != "idoneita":
+                QMessageBox.information(self, "Documenti", "Per i lavoratori autonomi si genera la verifica "
+                                                           "dell'idoneità tecnico-professionale; gli altri documenti "
+                                                           "riguardano le imprese con lavoratori.")
+                return
             if chiave == "pos":
                 self._salva_docx(f"POS - {nome} - {cantiere}", lambda p: genera_pos(self.repo, impresa, p))
             elif chiave == "tesserini":
                 self._salva_docx(f"Tesserini - {nome}", lambda p: genera_tesserini(self.repo, impresa, p))
+            elif chiave == "idoneita":
+                from sicurcantiere.documenti.idoneita import genera_verifica_idoneita
+
+                self._salva_docx(f"Verifica idoneità - {nome}", lambda p: genera_verifica_idoneita(self.repo, impresa, p))
             elif chiave == "schede":
                 self._salva_docx(f"Schede lavoratori - {nome}",
                                  lambda p: genera_schede_lavoratori(self.repo, impresa, p))
@@ -1565,8 +1583,12 @@ class PaginaDocumenti(Pagina):
         corrente = self.impresa.currentData()
         self.impresa.clear()
         for i in self.repo.elenco("imprese"):
-            if not anagrafiche.autonomo(i):
-                self.impresa.addItem(i["ragione_sociale"] or f"Impresa {i['id']}", i["id"])
+            nome = i["ragione_sociale"] or f"Impresa {i['id']}"
+            if anagrafiche.autonomo(i):
+                if "idoneita" in self.documenti:  # per gli autonomi c'è solo la verifica dell'idoneità
+                    self.impresa.addItem(f"{nome} (lavoratore autonomo)", i["id"])
+            else:
+                self.impresa.addItem(nome, i["id"])
         self.impresa.setCurrentIndex(max(self.impresa.findData(corrente), 0))
         self.revisioni.ricarica()
         if self.composizioni is not None:

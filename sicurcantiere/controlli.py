@@ -18,6 +18,24 @@ class Segnalazione:
     messaggio: str
 
 
+def _controlla_idoneita(i: dict, errore, avviso, sezione: str = "Imprese") -> None:
+    """Patente a crediti (art. 27) e verifica dell'idoneità tecnico-professionale (Allegato XVII)."""
+    nome = i["ragione_sociale"] or f"Impresa n. {i['id']}"
+    regolare = anagrafiche.patente_regolare(i)
+    if regolare is None:
+        avviso(sezione, f"{nome}: indicare la situazione della patente a crediti (art. 27).")
+    elif regolare is False:
+        errore(sezione, f"{nome}: senza patente a crediti o con meno di {anagrafiche.CREDITI_MINIMI} crediti non può "
+                        "operare in cantiere.")
+    esito = anagrafiche.esito_idoneita(i)
+    if esito == "Non verificata":
+        avviso(sezione, f"{nome}: verifica dell'idoneità tecnico-professionale (Allegato XVII) da eseguire.")
+    elif esito == "Documentazione incompleta":
+        avviso(sezione, f"{nome}: documentazione dell'Allegato XVII incompleta.")
+    if i.get("durc_congruita") == "Non congruo":
+        avviso(sezione, f"{nome}: DURC di congruità non congruo.")
+
+
 def controlla(repo: Repository) -> list[Segnalazione]:
     s: list[Segnalazione] = []
     c = repo.cantiere()
@@ -53,6 +71,7 @@ def controlla(repo: Repository) -> list[Segnalazione]:
     for i in imprese:
         if not i["ragione_sociale"].strip():
             errore("Imprese", f"Impresa n. {i['id']} senza ragione sociale.")
+        _controlla_idoneita(i, errore, avviso)
 
     if not fasi:
         errore("Fasi", "Nessuna fase di lavoro inserita.")
@@ -143,6 +162,14 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
             s.append(Segnalazione(AVVISO, "Impresa", f"{nome}: posizione INAIL non indicata."))
         if i["durc_scadenza"] and i["durc_scadenza"] < oggi:
             s.append(Segnalazione(ERRORE, "Impresa", f"{nome}: DURC scaduto."))
+        regolare = anagrafiche.patente_regolare(i)
+        if regolare is None:
+            s.append(Segnalazione(AVVISO, "Impresa", f"{nome}: indicare la situazione della patente a crediti "
+                                                     "(art. 27)."))
+        elif regolare is False:
+            s.append(Segnalazione(ERRORE, "Impresa", f"{nome}: senza patente a crediti o con meno di "
+                                                     f"{anagrafiche.CREDITI_MINIMI} crediti non può operare in "
+                                                     "cantiere."))
         elenco_figure = anagrafiche.figure(repo, i)
         ruoli = {anagrafiche.ruolo_riconosciuto(f["ruolo"]) for f in elenco_figure if f["nome"].strip()}
         ruoli |= {r for r, _ in anagrafiche.figure_non_presenti(i)}

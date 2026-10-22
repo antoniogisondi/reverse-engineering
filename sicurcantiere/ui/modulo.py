@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSpinBox,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -203,6 +204,11 @@ class ModuloRecord(QWidget):
             w.setSuffix(" €")
             w.valueChanged.connect(modificato)
             w.editingFinished.connect(lambda: self._salva(campo))
+        elif tipo == "intero":
+            w = QSpinBox()
+            w.setRange(0, 1000)
+            w.valueChanged.connect(modificato)
+            w.editingFinished.connect(lambda: self._salva(campo))
         elif tipo == "spunta":
             w = QCheckBox()
             w.toggled.connect(subito)
@@ -282,6 +288,8 @@ class ModuloRecord(QWidget):
             return w.valore()
         if tipo == "numero":
             return w.value()
+        if tipo == "intero":
+            return int(w.value())
         if tipo == "spunta":
             return int(w.isChecked())
         if tipo == "spunte":
@@ -305,6 +313,8 @@ class ModuloRecord(QWidget):
             w.imposta(valore)
         elif tipo == "numero":
             w.setValue(float(valore or 0))
+        elif tipo == "intero":
+            w.setValue(int(valore or 0))
         elif tipo == "spunta":
             w.setChecked(bool(valore))
         elif tipo == "spunte":
