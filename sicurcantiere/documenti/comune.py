@@ -26,7 +26,9 @@ def salva(doc, destinazione: str | Path) -> Path:
     composizione.finalizza(doc)
     dicitura = licenza.dicitura_documenti()
     if dicitura:
-        for sezione in doc.sections:
+        for n, sezione in enumerate(doc.sections):
+            if n and sezione.footer.is_linked_to_previous:
+                continue  # usa il piè di pagina della sezione precedente, che ha già la dicitura
             piedi = [sezione.footer]
             if sezione.different_first_page_header_footer:
                 piedi.append(sezione.first_page_footer)

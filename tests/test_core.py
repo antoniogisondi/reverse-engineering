@@ -160,6 +160,8 @@ def test_genera_psc(repo, tmp_path):
         assert titolo in testo
     assert "[Da compilare: coordinatore per la progettazione (CSP)]" in testo
     assert "Comune di Bari" in celle
+    assert "Diagramma di Gantt dei lavori" in testo and doc.inline_shapes  # diagramma come immagine
+    assert any(s.orientation == 1 for s in doc.sections)  # su pagine orizzontali
     assert "Alfa Costruzioni" in celle
     assert "€ 1.500,00" in celle
     assert "Scavo di sbancamento" in celle  # interferenza e cronoprogramma

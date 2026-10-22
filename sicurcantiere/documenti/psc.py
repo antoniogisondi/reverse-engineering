@@ -99,6 +99,57 @@ def _cronoprogramma(doc, fasi: list[dict[str, Any]], imprese: dict[int, str],
                     "(capitolo «Interferenze tra le lavorazioni»).")
 
 
+def _programma(doc, fasi: list[dict[str, Any]], imprese: dict[int, str]) -> None:
+    """Programma dei lavori in tabella: tutte le fasi di tutte le imprese, dall'inizio alla fine."""
+    stile.banda(doc, "Programma dei lavori")
+    ordinate = sorted(fasi, key=lambda f: (f["data_inizio"] is None, f["data_inizio"] or "", f["id"]))
+    righe = []
+    for f in ordinate:
+        da, a = analisi.data(f["data_inizio"]), analisi.data(f["data_fine"])
+        righe.append([nome_fase(f) + (f"\n{f['lavorazione']}" if f["lavorazione"] else ""),
+                      imprese.get(f["impresa_id"], "") or "da definire",
+                      data_it(da) if da else "—", data_it(a) if a else "—",
+                      str(analisi.giorni_lavorativi(da, a)) if da and a and a >= da else "—",
+                      str(f["lavoratori"]) if f.get("lavoratori") else "—"])
+    stile.tabella_colorata(doc, ["Fase / lavorazione", "Impresa", "Inizio", "Fine", "gg lav.", "Lavoratori"],
+                           righe, 8, larghezze=[6.6, 3.6, 2.1, 2.1, 1.4, 1.6])
+
+
+def _diagramma_gantt(doc, fasi: list[dict[str, Any]], imprese: dict[int, str], livelli: dict[int, int],
+                     interferenze: list[analisi.Interferenza]) -> None:
+    """Diagramma di Gantt su pagine orizzontali; senza Qt (non dovrebbe capitare) resta la tabella."""
+    import io
+
+    from docx.shared import Cm
+
+    from sicurcantiere.documenti import gantt
+
+    if not analisi.periodo_lavori(fasi):
+        _cronoprogramma(doc, fasi, imprese, interferenze)
+        return
+    try:
+        pagine = gantt.immagini(fasi, imprese, livelli)
+    except Exception:  # noqa: BLE001 - il documento si genera comunque, con la tabella settimanale
+        pagine = []
+    if not pagine:
+        _cronoprogramma(doc, fasi, imprese, interferenze)
+        return
+    stile.pagine_orizzontali(doc)
+    for n, immagine in enumerate(pagine):
+        p = doc.add_paragraph()
+        if n:
+            p.paragraph_format.page_break_before = True
+        stile._spaziatura(p, 0, 4)
+        stile._bordo_paragrafo(p, ("bottom",), stile.ACCENTO, 12, 4)
+        stile._run(p, "Diagramma di Gantt dei lavori" + (f" ({n + 1} di {len(pagine)})" if len(pagine) > 1 else ""),
+                   13, stile.INCHIOSTRO, carattere=stile.CARATTERE_TITOLI)
+        doc.add_picture(io.BytesIO(immagine), width=Cm(gantt.LARGHEZZA_CM))
+    stile.nota(doc, "Barre colorate per impresa; in rosso i periodi in cui lavorazioni di imprese diverse si "
+                    "sovrappongono (capitolo «Interferenze tra le lavorazioni»). In grigio i fine settimana. Sotto le "
+                    "fasi, i lavoratori presenti e il rischio massimo di ogni giorno lavorativo.")
+    stile.pagine_verticali(doc)
+
+
 def _matrice_rischio(doc) -> None:
     """Matrice probabilità x danno con i colori dei livelli."""
     righe = [[f"P = {p}"] + [str(p * d) for d in range(1, 5)] for p in range(4, 0, -1)]
@@ -360,10 +411,12 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     if fasi:
         stile.scheda(doc, [
             ("Inizio e fine dei lavori", f"dal {data_it(periodo[0])} al {data_it(periodo[1])}" if periodo else ""),
+            ("Durata presunta", f"{analisi.giorni_lavorativi(*periodo)} giorni lavorativi" if periodo else ""),
             ("Entità presunta del cantiere", f"{analisi.uomini_giorno(fasi)} uomini-giorno"),
             ("Numero massimo presunto di lavoratori", str(analisi.picco_lavoratori(fasi))),
         ])
-    _cronoprogramma(doc, fasi, nomi_imprese, elenco_interferenze)
+        _programma(doc, fasi, nomi_imprese)
+    _diagramma_gantt(doc, fasi, nomi_imprese, livelli, elenco_interferenze)
 
     stile.capitolo(doc, "Stima dei costi della sicurezza", "Allegato XV punto 2.1.2, lettera l), e punto 4")
     if costi:

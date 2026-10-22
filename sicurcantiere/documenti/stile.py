@@ -286,9 +286,10 @@ def imposta_pagina(doc, piede: str, intestazione: tuple[str, str] = ("", "")) ->
         sezione.different_first_page_header_footer = True
         _intestazione(sezione.header.paragraphs[0], *intestazione)
         _piede(sezione.footer.paragraphs[0], piede)
+    doc._sc_pagina = (piede, intestazione)  # per le sezioni aggiunte dopo (pagine orizzontali)
 
 
-def _tabulazione_destra(paragrafo) -> None:
+def _tabulazione_destra(paragrafo, larghezza: float = LARGHEZZA_UTILE) -> None:
     pr = paragrafo._p.get_or_add_pPr()
     tabs = OxmlElement("w:tabs")
     for posizione in (4680, 9360, 4513, 9026):  # tabulazioni degli stili Intestazione e Piè di pagina
@@ -298,22 +299,22 @@ def _tabulazione_destra(paragrafo) -> None:
         tabs.append(via)
     tab = OxmlElement("w:tab")
     tab.set(qn("w:val"), "right")
-    tab.set(qn("w:pos"), str(int(Cm(LARGHEZZA_UTILE).twips)))
+    tab.set(qn("w:pos"), str(int(Cm(larghezza).twips)))
     tabs.append(tab)
     pr.append(tabs)
 
 
-def _intestazione(p, sinistra: str, destra: str) -> None:
+def _intestazione(p, sinistra: str, destra: str, larghezza: float = LARGHEZZA_UTILE) -> None:
     p.text = ""
-    _tabulazione_destra(p)
+    _tabulazione_destra(p, larghezza)
     _bordo_paragrafo(p, ("bottom",), LINEA, 4, 3)
     _run(p, sinistra, 7.5, TESTO3, grassetto=True)
     _run(p, "\t" + destra, 7.5, TESTO3)
 
 
-def _piede(p, testo: str) -> None:
+def _piede(p, testo: str, larghezza: float = LARGHEZZA_UTILE) -> None:
     p.text = ""
-    _tabulazione_destra(p)
+    _tabulazione_destra(p, larghezza)
     _bordo_paragrafo(p, ("top",), LINEA, 4, 3)
     _run(p, testo, 7.5, TESTO3)
     _run(p, "\tPagina ", 7.5, TESTO3)
@@ -755,3 +756,32 @@ def _firme_copertina(doc, voci: list[tuple[str, str]]) -> None:
 
 def nuova_sezione_verticale(doc) -> None:
     doc.add_section(WD_SECTION.NEW_PAGE)
+
+
+def _nuova_sezione(doc, orizzontale: bool):
+    """Nuova sezione su pagina nuova, con intestazione e piè di pagina della precedente."""
+    from docx.enum.section import WD_ORIENT
+
+    sezione = doc.add_section(WD_SECTION.NEW_PAGE)
+    sezione.orientation = WD_ORIENT.LANDSCAPE if orizzontale else WD_ORIENT.PORTRAIT
+    sezione.page_width, sezione.page_height = (Cm(29.7), Cm(21)) if orizzontale else (Cm(21), Cm(29.7))
+    sezione.different_first_page_header_footer = False  # la prima pagina «diversa» è solo la copertina
+    pagina = getattr(doc, "_sc_pagina", None)
+    if pagina is not None:
+        # intestazione e piè di pagina propri, con il testo di destra al margine di questa pagina
+        larghezza = (29.7 if orizzontale else 21) - 3.6
+        sezione.header.is_linked_to_previous = False
+        sezione.footer.is_linked_to_previous = False
+        _intestazione(sezione.header.paragraphs[0], *pagina[1], larghezza=larghezza)
+        _piede(sezione.footer.paragraphs[0], pagina[0], larghezza=larghezza)
+    return sezione
+
+
+def pagine_orizzontali(doc):
+    """Da qui le pagine sono orizzontali (per esempio per il diagramma di Gantt)."""
+    return _nuova_sezione(doc, True)
+
+
+def pagine_verticali(doc):
+    """Da qui le pagine tornano verticali."""
+    return _nuova_sezione(doc, False)
