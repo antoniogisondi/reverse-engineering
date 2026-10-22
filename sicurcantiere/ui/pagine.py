@@ -130,7 +130,7 @@ class TestiLiberi(QWidget):
 
     def __init__(self, repo: Repository, sezioni: list[tuple[str, str]],
                  chiave: Callable[[str], str] = lambda s: s, altezza: int = 120,
-                 contesto_ai: Callable[[], str] | None = None):
+                 contesto_ai: Callable[[], str] | None = None, guide: dict[str, str] | None = None):
         super().__init__()
         self.repo = repo
         self.chiave = chiave
@@ -145,6 +145,8 @@ class TestiLiberi(QWidget):
         for sezione, titolo in sezioni:
             editor = QPlainTextEdit()
             editor.setMinimumHeight(altezza)
+            if guide and guide.get(sezione):
+                editor.setPlaceholderText(guide[sezione])
             editor.textChanged.connect(lambda s=sezione: self._modificato(s))
             riquadro = _riquadro(titolo, editor)
             if contesto_ai is not None:
@@ -357,7 +359,10 @@ class PaginaSoggetti(Pagina):
             Colonna("indirizzo", "Indirizzo", larghezza=200),
             Colonna("telefono", "Telefono", larghezza=110),
             Colonna("email", "Email", larghezza=170),
-            Colonna("pec", "PEC"),
+            Colonna("pec", "PEC", larghezza=170),
+            Colonna("data_incarico", "Incarico dal", "data", larghezza=110,
+                    suggerimento="Data di conferimento dell'incarico (coordinatori, responsabile dei lavori, "
+                                 "progettista)"),
         ])
         self.tabella.imposta_titolo("Soggetti")
         self.tabella.aggiungi_pulsante("Dall'archivio...", self._dall_archivio)
@@ -795,6 +800,9 @@ class PaginaFasi(Pagina):
             Colonna("descrizione", "Descrizione", "testo_lungo"),
             Colonna("misure", "Misure prima, durante e dopo l'uso", "testo_lungo"),
             Colonna("dpi", "DPI dell'operatore", "testo_lungo"),
+            Colonna("potenza_sonora", "Potenza sonora dB(A)", "decimale", larghezza=130, massimo=200,
+                    suggerimento="Livello di potenza sonora LWA dichiarato dal fabbricante (art. 190): compare nella "
+                                 "tabella del rumore del PSC"),
         ])
         self.scelta_archivio = QComboBox()
         self.scelta_archivio.addItems(sorted(ATTREZZATURE))
@@ -1238,7 +1246,20 @@ class PaginaCosti(Pagina):
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
+        from sicurcantiere.relazione import CATEGORIE_COSTI
+
+        self.prezzario = QLineEdit()
+        self.prezzario.setPlaceholderText("Per esempio: Prezzario regionale delle opere pubbliche 2025")
+        self.prezzario.editingFinished.connect(lambda: self.repo.aggiorna_cantiere(prezzario=self.prezzario.text()))
+        riga = QHBoxLayout()
+        riga.addWidget(QLabel("Prezzario di riferimento:"))
+        riga.addWidget(self.prezzario, 1)
+        self.layout_.addLayout(riga)
         self.tabella = TabellaCrud(repo, "costi", [
+            Colonna("categoria", "Categoria (punto 4.1.1)", "scelta", larghezza=230,
+                    scelte=lambda: [(k, f"{k}) {t}") for k, t in CATEGORIE_COSTI],
+                    suggerimento="Voce dell'Allegato XV punto 4.1.1: il documento raggruppa i costi per categoria "
+                                 "con i subtotali"),
             Colonna("codice", "Codice", larghezza=80),
             Colonna("descrizione", "Descrizione", "testo_lungo"),
             Colonna("unita", "U.M.", larghezza=60),
@@ -1263,29 +1284,60 @@ class PaginaCosti(Pagina):
         )
 
     def aggiorna(self) -> None:
+        self.prezzario.setText(self.repo.cantiere()["prezzario"])
         self.tabella.ricarica()
         self._totale()
+
+    def salva_in_sospeso(self) -> None:
+        self.repo.aggiorna_cantiere(prezzario=self.prezzario.text())
 
 
 class PaginaRelazione(Pagina):
     titolo = "Relazione del PSC"
     voce = "Relazione del PSC"
     icona = "relazione"
-    sezioni_controlli = ("Relazione",)
+    sezioni_controlli = ("Relazione", "Rischi particolari", "Tavole")
+
+    sottotitolo = ("I contenuti del PSC scritti dal coordinatore, divisi come nell'Allegato XV. In ogni riquadro "
+                   "una guida dice cosa scrivere; l'assistente AI può preparare una bozza.")
 
     def __init__(self, repo: Repository):
+        from sicurcantiere.relazione import GRUPPI
+        from sicurcantiere.ui.relazione_psc import AllegatiPSC, RischiParticolari
+
         super().__init__(repo)
-        self.testi = TestiLiberi(repo, SEZIONI, contesto_ai=lambda: contesto_cantiere(repo))
+        self.schede = QTabWidget(self)
+        self.gruppi: list[TestiLiberi] = []
+        for nome, sezioni in GRUPPI:
+            testi = TestiLiberi(repo, [(s.chiave, f"{s.titolo}   ·   {s.riferimento}") for s in sezioni],
+                                contesto_ai=lambda: contesto_cantiere(repo),
+                                guide={s.chiave: s.guida for s in sezioni}, altezza=110)
+            scorrimento = QScrollArea()
+            scorrimento.setWidgetResizable(True)
+            scorrimento.setWidget(testi)
+            self.schede.addTab(scorrimento, nome)
+            self.gruppi.append(testi)
+        self.rischi_particolari = RischiParticolari(repo)
         scorrimento = QScrollArea()
         scorrimento.setWidgetResizable(True)
-        scorrimento.setWidget(self.testi)
-        self.layout_.addWidget(scorrimento)
+        scorrimento.setWidget(self.rischi_particolari)
+        self.schede.addTab(scorrimento, "Rischi particolari e ordigni bellici")
+        self.allegati = AllegatiPSC(repo)
+        self.schede.addTab(self.allegati, "Tavole, foto e logo")
+        self.layout_.addWidget(self.schede)
+        # compatibilità: il primo gruppo di testi
+        self.testi = self.gruppi[0]
 
     def salva_in_sospeso(self) -> None:
-        self.testi.salva_in_sospeso()
+        for testi in self.gruppi:
+            testi.salva_in_sospeso()
+        self.rischi_particolari.salva()
 
     def aggiorna(self) -> None:
-        self.testi.carica()
+        for testi in self.gruppi:
+            testi.carica()
+        self.rischi_particolari.carica()
+        self.allegati.carica()
 
 
 class PaginaFascicolo(Pagina):

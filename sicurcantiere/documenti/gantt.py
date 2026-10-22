@@ -8,11 +8,12 @@ fasi il diagramma si divide in più pagine con la stessa scala dei tempi.
 
 from __future__ import annotations
 
-import os
 from datetime import date, timedelta
 from typing import Any
 
 from sicurcantiere import analisi
+from sicurcantiere.documenti.immagini import applicazione as _applicazione
+from sicurcantiere.documenti.immagini import png
 
 DPI = 220
 LARGHEZZA_CM = 26.0  # A4 orizzontale con margini di 1,8 cm
@@ -22,18 +23,6 @@ MESI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "n
 
 def _px(cm: float) -> int:
     return round(cm / 2.54 * DPI)
-
-
-def _applicazione():
-    """Qt serve per disegnare: nel programma c'è già; altrove (prove) se ne crea una senza finestre."""
-    from PySide6.QtWidgets import QApplication  # completa: chi viene dopo può aprire anche finestre
-
-    app = QApplication.instance()
-    if app is None:
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        app = QApplication(["sicurcantiere"])
-        _applicazione.tenuta = app  # resta viva finché serve
-    return app
 
 
 def _righe(fasi: list[dict[str, Any]]) -> list[tuple[str, dict[str, Any] | None]]:
@@ -67,7 +56,7 @@ def immagini(fasi: list[dict[str, Any]], imprese: dict[int, str], livelli: dict[
 
 
 def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any], pagina: int, totale: int) -> bytes:
-    from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt
+    from PySide6.QtCore import QPointF, QRectF, Qt
     from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen
 
     from sicurcantiere.ui.gantt import (
@@ -84,8 +73,9 @@ def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any]
     giorni += (7 - giorni % 7) % 7  # fino alla domenica
 
     larghezza = _px(LARGHEZZA_CM)
-    etichette, colonna_data, colonna_gg = _px(6.4), _px(1.55), _px(0.95)
-    x0 = etichette + 2 * colonna_data + colonna_gg
+    etichette, colonna_zona, colonna_data, colonna_gg = _px(5.4), _px(1.15), _px(1.55), _px(0.95)
+    x_date = etichette + colonna_zona
+    x0 = x_date + 2 * colonna_data + colonna_gg
     passo = (larghezza - x0 - _px(0.1)) / giorni
     riga_h, testa_h, grafico_h = _px(0.52), _px(0.95), _px(1.05)
     legenda_h = _px(0.9)
@@ -131,9 +121,10 @@ def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any]
     sinistra = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
     p.drawText(QRectF(_px(0.15), 0, etichette, testa_h), sinistra,
                "Lavorazione / fase" + (f"   (pagina {pagina} di {totale})" if totale > 1 else ""))
+    p.drawText(QRectF(etichette, 0, colonna_zona, testa_h), centro, "Zona")
     for i, titolo in enumerate(("Inizio", "Fine")):
-        p.drawText(QRectF(etichette + i * colonna_data, 0, colonna_data, testa_h), centro, titolo)
-    p.drawText(QRectF(etichette + 2 * colonna_data, 0, colonna_gg, testa_h), centro, "gg lav.")
+        p.drawText(QRectF(x_date + i * colonna_data, 0, colonna_data, testa_h), centro, titolo)
+    p.drawText(QRectF(x_date + 2 * colonna_data, 0, colonna_gg, testa_h), centro, "gg lav.")
     meta = testa_h / 2
     for g in range(giorni):
         giorno = origine + timedelta(days=g)
@@ -181,11 +172,14 @@ def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any]
             da, a = analisi.data(f["data_inizio"]), analisi.data(f["data_fine"])
             p.setFont(carattere(6))
             p.setPen(testo2)
+            zona = str(f.get("zona") or "")
+            p.drawText(QRectF(etichette, y, colonna_zona, riga_h), centro,
+                       p.fontMetrics().elidedText(zona, Qt.TextElideMode.ElideRight, colonna_zona - _px(0.1)))
             for i, d in enumerate((da, a)):
-                p.drawText(QRectF(etichette + i * colonna_data, y, colonna_data, riga_h), centro,
+                p.drawText(QRectF(x_date + i * colonna_data, y, colonna_data, riga_h), centro,
                            d.strftime("%d/%m/%y") if d else "—")
             if da and a and a >= da:
-                p.drawText(QRectF(etichette + 2 * colonna_data, y, colonna_gg, riga_h), centro,
+                p.drawText(QRectF(x_date + 2 * colonna_data, y, colonna_gg, riga_h), centro,
                            str(analisi.giorni_lavorativi(da, a)))
                 barra = QRectF(x(da), y + riga_h * 0.22, ((a - da).days + 1) * passo, riga_h * 0.56)
                 p.setPen(Qt.PenStyle.NoPen)
@@ -202,7 +196,7 @@ def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any]
         p.setPen(QPen(linea, 1))
         p.drawLine(QPointF(0, y + riga_h), QPointF(larghezza, y + riga_h))
     p.setPen(QPen(linea_forte, 2))
-    for xc in (etichette, etichette + colonna_data, etichette + 2 * colonna_data, x0):
+    for xc in (etichette, x_date, x_date + colonna_data, x_date + 2 * colonna_data, x0):
         p.drawLine(QPointF(xc, 0), QPointF(xc, fondo_righe))
 
     # --- affollamento e pericolosità ---
@@ -262,10 +256,4 @@ def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any]
         if xl > larghezza - _px(4):
             break
     p.end()
-
-    dati = QByteArray()
-    buffer = QBuffer(dati)
-    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-    immagine.save(buffer, "PNG")
-    buffer.close()
-    return bytes(dati.data())
+    return png(immagine)

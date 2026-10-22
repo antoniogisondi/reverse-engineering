@@ -11,7 +11,7 @@ TABELLE_ELENCO = (
     "soggetti", "imprese", "lavoratori", "fasi", "rischi", "attrezzature",
     "costi", "revisioni", "interventi", "elaborati",
     "valutazioni", "ponteggi", "verifiche_ponteggio", "sostanze", "figure",
-    "mansioni_lavoratori", "sostanze_fasi", "valutazioni_fasi",
+    "mansioni_lavoratori", "sostanze_fasi", "valutazioni_fasi", "allegati_psc",
 )
 ORDINAMENTO = {
     "fasi": "data_inizio IS NULL, data_inizio, id",

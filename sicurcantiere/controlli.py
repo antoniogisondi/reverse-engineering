@@ -81,13 +81,26 @@ def controlla(repo: Repository) -> list[Segnalazione]:
     if not repo.elenco("costi"):
         avviso("Costi", "Stima dei costi della sicurezza vuota.")
 
-    # contenuti minimi del PSC scritti nella relazione (Allegato XV punto 2.1.2)
-    from sicurcantiere.relazione import SEZIONI
+    # contenuti minimi del PSC scritti nella relazione (Allegato XV punti 2.1.2, 2.2 e 2.3)
+    from sicurcantiere import relazione
 
-    obbligatorie = {"area", "organizzazione", "uso_comune", "cooperazione", "emergenze"}
-    for chiave, titolo in SEZIONI:
-        if chiave in obbligatorie and not repo.testo(chiave).strip():
+    for chiave, titolo in relazione.SEZIONI:
+        if chiave in relazione.OBBLIGATORIE and not repo.testo(chiave).strip():
             avviso("Relazione", f"Sezione «{titolo}» da compilare.")
+    if not relazione.leggi_allegato_xi(repo.testo(relazione.CHIAVE_ALLEGATO_XI))["verificato"]:
+        avviso("Rischi particolari", "Verificare i lavori comportanti rischi particolari (Allegato XI).")
+    ordigni = relazione.leggi_ordigni(repo.testo(relazione.CHIAVE_ORDIGNI))
+    con_scavi = relazione.fasi_con_scavi(fasi)
+    if (con_scavi or ordigni["scavi"] == "Sì") and not ordigni["esito"]:
+        errore("Rischi particolari", "Sono previsti scavi: eseguire la valutazione del rischio da ordigni bellici "
+                                    "inesplosi (art. 91, comma 2-bis).")
+    elif con_scavi and ordigni["scavi"] == "No":
+        avviso("Rischi particolari", "È indicato che non ci sono scavi, ma nel cronoprogramma ci sono fasi di scavo.")
+    if not any(a["tipo"] == "Planimetria di cantiere" for a in repo.elenco("allegati_psc")):
+        avviso("Tavole", "Allegare almeno una planimetria del cantiere (Allegato XV punto 2.1.4).")
+    senza_categoria = [c for c in repo.elenco("costi") if not c["categoria"]]
+    if senza_categoria:
+        avviso("Costi", f"{len(senza_categoria)} voci di costo senza categoria del punto 4.1.1 dell'Allegato XV.")
     return s
 
 

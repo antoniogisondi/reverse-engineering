@@ -404,6 +404,23 @@ MIGRAZIONI: list[str] = [
         UNIQUE (documento, capitolo)
     );
     """,
+    # v0.21: PSC completo secondo l'Allegato XV. Sezioni dell'area divise (la vecchia «area» diventa le
+    # caratteristiche dell'area), tavole e foto allegate, categorie dei costi (punto 4.1.1) e prezzario,
+    # data dell'incarico dei soggetti, potenza sonora delle attrezzature (art. 190).
+    """
+    UPDATE relazione SET sezione = 'area_caratteristiche'
+        WHERE sezione = 'area' AND NOT EXISTS (SELECT 1 FROM relazione WHERE sezione = 'area_caratteristiche');
+    CREATE TABLE allegati_psc (
+        id INTEGER PRIMARY KEY,
+        tipo TEXT NOT NULL DEFAULT 'Planimetria di cantiere',
+        titolo TEXT NOT NULL DEFAULT '',
+        file TEXT NOT NULL DEFAULT ''
+    );
+    ALTER TABLE costi ADD COLUMN categoria TEXT NOT NULL DEFAULT '';
+    ALTER TABLE cantiere ADD COLUMN prezzario TEXT NOT NULL DEFAULT '';
+    ALTER TABLE soggetti ADD COLUMN data_incarico TEXT;
+    ALTER TABLE attrezzature ADD COLUMN potenza_sonora REAL NOT NULL DEFAULT 0;
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

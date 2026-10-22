@@ -138,7 +138,7 @@ def dpi_con_icone(doc, testi: list[str], etichetta: str) -> None:
         stile.icone_in_riga(doc.add_paragraph(), [segnaletica.SEGNALI[i].file for i in icone], 0.8)
 
 
-def _schede_attrezzature(attrezzature: list[dict]) -> dict[str, dict]:
+def schede_attrezzature(attrezzature: list[dict]) -> dict[str, dict]:
     """Una scheda per attrezzatura: se la stessa compare in più fasi i testi si uniscono senza doppioni."""
     schede: dict[str, dict] = {}
     for a in attrezzature:
@@ -204,7 +204,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     data_documento = data_it(ultima["data"]) if ultima and ultima["data"] else data_it(date.today())
     valutazioni = valutazioni_impresa(repo, impresa_id)
     sostanze_elenco = sostanze_impresa(repo, impresa_id)
-    schede = _schede_attrezzature(attrezzature)
+    schede = schede_attrezzature(attrezzature)
     ponteggi = repo.elenco("ponteggi", impresa_id=impresa_id)
 
     doc = Document()

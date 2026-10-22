@@ -122,8 +122,8 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     costi = _pagina(f, PaginaCosti)
     f.navigazione.setCurrentRow(f.pagine.index(costi))
     costi.tabella.aggiungi()
-    costi.tabella.salva_cella(0, 3, 10.0)
-    costi.tabella.salva_cella(0, 4, 2.5)
+    costi.tabella.salva_cella(0, _colonna(costi.tabella, "quantita"), 10.0)
+    costi.tabella.salva_cella(0, _colonna(costi.tabella, "prezzo_unitario"), 2.5)
     assert "25,00" in costi.totale.text()
 
     doc = _pagina(f, PaginaDocumenti)

@@ -107,19 +107,33 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 
 ### Il documento finale (PSC, fascicolo, notifica)
 - **Stessa impaginazione del POS**, nei colori arancioni del programma PSC: copertina con
-  committente e firme, indice, revisioni, capitoli numerati con il riferimento di legge.
-- **Capitoli nell'ordine dei contenuti minimi dell'Allegato XV punto 2.1.2**, in quattro parti:
-  - l'opera e i soggetti (lettere a e b);
-  - rischi, scelte e misure: metodo con la matrice P × D colorata, area di cantiere, organizzazione
-    del cantiere, scelte progettuali, lavorazioni con le tabelle dei rischi per fase (lettere c e d);
-  - coordinamento: interferenze con la gravità colorata e le prescrizioni, uso comune, cooperazione,
-    emergenze con i numeri nazionali e le strutture del territorio (lettere e-h);
-  - tempi e costi: cronoprogramma settimanale con le interferenze in rosso, uomini-giorno, stima dei
-    costi della sicurezza non soggetti a ribasso (lettere i e l).
+  committente, firme, logo e dati dello studio del coordinatore, indice, revisioni, capitoli
+  numerati con il riferimento di legge.
+- **Tutti i contenuti dell'Allegato XV** (punti 2.1.2, 2.1.3, 2.1.4, 2.2, 2.3 e 4), in quattro parti:
+  - *l'opera e i soggetti*: dati generali (imprese, lavoratori, uomini-giorno, durata), contesto
+    dell'area con foto e mappe, descrizione dell'opera, soggetti con la data di incarico, imprese
+    con datori di lavoro e subappalti, **organigramma disegnato automaticamente**, documentazione da
+    tenere in cantiere;
+  - *area, organizzazione e lavorazioni*: metodo con le scale di probabilità e danno e la matrice
+    colorata, area di cantiere nelle tre voci del punto 2.2.1, caratteristiche idrogeologiche,
+    **organizzazione del cantiere nelle voci a)-n) del punto 2.2.2**, segnaletica, scelte
+    progettuali, lavorazioni con i rischi per fase, **riepilogo per rischio**, schede di macchine
+    e attrezzature con la **potenza sonora** (art. 190), **lavori a rischio particolare (Allegato
+    XI)** e **valutazione del rischio da ordigni bellici** (art. 91, comma 2-bis);
+  - *coordinamento*: interferenze con gravità e prescrizioni, modalità di verifica del CSE,
+    **procedure complementari da sviluppare nei POS** (punto 2.1.3), uso comune, cooperazione,
+    emergenze con i numeri nazionali e le strutture del territorio;
+  - *tempi e costi*: programma dei lavori, **diagramma di Gantt** su pagine orizzontali (barre per
+    impresa, zone, interferenze in rosso, affollamento e pericolosità), **costi della sicurezza per
+    categoria del punto 4.1.1** con subtotali e prezzario di riferimento.
+- **Tavole allegate** (punto 2.1.4): planimetria, tavola degli scavi, profilo altimetrico, come
+  immagini o **PDF inseriti pagina per pagina** nel documento.
 - Firme del coordinatore, del committente o responsabile dei lavori, del CSE e, per accettazione,
   dei datori di lavoro delle imprese.
-- **Dati da completare** come nel POS: committente, CSP, testi obbligatori della relazione, date e
-  rischi delle fasi, interferenze gravi senza prescrizione, costi.
+- Nella pagina «Relazione del PSC» ogni voce ha la sua guida alla compilazione e la bozza con l'AI;
+  i controlli segnalano voci obbligatorie vuote, Allegato XI non verificato, scavi senza valutazione
+  degli ordigni, planimetria mancante, costi senza categoria.
+- **Dati da completare** come nel POS.
 - **Fascicolo dell'opera** con le schede dell'Allegato XVI e **notifica preliminare** con le voci
   dell'Allegato XII, con la stessa grafica e i dati mancanti evidenziati.
 
@@ -311,6 +325,9 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
      scaduto nelle date del cantiere.
 3. **Documenti composti, prossimi passi**: allegati in PDF uniti in coda con la numerazione,
    esportazione in PDF, composizione salvata anche per il PiMUS.
+3. **Strumenti del CSE durante i lavori**: verbali di sopralluogo e di riunione di coordinamento,
+   verifica dei POS ricevuti (art. 92), verifica dell'idoneità tecnico-professionale (Allegato XVII),
+   registro delle prescrizioni e delle sospensioni, avviso ai condomini o ai terzi.
 4. **Idee per distinguersi**, da scegliere:
    - verifica automatica, punto per punto, che il POS risponda alle richieste del PSC letto (la
      lettura è già salvata nel file);

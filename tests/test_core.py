@@ -901,3 +901,81 @@ def test_codice_automatico_delle_fasi(repo):
     repo.inserisci("fasi", codice="XY.03", descrizione="b", lavorazione="Opere speciali")
     assert repo.codice_automatico("Opere speciali") == "XY.04"
     assert repo.codice_automatico("Lavorazione mai vista") == "UT.02"
+
+
+def test_psc_completo_allegato_xv(repo, tmp_path):
+    import json
+
+    from PySide6.QtGui import QColor, QImage
+
+    from sicurcantiere import relazione
+
+    _cantiere_completo(repo)
+    repo.inserisci("soggetti", ruolo="Coordinatore per la progettazione (CSP)", nome="Geom. Bianchi",
+                   indirizzo="Via Bologna 15, Lavello", telefono="333 1234567", data_incarico="2025-06-25")
+    repo.salva_testo("contesto", "Condominio abitato in zona urbana.")
+    repo.salva_testo("org_servizi", "Servizi igienici dell'appartamento.")
+    repo.salva_testo(relazione.CHIAVE_ALLEGATO_XI, json.dumps(
+        {"verificato": True, "voci": {"4": {"presente": True, "misure": "Distanza minima dalle linee aeree"}}}))
+    repo.salva_testo(relazione.CHIAVE_ORDIGNI, json.dumps(
+        {"scavi": "Sì", "esito": relazione.ESITI_ORDIGNI[1], "motivazione": "Area già scavata negli anni '80"}))
+    repo.inserisci("costi", categoria="a", descrizione="Recinzione", unita="m", quantita=100, prezzo_unitario=10)
+    repo.inserisci("costi", categoria="c", descrizione="Impianto di terra", unita="cad", quantita=1,
+                   prezzo_unitario=300)
+    immagine = QImage(400, 300, QImage.Format.Format_RGB32)
+    immagine.fill(QColor("#88AACC"))
+    immagine.save(str(tmp_path / "planimetria.png"))
+    repo.inserisci("allegati_psc", tipo="Planimetria di cantiere", titolo="Layout", file=str(tmp_path / "planimetria.png"))
+    f = repo.elenco("fasi")[0]
+    a = repo.inserisci("attrezzature", fase_id=f["id"], tipo="Attrezzo", nome="Martello demolitore",
+                       potenza_sonora=113)
+
+    doc = Document(genera_psc(repo, tmp_path / "psc.docx"))
+    testo = _testo_docx(tmp_path / "psc.docx")
+    for atteso in ("Condominio abitato in zona urbana.", "Servizi igienici dell'appartamento.",
+                   "Recinzione, accessi e segnalazioni", "Lavori comportanti rischi particolari",
+                   "Distanza minima dalle linee aeree", "Area già scavata negli anni '80",
+                   "a) Apprestamenti previsti nel PSC", "Totale della categoria", "€ 1.300,00",
+                   "Organigramma del cantiere", "Documentazione da custodire in cantiere",
+                   "Rischi individuati e lavorazioni in cui compaiono", "113,0 dB(A)", "Tavole allegate",
+                   "Via Bologna 15, Lavello", "25/06/2025", "Procedure complementari"):
+        assert atteso in testo, atteso
+    assert "[Da compilare: planimetria" not in testo
+    assert len(doc.inline_shapes) >= 3  # organigramma, Gantt, planimetria
+    assert a
+
+
+def test_migrazione_sezione_area(tmp_path):
+    import sqlite3
+
+    from sicurcantiere.db import MIGRAZIONI
+
+    percorso = tmp_path / "vecchio.scs"
+    conn = sqlite3.connect(percorso)
+    n = len(MIGRAZIONI) - 1
+    conn.executescript(";".join(MIGRAZIONI[:n]) + f";PRAGMA user_version = {n};")
+    conn.execute("INSERT INTO relazione (sezione, testo) VALUES ('area', 'Area pianeggiante.')")
+    conn.commit()
+    conn.close()
+    r = Repository(Progetto(percorso))
+    assert r.testo("area_caratteristiche") == "Area pianeggiante."
+
+
+def test_tavola_pdf_nel_psc(repo, tmp_path):
+    from PySide6.QtGui import QPageSize, QPainter, QPdfWriter
+
+    from sicurcantiere.documenti.immagini import applicazione
+
+    applicazione()
+    pdf = tmp_path / "tavola.pdf"
+    scrittore = QPdfWriter(str(pdf))
+    scrittore.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+    pittore = QPainter(scrittore)
+    pittore.drawText(200, 200, "Planimetria")
+    scrittore.newPage()
+    pittore.drawText(200, 200, "Sezione")
+    pittore.end()
+    repo.inserisci("allegati_psc", tipo="Planimetria di cantiere", titolo="Planimetria", file=str(pdf))
+    doc = Document(genera_psc(repo, tmp_path / "psc.docx"))
+    testo = _testo_docx(tmp_path / "psc.docx")
+    assert "tavola.pdf · pagina 2 di 2" in testo and len(doc.inline_shapes) >= 2
