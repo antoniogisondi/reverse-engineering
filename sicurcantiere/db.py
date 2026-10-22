@@ -372,6 +372,38 @@ MIGRAZIONI: list[str] = [
     ALTER TABLE imprese ADD COLUMN figure_non_presenti TEXT NOT NULL DEFAULT '';
     ALTER TABLE imprese ADD COLUMN figure_motivazione TEXT NOT NULL DEFAULT '';
     """,
+    # v0.19: documenti composti e salvati nel cantiere (bozze, versioni emesse e consegnate) e
+    # personalizzazioni dei capitoli, che restano quando si ricompone.
+    """
+    CREATE TABLE composizioni (
+        id INTEGER PRIMARY KEY,
+        documento TEXT NOT NULL,
+        numero INTEGER NOT NULL DEFAULT 0,
+        descrizione TEXT NOT NULL DEFAULT '',
+        stato TEXT NOT NULL DEFAULT 'bozza',
+        composta_il TEXT,
+        emessa_il TEXT,
+        consegnata_il TEXT,
+        consegnata_a TEXT NOT NULL DEFAULT '',
+        conferma TEXT NOT NULL DEFAULT '',
+        modificata_word INTEGER NOT NULL DEFAULT 0,
+        revisione_id INTEGER,
+        capitoli TEXT NOT NULL DEFAULT '[]',
+        mancanti TEXT NOT NULL DEFAULT '[]',
+        file BLOB
+    );
+    CREATE TABLE personalizzazioni (
+        id INTEGER PRIMARY KEY,
+        documento TEXT NOT NULL,
+        capitolo TEXT NOT NULL,
+        titolo TEXT NOT NULL DEFAULT '',
+        modo TEXT NOT NULL DEFAULT 'aggiungi',
+        testo TEXT NOT NULL DEFAULT '',
+        impronta TEXT NOT NULL DEFAULT '',
+        escluso INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (documento, capitolo)
+    );
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)

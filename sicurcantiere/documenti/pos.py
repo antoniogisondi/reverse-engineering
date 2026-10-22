@@ -11,6 +11,7 @@ from docx.shared import Cm
 
 from sicurcantiere import anagrafiche, analisi, segnaletica
 from sicurcantiere.documenti import stile
+from sicurcantiere.documenti.composizione import CONSIGLIATO, FACOLTATIVO, OBBLIGATORIO, Manca, segnaposto
 from sicurcantiere.documenti.comune import data_it, euro, indirizzo_cantiere, nome_fase, salva
 from sicurcantiere.documenti.sostanze import aggiungi_sostanze, sostanze_impresa
 from sicurcantiere.documenti.valutazione import aggiungi_valutazione, lavorazioni_valutazione, valutazioni_impresa
@@ -160,6 +161,27 @@ def _schede_attrezzature(attrezzature: list[dict]) -> dict[str, dict]:
 TIPI_ATTREZZATURA = ("Macchina", "Attrezzo", "Opera provvisionale", "Impianto")
 
 
+def _o(valore, dato: str, sezione: str, livello: str = OBBLIGATORIO):
+    """Il valore, o il dato mancante da segnalare nel documento."""
+    return valore if str(valore or "").strip() and valore != "-" else Manca(dato, sezione, livello)
+
+
+def _figure_mancanti(repo: Repository, impresa: dict) -> list[tuple[str, Manca]]:
+    """Figure richieste dal D.Lgs. 81/2008 non indicate né dichiarate non presenti: (ruolo, dato mancante)."""
+    elenco = anagrafiche.figure(repo, impresa)
+    ruoli = {anagrafiche.ruolo_riconosciuto(f["ruolo"]) for f in elenco if f["nome"].strip()}
+    ruoli |= {r for r, _ in anagrafiche.figure_non_presenti(impresa)}
+    mancanti = []
+    for richiesti, _, grave in anagrafiche.FIGURE_OBBLIGATORIE:
+        if ruoli & set(richiesti):
+            continue
+        ruolo = "RLS o RLST" if richiesti[0] == "RLS" else richiesti[0]
+        mancanti.append((ruolo, Manca(f"nominativo: {ruolo if ruolo.split()[0].isupper() else ruolo.lower()}"
+                                      + ("" if grave else " (o dichiararlo non presente)"),
+                                      "Figure della sicurezza", OBBLIGATORIO if grave else CONSIGLIATO)))
+    return mancanti
+
+
 def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> Path:
     impresa = repo.leggi("imprese", impresa_id)
     if impresa is None:
@@ -202,9 +224,11 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         comune=comune,
         titolo="Piano operativo di sicurezza",
         riferimento="D.Lgs. 9 aprile 2008, n. 81 · art. 89 c. 1 lett. h), art. 96 e Allegato XV punto 3.2",
-        voci=[("Cantiere", indirizzo_cantiere(c)), ("Opera", c["nome"] or c["descrizione"]),
-              ("Committente", committente["nome"] if committente else ""),
-              ("Lavori affidati", impresa["tipologia_lavori"])],
+        voci=[("Cantiere", _o(indirizzo_cantiere(c), "indirizzo del cantiere", "Cantiere")),
+              ("Opera", _o(c["nome"] or c["descrizione"], "denominazione dell'opera", "Cantiere")),
+              ("Committente", _o(committente["nome"] if committente else "", "committente", "Committente")),
+              ("Lavori affidati", _o(impresa["tipologia_lavori"], "tipologia dei lavori affidati", "Impresa",
+                                     CONSIGLIATO))],
         data_luogo=f"{c['comune'] or ''}, {data_documento}".strip(", "),
         firme=firme_copertina,
         impresa=[impresa["ragione_sociale"], anagrafiche.sede(impresa),
@@ -230,12 +254,13 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
 
     stile.capitolo(doc, "Dati generali del lavoro", "Allegato XV punto 3.2.1, lettera a), punto 1")
     stile.scheda(doc, [
-        ("Opera", c["nome"]),
-        ("Natura dell'opera", c["natura_opera"]),
-        ("Indirizzo del cantiere", indirizzo_cantiere(c)),
+        ("Opera", _o(c["nome"], "denominazione dell'opera", "Cantiere")),
+        ("Natura dell'opera", _o(c["natura_opera"], "natura dell'opera", "Cantiere", CONSIGLIATO)),
+        ("Indirizzo del cantiere", _o(indirizzo_cantiere(c), "indirizzo del cantiere", "Cantiere")),
         ("CAP", c["cap"]),
-        ("Titolo abilitativo", c["titolo_abilitativo"]),
-        ("Importo presunto dei lavori", euro(c["importo_lavori"]) if c["importo_lavori"] else ""),
+        ("Titolo abilitativo", _o(c["titolo_abilitativo"], "titolo abilitativo", "Cantiere", FACOLTATIVO)),
+        ("Importo presunto dei lavori", euro(c["importo_lavori"]) if c["importo_lavori"] else
+         Manca("importo presunto dei lavori", "Cantiere", FACOLTATIVO)),
         ("Inizio dei lavori", data_it(periodo[0]) if periodo else (data_it(impresa["data_inizio"])
                                                                   if impresa["data_inizio"] else "")),
         ("Fine dei lavori (presunta)", data_it(periodo[1]) if periodo else (data_it(impresa["data_fine"])
@@ -261,32 +286,39 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                 ("Codice fiscale", s["codice_fiscale"]), ("Partita IVA", s["partita_iva"]),
             ])
     else:
-        stile.testo(doc, "", "Committente e coordinatori da indicare nella pagina «Committente e CSE».")
+        stile.testo(doc, "", "committente e coordinatori da indicare nella pagina «Committente e CSE»",
+                    "Committente", OBBLIGATORIO)
 
     stile.capitolo(doc, "Impresa esecutrice", "Allegato XV punto 3.2.1, lettera a), punto 1")
     affidataria = repo.leggi("imprese", impresa["affidataria_id"]) if impresa["affidataria_id"] else None
     stile.scheda(doc, titolo="Dati identificativi", voci=[
-        ("Ragione sociale", impresa["ragione_sociale"]),
+        ("Ragione sociale", _o(impresa["ragione_sociale"], "ragione sociale dell'impresa", "Impresa")),
         ("Ruolo nel cantiere", impresa["tipo"]),
         ("Forma giuridica", impresa["forma_giuridica"]),
-        ("Datore di lavoro", datore),
+        ("Datore di lavoro", _o(datore, "datore di lavoro", "Impresa")),
         ("Referente", impresa["referente"]),
-        ("Sede legale", anagrafiche.sede(impresa)),
-        ("Telefono / fax", " · ".join(v for v in (impresa["telefono"], impresa["fax"]) if v)),
+        ("Sede legale", _o(anagrafiche.sede(impresa) if impresa["indirizzo"].strip() else "",
+                           "indirizzo della sede legale", "Impresa")),
+        ("Telefono / fax", _o(" · ".join(v for v in (impresa["telefono"], impresa["fax"]) if v),
+                              "telefono dell'impresa", "Impresa", CONSIGLIATO)),
         ("Email / PEC", " · ".join(v for v in (impresa["email"], impresa["pec"]) if v)),
-        ("Recapito in cantiere", impresa["recapito_cantiere"]),
-        ("Codice fiscale", impresa["codice_fiscale"]),
+        ("Recapito in cantiere", _o(impresa["recapito_cantiere"], "recapito dell'ufficio di cantiere", "Impresa",
+                                    FACOLTATIVO)),
+        ("Codice fiscale", impresa["codice_fiscale"] if impresa["codice_fiscale"] or impresa["partita_iva"]
+         else Manca("codice fiscale o partita IVA dell'impresa", "Impresa", CONSIGLIATO)),
         ("Partita IVA", impresa["partita_iva"]),
         ("Registro imprese / CCIAA", impresa["cciaa"]),
         ("Codice ATECO", impresa["ateco"]),
     ])
     stile.scheda(doc, titolo="Posizioni assicurative, contratto e qualificazione", voci=[
-        ("Posizione INAIL", impresa["inail"]),
-        ("Matricola INPS", impresa["inps"]),
-        ("Cassa edile", impresa["cassa_edile"]),
-        ("Contratto collettivo applicato", impresa["ccnl"]),
+        ("Posizione INAIL", _o(impresa["inail"], "posizione INAIL", "Impresa", CONSIGLIATO)),
+        ("Matricola INPS", _o(impresa["inps"], "matricola INPS", "Impresa", CONSIGLIATO)),
+        ("Cassa edile", _o(impresa["cassa_edile"], "cassa edile", "Impresa", FACOLTATIVO)),
+        ("Contratto collettivo applicato", _o(impresa["ccnl"], "contratto collettivo applicato", "Impresa",
+                                              FACOLTATIVO)),
         ("Organico medio annuo", impresa["organico"]),
-        ("DURC valido fino al", data_it(impresa["durc_scadenza"]) if impresa["durc_scadenza"] else ""),
+        ("DURC valido fino al", data_it(impresa["durc_scadenza"]) if impresa["durc_scadenza"] else
+         Manca("scadenza del DURC", "Impresa", FACOLTATIVO)),
         ("Documento di valutazione dei rischi del", data_it(impresa["dvr_data"]) if impresa["dvr_data"] else ""),
         ("Attestazione SOA", impresa["soa"]),
         ("Certificazioni", impresa["certificazioni"]),
@@ -297,7 +329,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         ("Tipologia dei lavori affidati", impresa["tipologia_lavori"]),
         ("Importo dei lavori da eseguire", euro(impresa["importo_lavori"]) if impresa["importo_lavori"] else ""),
         ("Periodo dei lavori dell'impresa", _periodo(impresa, periodo)),
-        ("Orario di lavoro", impresa["orario_lavoro"]),
+        ("Orario di lavoro", _o(impresa["orario_lavoro"], "orario di lavoro", "Impresa", CONSIGLIATO)),
         ("Soggetto incaricato dei compiti dell'impresa affidataria (art. 97)",
          " · ".join(v for v in (impresa["incaricato_97"], impresa["incaricato_97_mansione"]) if v)),
     ])
@@ -330,6 +362,10 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                                larghezze=[4.2, 4.2, 4.4, 4.6])
     for ruolo, motivazione in non_presenti:
         stile.nota(doc, f"{ruolo}: figura non presente. {motivazione}")
+    for ruolo, manca in _figure_mancanti(repo, impresa):
+        p = doc.add_paragraph()
+        stile._run(p, f"{ruolo}: ", grassetto=True)
+        segnaposto(doc, p, manca)
     stile.sezione(doc, "Specifiche mansioni inerenti la sicurezza")
     ruoli = ([anagrafiche.DATORE] if datore else []) + list(dict.fromkeys(f["ruolo"] for f in figure))
     for ruolo in ruoli:
@@ -365,7 +401,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
              l["indirizzo"], " - ".join(data_it(d) for d in (l["data_inizio"], l["data_fine"]) if d)]
             for n, l in enumerate(autonomi, 1)], larghezze=[0.9, 3.6, 3, 3, 3.6, 3.3])
     if not lavoratori:
-        stile.testo(doc, "", "Lavoratori da indicare nella scheda «Maestranze» dell'impresa.")
+        stile.testo(doc, "", "numero e qualifiche dei lavoratori, da indicare nella scheda «Maestranze» "
+                             "dell'impresa", "Lavoratori", OBBLIGATORIO)
 
     # ===== Parte 2 =====
     stile.parte(doc, "2", "Attività e valutazione dei rischi",
@@ -374,8 +411,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
 
     stile.capitolo(doc, "Attività di cantiere, modalità organizzative e turni di lavoro",
                    "Allegato XV punto 3.2.1, lettera a), punto 2, e lettera c)")
-    stile.testo(doc, sezioni["attivita"], "Descrivere le attività, le modalità organizzative e i turni nei "
-                                          "«Testi del POS» dell'impresa.")
+    stile.testo(doc, sezioni["attivita"], "descrizione delle attività, delle modalità organizzative e dei turni "
+                                          "(«Testi del POS» dell'impresa)", "Testi del POS", OBBLIGATORIO)
     if fasi:
         stile.banda(doc, "Lavorazioni e fasi svolte dall'impresa")
         righe, corrente = [], object()
@@ -385,7 +422,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
             corrente = f["lavorazione"]
         stile.tabella_colorata(doc, ["Lavorazione", "Fase", "Addetto"], righe, larghezze=[5.4, 7, 5])
     else:
-        stile.testo(doc, "", "Nessuna lavorazione assegnata all'impresa.")
+        stile.testo(doc, "", "lavorazioni svolte dall'impresa (nessuna lavorazione assegnata)", "Lavorazioni",
+                    OBBLIGATORIO)
 
     lavorazione_corrente = object()
     mansioni = {l["id"]: repo.mansioni(l["id"]) for l in lavoratori}
@@ -429,7 +467,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                                 + "; ".join(f"{v['titolo'] or METODI[v['metodo']].nome} - {_esito_breve(repo, v)[1]}"
                                             for v in collegate) + ".")
         else:
-            stile.testo(doc, "", "Nessun rischio valutato per questa fase.")
+            stile.testo(doc, "", f"rischi della fase {nome_fase(f)} (nessun rischio valutato)", "Rischi",
+                        OBBLIGATORIO)
         _dpi_con_icone(doc, [r["dpi"] for r in struttura["rischi_lavorazione"]], "DPI dell'addetto:")
         esclusi = repo.rischi_esclusi(fase_id=f["id"])
         if esclusi:
@@ -452,7 +491,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         stile.nota(doc, "Macchine, attrezzature e opere provvisionali sono ad uso dell'impresa esecutrice, salvo "
                         "diversa indicazione nel PSC o negli accordi con l'impresa affidataria.")
     else:
-        stile.testo(doc, "", "Nessuna macchina, attrezzatura od opera provvisionale indicata nelle lavorazioni.")
+        stile.testo(doc, "", "macchine, attrezzature e opere provvisionali usate (nessuna indicata nelle "
+                             "lavorazioni)", "Lavorazioni", CONSIGLIATO)
     for macchine, titolo in ((True, "Macchine utilizzate nelle lavorazioni"),
                              (False, "Attrezzature e opere provvisionali utilizzate nelle lavorazioni")):
         elenco_schede = [s for s in sorted(schede.values(), key=lambda s: s["nome"])
@@ -506,8 +546,9 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                 [v["mansione"] or v["titolo"], *_esito_breve(repo, v)] for v in elenco_v], larghezze=[6, 4, 7.4])
             stile.nota(doc, "Calcoli e misure di dettaglio nel capitolo «Valutazioni dei rischi specifici».")
         if metodo == "rumore" and (sezioni["rumore"].strip() or not elenco_v):
-            stile.testo(doc, sezioni["rumore"], "Riportare l'esito della valutazione del rumore (art. 190) o "
-                                                "inserire la valutazione nella pagina «Valutazioni».")
+            stile.testo(doc, sezioni["rumore"], "esito della valutazione del rumore (art. 190), oppure la "
+                                                "valutazione nella pagina «Valutazioni»", "Testi del POS",
+                        OBBLIGATORIO)
 
     eseguibili = [v for v in valutazioni if v["metodo"] in METODI]
     if eseguibili:
@@ -526,13 +567,14 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                 "segnaletica e documenti (Allegato XV punto 3.2.1, lettere g, h, i, l).")
 
     stile.capitolo(doc, dict(SEZIONI_POS)["integrative"], "Allegato XV punto 3.2.1, lettera g)")
-    stile.testo(doc, sezioni["integrative"], "Indicare le misure integrative rispetto a quelle del PSC, se previste.")
+    stile.testo(doc, sezioni["integrative"], "misure integrative rispetto a quelle del PSC, se previste",
+                "Testi del POS", CONSIGLIATO)
     stile.nota(doc, "Le misure di prevenzione specifiche di ciascuna fase sono riportate nelle tabelle dei rischi "
                     "del capitolo «Attività di cantiere, modalità organizzative e turni di lavoro».")
 
     stile.capitolo(doc, dict(SEZIONI_POS)["procedure"], "Allegato XV punto 3.2.1, lettera h)")
-    stile.testo(doc, sezioni["procedure"], "Indicare le procedure complementari e di dettaglio richieste dal PSC, "
-                                           "se previste.")
+    stile.testo(doc, sezioni["procedure"], "procedure complementari e di dettaglio richieste dal PSC, se previste",
+                "Testi del POS", CONSIGLIATO)
     con_procedure = [f for f in fasi if f["procedure_psc"].strip()]
     if con_procedure:
         stile.tabella_colorata(doc, ["Fase", "Procedura richiesta dal PSC"],
@@ -554,7 +596,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
             dimensione_testo=6.5)
         stile.elenco_colonne(doc, dpi)
     elif not con_dpi:
-        stile.testo(doc, "", "DPI da indicare per i lavoratori o nelle schede di rischio.")
+        stile.testo(doc, "", "DPI forniti ai lavoratori, da indicare per i lavoratori o nelle schede di rischio",
+                    "Lavoratori", OBBLIGATORIO)
 
     stile.capitolo(doc, "Informazione, formazione e addestramento", "Allegato XV punto 3.2.1, lettera l), e "
                                                                     "artt. 36, 37 e 77")
@@ -563,7 +606,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                       "cantiere.")
     if dipendenti:
         stile.tabella_colorata(doc, ["Lavoratore", "Qualifica", "Informazione, formazione e addestramento"], [
-            [anagrafiche.nominativo(l), l["mansione"], "; ".join(anagrafiche.formazione_lavoratore(l)) or "-"]
+            [anagrafiche.nominativo(l), l["mansione"], "; ".join(anagrafiche.formazione_lavoratore(l))
+             or Manca(f"formazione di {anagrafiche.nominativo(l) or 'un lavoratore'}", "Lavoratori", CONSIGLIATO)]
             for l in dipendenti], larghezze=[4.4, 3.6, 9.4])
 
     stile.capitolo(doc, "Primo soccorso, antincendio ed evacuazione",
@@ -577,11 +621,12 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         stile.scheda(doc, [(r, ", ".join(dict.fromkeys(n))) for r, n in per_ruolo.items()])
     stile.banda(doc, "Numeri di emergenza")
     stile.scheda(doc, [(nome, numero) for nome, numero in NUMERI_EMERGENZA])
-    if sezioni["telefoni"].strip():
-        stile.banda(doc, "Telefoni e indirizzi utili locali")
-        stile.testo(doc, sezioni["telefoni"])
+    stile.banda(doc, "Telefoni e indirizzi utili locali")
+    stile.testo(doc, sezioni["telefoni"], "telefoni e indirizzi utili locali (pronto soccorso, Vigili del fuoco, "
+                                          "ASL...)", "Testi del POS", CONSIGLIATO)
     stile.banda(doc, "Gestione delle emergenze")
-    stile.testo(doc, sezioni["emergenze"], "Descrivere la gestione delle emergenze nei «Testi del POS».")
+    stile.testo(doc, sezioni["emergenze"], "gestione delle emergenze: primo soccorso, antincendio ed evacuazione",
+                "Testi del POS", OBBLIGATORIO)
     stile.griglia_immagini(doc, [(segnaletica.SEGNALI[k].file, segnaletica.SEGNALI[k].testo)
                                  for k in ("soccorso", "estintore")], colonne=4, lato_cm=2.0)
 

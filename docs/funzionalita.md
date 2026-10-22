@@ -4,7 +4,8 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.18.1, ottobre 2026.*
+*Ultimo aggiornamento: versione 0.18.1 e novità della prossima versione (documenti composti, dati da
+completare), ottobre 2026.*
 
 ## Lo scopo
 
@@ -154,6 +155,48 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   - allegati riportati solo se pertinenti.
 - Tabella delle revisioni, con la data del documento presa dall'ultima revisione.
 
+### Documenti composti: bozza, emissione, consegna (POS e PSC)
+- **Il documento resta salvato nel cantiere**, con lo storico delle revisioni. Per ognuna si
+  vedono stato, data, descrizione e dati mancanti.
+- **Stati**:
+  - *bozza*: si ricompone quante volte serve, con la filigrana BOZZA;
+  - *emessa*: versione definitiva bloccata; per cambiarla si compone la revisione successiva;
+  - *consegnata*: con destinatario e data;
+  - *annullata*: resta nello storico ma non vale più.
+- **Revisioni automatiche**: ogni composizione scrive la sua riga nella tabella delle revisioni del
+  documento (numero, data, motivo).
+- **Modifica in Word senza perdere il collegamento**: la bozza si apre in Word, si modifica e si
+  riprende nel cantiere; le revisioni emesse si aprono in sola lettura.
+- **Capitoli su misura che restano quando si ricompone** (dove gli altri programmi perdono le
+  modifiche):
+  - togliere un capitolo;
+  - aggiungere un testo in fondo al capitolo;
+  - sostituirne il contenuto (titolo e riferimento di legge restano);
+  - se poi cambiano i dati da cui il capitolo era composto, il programma avvisa di ricontrollare
+    il testo scritto a mano.
+- **Confronto tra due revisioni**, capitolo per capitolo: capitoli aggiunti, tolti e righe
+  cambiate.
+- Esportazione in Word della revisione scelta.
+
+### Dati da completare (al posto dei campi tra simboli degli altri programmi)
+- Ogni dato mancante è classificato:
+  - *obbligatorio per legge* (contenuti minimi dell'Allegato XV);
+  - *consigliato*;
+  - *facoltativo*: non si stampa, compare solo nell'elenco.
+- **Nella bozza**:
+  - il dato mancante è evidenziato in giallo con un testo chiaro, per esempio
+    "[Da compilare: nominativo RSPP]";
+  - un commento di Word accanto dice in quale pagina del programma si compila;
+  - prima dell'indice c'è la pagina "Dati da completare" con tutti i mancanti, divisi per livello,
+    con capitolo e pagina del programma.
+- **Nel programma**: l'elenco "Dati da completare" della bozza; con un doppio clic si va alla
+  pagina in cui il dato si compila.
+- **All'emissione**:
+  - spariscono filigrana, riepilogo ed evidenziazioni;
+  - i dati rimasti vuoti diventano righe da compilare a mano;
+  - con dati obbligatori mancanti serve una conferma esplicita con il motivo, che resta registrata
+    con la revisione.
+
 ### Controlli prima della stampa
 - Errori e avvisi per ogni pagina, ciascuno con il collegamento alla pagina da correggere. Per
   esempio: DURC o idoneità scaduti, figure obbligatorie mancanti, rischi senza misure,
@@ -230,6 +273,20 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
    sede in `ai.env`.
 2. **Sito di vendita**: presentazione, prezzi, acquisto della licenza e download.
 3. **SicurCantiere DVR.**
+3. **SicurCantiere Formazione** (quarto programma della suite, idea approvata da sviluppare):
+   - stesso archivio di aziende e lavoratori degli altri programmi;
+   - struttura clienti → aziende → lavoratori → attestati;
+   - corsi richiesti per ogni mansione, con chi è scoperto o in scadenza;
+   - scadenzario con le scadenze già impostate per i corsi più comuni (lavoratori, preposto,
+     antincendio, primo soccorso, attrezzature, ponteggi), da ricontrollare sul nuovo Accordo
+     Stato-Regioni del 2025;
+   - email di promemoria ai clienti con l'elenco di chi scade;
+   - calendario dei corsi, registro presenze, test di verifica, attestati numerati;
+   - lettura degli attestati in PDF con l'AI (corso, data, ore);
+   - collegamento al POS: formazione dei lavoratori stampata in automatico e avviso se un corso è
+     scaduto nelle date del cantiere.
+3. **Documenti composti, prossimi passi**: allegati in PDF uniti in coda con la numerazione,
+   esportazione in PDF, composizione salvata anche per il PiMUS.
 4. **Idee per distinguersi**, da scegliere:
    - verifica automatica, punto per punto, che il POS risponda alle richieste del PSC letto (la
      lettura è già salvata nel file);
@@ -239,7 +296,6 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
    - scadenzario di tutti i cantieri (DURC, idoneità, formazione, verifiche) con le email di
      sollecito;
    - modelli di cantiere tipo che si arricchiscono con l'uso;
-   - revisioni con l'elenco automatico delle modifiche;
    - sopralluogo dal telefono con il verbale;
    - importazione dei vecchi documenti per chi arriva da altri programmi;
    - assistente AI che cita l'articolo di legge di ogni suggerimento.

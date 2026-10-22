@@ -21,6 +21,8 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
+from sicurcantiere.documenti.composizione import CONSIGLIATO, Manca, blocco, contesto, segna, segnaposto
+
 # Caratteri Ubuntu (Ubuntu Font Licence): l'installatore li installa in Windows, così Word li mostra;
 # salvando da Word con «incorpora i caratteri» li vede anche chi riceve il documento.
 CARATTERE = "Ubuntu"
@@ -317,6 +319,8 @@ def parte(doc, numero: str, titolo: str, descrizione: str = "") -> None:
     p.paragraph_format.page_break_before = True
     _spaziatura(p, 0, 2)
     _run(p, f"PARTE {numero}", 8.5, ACCENTO, grassetto=True)
+    contesto(doc).confini.append(p._p)  # chiude il capitolo precedente
+    contesto(doc).capitolo = ""
     p = doc.add_paragraph()
     _spaziatura(p, 0, 4 if descrizione else 14)
     _bordo_paragrafo(p, ("bottom",), ACCENTO, 18, 6)
@@ -331,6 +335,7 @@ def capitolo(doc, titolo: str, riferimento: str = "", nuova_pagina: bool = False
     """Capitolo numerato (1, 2, 3...) con filetto colorato e riferimento di legge sotto."""
     n = _numeri(doc)
     n[0], n[1], n[2] = n[0] + 1, 0, 0
+    contesto(doc).capitolo = f"{n[0]} {titolo}"
     h = doc.add_heading(level=1)
     h.paragraph_format.page_break_before = nuova_pagina
     _bordo_paragrafo(h, ("bottom",), ACCENTO, 12, 4)
@@ -377,7 +382,12 @@ def banda(doc, testo: str) -> None:
 def scheda(doc, voci: list[tuple[str, Any]], larghezza_etichetta: float = 5.2, titolo: str = "") -> None:
     """Elenco etichetta-valore a righe sottili; le voci vuote non compaiono, e se sono tutte vuote
     non compare neanche il titolo del gruppo."""
-    voci = [(e, str(v).strip()) for e, v in voci if v not in (None, "", "-") and str(v).strip()]
+    voci = [(e, v if isinstance(v, Manca) else str(v).strip()) for e, v in voci
+            if isinstance(v, Manca) or (v not in (None, "", "-") and str(v).strip())]
+    for e, v in voci:
+        if isinstance(v, Manca) and v.livello == "facoltativo":
+            segna(doc, v)  # i facoltativi non si stampano: solo nel riepilogo della bozza
+    voci = [(e, v) for e, v in voci if not (isinstance(v, Manca) and v.livello == "facoltativo")]
     if not voci:
         return
     if titolo:
@@ -392,6 +402,11 @@ def scheda(doc, voci: list[tuple[str, Any]], larghezza_etichetta: float = 5.2, t
         p = celle[0].paragraphs[0]
         _spaziatura(p)
         _run(p, etichetta, 8.5, TESTO3)
+        if isinstance(valore, Manca):
+            p = celle[1].paragraphs[0]
+            _spaziatura(p)
+            segnaposto(doc, p, valore)
+            continue
         for n, testo in enumerate(valore.split("\n")):
             p = celle[1].paragraphs[0] if n == 0 else celle[1].add_paragraph()
             _spaziatura(p)
@@ -474,11 +489,14 @@ def nota(doc, testo: str, avviso: bool = False) -> None:
     _run(p, testo, 8.5, AVVISO if avviso else TESTO2)
 
 
-def testo(doc, contenuto: str, vuoto: str = "Sezione da compilare.") -> None:
-    """Testo libero con un paragrafo per riga; se manca, un segnaposto evidenziato."""
+def testo(doc, contenuto: str, vuoto: str = "Sezione da compilare.", sezione: str = "",
+          livello: str = CONSIGLIATO) -> None:
+    """Testo libero con un paragrafo per riga; se manca, un segnaposto evidenziato con la guida `vuoto`
+    (nella versione emessa diventa righe da compilare a mano)."""
     righe = [r.strip() for r in (contenuto or "").strip().split("\n")]
     if not any(righe):
-        nota(doc, vuoto, avviso=True)
+        if vuoto:
+            blocco(doc, Manca(vuoto.rstrip("."), sezione, livello))
         return
     for riga in righe:
         if not riga:
@@ -566,6 +584,12 @@ def tabella_colorata(doc, intestazioni: list[str], righe: list[list[str]], dimen
         r = t.add_row()
         _non_spezzare(r)
         for cella, valore in zip(r.cells, riga):
+            if isinstance(valore, Manca):
+                p = cella.paragraphs[0]
+                _spaziatura(p)
+                if segnaposto(doc, p, valore) is None:
+                    _run(p, "—", dimensione, TESTO3)
+                continue
             for n, testo_cella in enumerate(str(valore if valore not in (None, "") else "—").split("\n")):
                 testo_cella = testo_cella if testo_cella != " " else ""
                 p = cella.paragraphs[0] if n == 0 else cella.add_paragraph()
@@ -599,6 +623,8 @@ def indice(doc) -> None:
     _spaziatura(p, 0, 10)
     _bordo_paragrafo(p, ("bottom",), ACCENTO, 12, 4)
     _run(p, "Indice", 17, INCHIOSTRO, carattere=CARATTERE_TITOLI)
+    contesto(doc).ancora = p._p  # il riepilogo dei dati mancanti della bozza va prima dell'indice
+    contesto(doc).confini.append(p._p)
     p = doc.add_paragraph()
     campo(p, 'TOC \\o "1-2" \\h \\z \\u', "L'indice si aggiorna all'apertura in Word (o con tasto destro > "
                                           "Aggiorna campo).")
@@ -666,7 +692,8 @@ def copertina(doc, *, comune: str, titolo: str, riferimento: str, voci: list[tup
     spazio = doc.add_paragraph()
     _spaziatura(spazio, 0, 18)
 
-    voci = [(e, v) for e, v in voci if v] + ([("Comune", comune)] if comune else [])
+    voci = [(e, v) for e, v in voci if v and not (isinstance(v, Manca) and v.livello == "facoltativo")] \
+        + ([("Comune", comune)] if comune else [])
     if revisione:
         voci.append(("Revisione", revisione))
     t = doc.add_table(rows=0, cols=2)
@@ -679,7 +706,10 @@ def copertina(doc, *, comune: str, titolo: str, riferimento: str, voci: list[tup
         _run(q, etichetta.upper(), 7.5, TESTO3, grassetto=True)
         q = celle[1].paragraphs[0]
         _spaziatura(q)
-        _run(q, valore, 10.5, INCHIOSTRO)
+        if isinstance(valore, Manca):
+            segnaposto(doc, q, valore)
+        else:
+            _run(q, valore, 10.5, INCHIOSTRO)
     larghezze_colonne(t, [3.6, LARGHEZZA_UTILE - 3.6])
 
     p = doc.add_paragraph()

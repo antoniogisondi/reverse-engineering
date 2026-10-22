@@ -1012,3 +1012,85 @@ def test_nessuna_finestra_lampo_con_ai_accesa(app, tmp_path, monkeypatch):
     assert autoverifica._finestre_comparse(f, apri) == []
     f.salva()
     f.close()
+
+
+def test_documenti_composti_pos(app, tmp_path, monkeypatch):
+    from sicurcantiere import composizioni as comp
+    from sicurcantiere.ui import composizioni as ui_comp
+    from sicurcantiere.ui.edizioni import POS, PaginaDocumentiPOS, PaginaImpresePOS
+
+    p = Progetto(tmp_path / "c.spo", crea=True)
+    r = Repository(p)
+    r.aggiorna_cantiere(nome="Villa", comune="Bari", indirizzo="Via Roma 1")
+    impresa = r.inserisci("imprese", ragione_sociale="Alfa", datore_lavoro="Mario Bianchi")
+    p.chiudi()
+    f = FinestraPrincipale(POS)
+    f.apri_file(tmp_path / "c.spo")
+    repo = f.pagine[0].repo
+    documenti = _pagina(f, PaginaDocumentiPOS)
+    f.navigazione.setCurrentRow(f.pagine.index(documenti))
+    pannello = documenti.composizioni
+    assert pannello.tabella.rowCount() == 0 and not pannello.p_emetti.isEnabled()
+
+    risposte = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
+                        lambda *a, **k: risposte.append(a[2]) or QtWidgets.QMessageBox.StandardButton.No)
+    monkeypatch.setattr(ui_comp.DialogoComponi, "exec", lambda self: QtWidgets.QDialog.DialogCode.Accepted)
+    f._genera_principale()  # «Genera POS»: compone la bozza
+    assert pannello.tabella.rowCount() == 1 and pannello.tabella.item(0, 1).text() == "Bozza"
+    assert "obbligatori" in risposte[-1]
+    assert documenti.schede.currentWidget() is pannello.mancanti
+    assert pannello.p_componi.text().startswith("Ricomponi") and pannello.p_emetti.isEnabled()
+    # Doppio clic su un dato mancante: si va alla pagina in cui si compila.
+    riga = next(i for i in range(pannello.mancanti.count())
+                if pannello.mancanti.item(i).data(QtCore.Qt.ItemDataRole.UserRole) == "Figure della sicurezza")
+    pannello._vai_al_dato(pannello.mancanti.item(riga))
+    assert f.navigazione.currentRow() == f.pagine.index(_pagina(f, PaginaImpresePOS))
+    f.navigazione.setCurrentRow(f.pagine.index(documenti))
+
+    # Capitoli: si toglie un capitolo e si aggiunge un testo; restano alla composizione successiva.
+    c = comp.elenco(repo, f"POS:{impresa}")[0]
+    dialogo = ui_comp.DialogoCapitoli(repo, f"POS:{impresa}", c["capitoli"], documenti)
+    riga = next(i for i, cap in enumerate(c["capitoli"]) if cap["chiave"] == "segnaletica-prevista-nel-cantiere")
+    dialogo.elenco.item(riga).setCheckState(QtCore.Qt.CheckState.Unchecked)
+    riga = next(i for i, cap in enumerate(c["capitoli"]) if cap["chiave"] == "allegati-e-firme")
+    dialogo.elenco.setCurrentRow(riga)
+    dialogo.testo.setPlainText("Allegato: planimetria del cantiere.")
+    dialogo.elenco.setCurrentRow(0)
+    dialogo._salva()
+    salvate = comp.personalizzazioni(repo, f"POS:{impresa}")
+    assert salvate["segnaletica-prevista-nel-cantiere"]["escluso"] == 1
+    assert salvate["allegati-e-firme"]["testo"] == "Allegato: planimetria del cantiere."
+    assert pannello.componi()
+    c = comp.elenco(repo, f"POS:{impresa}")[0]
+    assert any(cap["chiave"] == "segnaletica-prevista-nel-cantiere" and cap["escluso"] for cap in c["capitoli"])
+
+    # Emissione con dati obbligatori mancanti: servono spunta e motivo.
+    emetti = ui_comp.DialogoEmetti(c, "POS", documenti)
+    ok = emetti.bottoni.button(QtWidgets.QDialogButtonBox.StandardButton.Ok)
+    assert not ok.isEnabled()
+    emetti.spunta.setChecked(True)
+    assert not ok.isEnabled()
+    emetti.motivo.setText("dati in arrivo dall'impresa")
+    assert ok.isEnabled() and "dati in arrivo" in emetti.conferma()
+
+    def accetta(dialogo):
+        dialogo.spunta.setChecked(True)
+        dialogo.motivo.setText("dati in arrivo")
+        return QtWidgets.QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(ui_comp.DialogoEmetti, "exec", accetta)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", lambda *a, **k: None)
+    pannello.emetti()
+    assert pannello.tabella.item(0, 1).text() == "Emessa" and not pannello.p_emetti.isEnabled()
+    assert pannello.p_consegna.isEnabled()
+
+    # Esporta e confronto.
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", lambda *a, **k: (str(tmp_path / "pos.docx"), ""))
+    pannello.esporta()
+    assert (tmp_path / "pos.docx").stat().st_size > 10000
+    nuova = comp.componi(repo, f"POS:{impresa}", "Seconda")
+    pannello.ricarica()
+    assert pannello.tabella.rowCount() == 2 and pannello.tabella.item(0, 0).text() == "1"
+    assert "Rev. 0" in ui_comp.html_confronto(comp.leggi(repo, c["id"]), nuova)
+    f.close()

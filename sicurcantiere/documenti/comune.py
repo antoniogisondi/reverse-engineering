@@ -21,7 +21,9 @@ def salva(doc, destinazione: str | Path) -> Path:
     from docx.shared import RGBColor
 
     from sicurcantiere import licenza
+    from sicurcantiere.documenti import composizione
 
+    composizione.finalizza(doc)
     dicitura = licenza.dicitura_documenti()
     if dicitura:
         for sezione in doc.sections:
@@ -83,12 +85,15 @@ def tabella_voci(doc, voci: list[tuple[str, str]]) -> None:
     stile.scheda(doc, voci)
 
 
-def testo_o_segnaposto(doc, testo: str) -> None:
+def testo_o_segnaposto(doc, testo: str, guida: str = "sezione da compilare", sezione: str = "",
+                       livello: str = "consigliato") -> None:
     if testo.strip():
         for paragrafo in testo.strip().split("\n"):
             doc.add_paragraph(paragrafo)
     else:
-        doc.add_paragraph().add_run("[Sezione da compilare]").italic = True
+        from sicurcantiere.documenti.composizione import Manca, blocco
+
+        blocco(doc, Manca(guida, sezione, livello))
 
 
 def nuovo_documento():

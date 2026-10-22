@@ -353,6 +353,30 @@ class DelegatoRisultato(_DelegatoBadge):
         painter.restore()
 
 
+class DelegatoStato(_DelegatoBadge):
+    """Stato scritto come etichetta colorata: `colori` associa al testo della cella le chiavi dei colori
+    (sfondo, testo) del tema, per esempio {"Bozza": ("warn_bg", "warn")}."""
+
+    def __init__(self, colori: dict[str, tuple[str, str]], genitore=None):
+        super().__init__(genitore)
+        self.colori = colori
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
+        opt = self._sfondo(painter, option, index)
+        testo = str(index.data(Qt.ItemDataRole.DisplayRole) or "")
+        if not testo:
+            return
+        c = correnti()
+        sfondo, colore = self.colori.get(testo, ("surface2", "tx2"))
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        _badge(painter, QRectF(opt.rect), testo, c[sfondo], c[colore])
+        painter.restore()
+
+    def sizeHint(self, option, index) -> QSize:
+        return QSize(110, 32)
+
+
 class DelegatoNavigazione(QStyledItemDelegate):
     """Voce della barra laterale: cerchio numerato (o spunta), nome, contatore dei problemi.
 

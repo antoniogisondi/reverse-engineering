@@ -55,6 +55,7 @@ from sicurcantiere.documenti.psc import genera_psc
 from sicurcantiere.relazione import SEZIONI
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui import archivio_anagrafiche, tema
+from sicurcantiere.ui.composizioni import PannelloComposizioni
 from sicurcantiere.ui.icone import icona
 from sicurcantiere.ui.lavoro_ai import esegui_ai, registra_pulsante_ai
 from sicurcantiere.ui.maestranze import PannelloLavoratori
@@ -1337,6 +1338,8 @@ class PaginaDocumenti(Pagina):
     controlla = staticmethod(controlli.controlla)
 
     PER_IMPRESA = ("pos", "dpi", "sostanze", "tesserini", "schede")
+    # documenti principali: si compongono e restano salvati nel cantiere (bozza, emessa, consegnata)
+    COMPONIBILI = {"pos": "POS", "psc": "PSC"}
     NOMI = {
         "psc": "Piano di Sicurezza e Coordinamento (PSC)",
         "fascicolo": "Fascicolo dell'opera",
@@ -1359,8 +1362,13 @@ class PaginaDocumenti(Pagina):
             riga.addWidget(QLabel("Impresa:"))
             riga.addWidget(self.impresa, 1)
             layout.addLayout(riga)
+        self.componibile = next((k for k in self.documenti if k in self.COMPONIBILI), None)
         for chiave in self.documenti:
             b = QPushButton(self.NOMI[chiave])
+            if chiave in self.COMPONIBILI:
+                b.setText(f"{self.NOMI[chiave]}: componi la bozza")
+                b.setToolTip("Il documento viene composto e salvato nel cantiere, a destra: da lì si apre, si "
+                             "ricompone, si emette e si consegna.")
             if chiave == self.principale:
                 primario(b)
             b.clicked.connect(lambda _=False, k=chiave: self.genera(k))
@@ -1377,7 +1385,7 @@ class PaginaDocumenti(Pagina):
         self.controlli.itemActivated.connect(self._vai_al_controllo)
         verifica = QPushButton("Esegui i controlli")
         verifica.clicked.connect(self._controlla)
-        riquadro_controlli = QGroupBox("Controlli di completezza")
+        riquadro_controlli = QWidget()
         lc = QVBoxLayout(riquadro_controlli)
         lc.addWidget(verifica, alignment=Qt.AlignmentFlag.AlignLeft)
         lc.addWidget(self.controlli)
@@ -1390,11 +1398,26 @@ class PaginaDocumenti(Pagina):
         ])
         self.revisioni.imposta_titolo("Revisioni del documento")
 
+        self.composizioni = None
         alto = QHBoxLayout()
         alto.addWidget(griglia, 1)
-        alto.addWidget(_riquadro("Revisioni dei documenti", self.revisioni), 1)
-        self.layout_.addLayout(alto)
-        self.layout_.addWidget(riquadro_controlli, 1)
+        self.schede = QTabWidget(self)
+        if self.componibile:
+            self.composizioni = PannelloComposizioni(repo, self._documento_composto,
+                                                     self.COMPONIBILI[self.componibile], self)
+            self.impresa.currentIndexChanged.connect(lambda _: self.composizioni.ricarica())
+            alto.addWidget(self.composizioni, 2)
+            self.schede.addTab(self.composizioni.mancanti, "Dati da completare")
+        self.schede.addTab(riquadro_controlli, "Controlli di completezza")
+        self.schede.addTab(self.revisioni, "Revisioni")
+        self.layout_.addLayout(alto, 3)
+        self.layout_.addWidget(self.schede, 2)
+
+    def _documento_composto(self) -> str | None:
+        if self.componibile == "psc":
+            return "PSC"
+        impresa = self.impresa.currentData()
+        return f"POS:{impresa}" if impresa is not None else None
 
     def _documenti(self) -> list[tuple[str, str]]:
         voci = []
@@ -1452,6 +1475,11 @@ class PaginaDocumenti(Pagina):
 
     def genera(self, chiave: str | None = None) -> None:
         chiave = chiave or self.principale
+        if chiave in self.COMPONIBILI and self.composizioni is not None:
+            if self.composizioni.componi():
+                self.schede.setCurrentWidget(self.composizioni.mancanti)
+                self.revisioni.ricarica()
+            return
         cantiere = self.repo.cantiere()["nome"] or "Cantiere"
         if chiave in self.PER_IMPRESA:
             impresa = self.impresa.currentData()
@@ -1487,4 +1515,6 @@ class PaginaDocumenti(Pagina):
                 self.impresa.addItem(i["ragione_sociale"] or f"Impresa {i['id']}", i["id"])
         self.impresa.setCurrentIndex(max(self.impresa.findData(corrente), 0))
         self.revisioni.ricarica()
+        if self.composizioni is not None:
+            self.composizioni.ricarica()
         self._controlla()
