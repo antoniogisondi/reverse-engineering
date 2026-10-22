@@ -101,6 +101,8 @@ def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
     QTimer.singleShot(4000, lambda: aggiornamenti.controlla(finestra))
     if len(argv) > 1:
         finestra.apri_file(argv[1])
+    else:  # panoramica del programma solo al primo avvio, non quando si apre un cantiere dal doppio clic
+        QTimer.singleShot(300, finestra.mostra_panoramica_al_primo_avvio)
     codice = app.exec()
     # Distruzione esplicita prima della chiusura dell'interprete, per evitare
     # che Python liberi i widget dopo l'applicazione Qt.

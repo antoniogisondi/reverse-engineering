@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from collections import Counter
-from pathlib import Path
 from typing import Any, Callable
 
-from PySide6.QtCore import QDate, Qt, QTimer, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices
+from PySide6.QtCore import QDate, Qt, QTimer
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -1536,11 +1535,9 @@ class PaginaDocumenti(Pagina):
             QMessageBox.warning(self, "Salvataggio non riuscito",
                                 "Impossibile scrivere il file. Se è aperto in Word, chiudilo e riprova.")
             return
-        risposta = QMessageBox.question(
-            self, "Documento generato",
-            f"Il documento «{Path(file).name}» è stato creato.\n\n{AVVISO_RESPONSABILITA}\n\nVuoi aprirlo ora?")
-        if risposta == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
+        from sicurcantiere.ui.anteprima import documento_creato
+
+        documento_creato(self, file, avviso=AVVISO_RESPONSABILITA)
 
     def genera(self, chiave: str | None = None) -> None:
         chiave = chiave or self.principale

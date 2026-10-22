@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -168,11 +166,12 @@ class PaginaPonteggi(Pagina):
         try:
             file = genera_pimus(self.repo, self.id_, percorso)
         except PermissionError:
-            QMessageBox.warning(self, "Errore", "Impossibile salvare il file: verifica che non sia aperto in Word.")
+            QMessageBox.warning(self, "Salvataggio non riuscito", "Impossibile salvare il file: verifica che non sia aperto in Word.")
             return
-        if QMessageBox.question(self, "PiMUS generato", f"PiMUS creato: {Path(file).name}.\n\nVuoi aprirlo ora?") \
-                == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
+        from sicurcantiere.ui.anteprima import documento_creato
+        from sicurcantiere.ui.pagine import AVVISO_RESPONSABILITA
+
+        documento_creato(self, file, "PiMUS generato", AVVISO_RESPONSABILITA)
 
     def genera_principale(self) -> None:
         self._genera()

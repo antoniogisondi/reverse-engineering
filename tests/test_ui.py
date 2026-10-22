@@ -1100,3 +1100,73 @@ def test_documenti_composti_pos(app, tmp_path, monkeypatch):
     assert pannello.tabella.rowCount() == 2 and pannello.tabella.item(0, 0).text() == "1"
     assert "Rev. 0" in ui_comp.html_confronto(comp.leggi(repo, c["id"]), nuova)
     f.close()
+
+
+def test_annulla_ripeti_ricerca_e_modelli(app, tmp_path, monkeypatch):
+    from sicurcantiere import modelli
+    from sicurcantiere.ui import modelli as ui_modelli
+    from sicurcantiere.ui import ricerca as ui_ricerca
+    from sicurcantiere.ui.edizioni import EDIZIONI
+    from sicurcantiere.ui.primo_avvio import DialogoPrimoAvvio
+
+    monkeypatch.setenv("SICURCANTIERE_MODELLI", str(tmp_path / "modelli"))
+    for chiave, edizione in EDIZIONI.items():
+        f = FinestraPrincipale(edizione)
+        assert not f.azione_annulla.isEnabled() and not f.azione_cerca.isEnabled()
+        f._carica(Progetto(tmp_path / f"{chiave}{edizione.estensione}", crea=True))
+        f.navigazione.setCurrentRow(2)
+        f._aggiorna_stato()
+        repo = f.pagine[0].repo
+        repo.inserisci("imprese", ragione_sociale="Edil Alfa")
+        f._aggiorna_stato()
+        assert f.azione_annulla.isEnabled() and f.azione_cerca.isEnabled()
+
+        # «Annulla» toglie l'impresa e resta sulla stessa pagina; «Ripeti» la rimette
+        f.annulla()
+        assert f.pagine[0].repo.elenco("imprese") == []
+        assert f.contenitore.currentWidget() is f.pagine[2] and f.azione_ripeti.isEnabled()
+        f.ripeti()
+        assert [i["ragione_sociale"] for i in f.pagine[0].repo.elenco("imprese")] == ["Edil Alfa"]
+        assert f.modifiche_non_salvate()
+
+        # Ricerca: il risultato porta alla pagina dell'impresa
+        dialogo = ui_ricerca.DialogoRicerca(f.pagine[0].repo, f.vai_a_sezione, f)
+        dialogo.campo.setText("alfa")
+        dialogo._primo()
+        assert dialogo.result() == QtWidgets.QDialog.DialogCode.Accepted
+        assert any(isinstance(p, (PaginaImprese,)) or "Imprese" in p.sezioni_controlli
+                   for p in [f.pagine[f.navigazione.currentRow()]])
+
+        # Modello: salvato dal cantiere aperto, poi un nuovo cantiere che ne riparte
+        monkeypatch.setattr(ui_modelli, "chiedi_nome_modello", lambda *a: "Tipo")
+        f.salva_come_modello()
+        modello = modelli.elenco(edizione.estensione)[0]
+        monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName",
+                            lambda *a, **k: (str(tmp_path / f"nuovo-{chiave}"), ""))
+        f._nuovo(modello)
+        assert f.progetto.percorso.name == f"nuovo-{chiave}{edizione.estensione}"
+        assert [i["ragione_sociale"] for i in f.pagine[0].repo.elenco("imprese")] == ["Edil Alfa"]
+        f.close()
+
+    panoramica = DialogoPrimoAvvio("SicurCantiere PSC", "PSC")
+    for _ in range(panoramica.pila.count() - 1):
+        panoramica._vai(1)
+    assert panoramica.avanti.text() == "Inizia"
+    panoramica.close()
+
+
+@pytest.mark.skipif(not __import__("shutil").which("soffice"), reason="serve LibreOffice")
+def test_anteprima_pdf_della_bozza(app, tmp_path):
+    from sicurcantiere import composizioni
+    from sicurcantiere.documenti import pdf
+    from sicurcantiere.ui.anteprima import DialogoAnteprima
+
+    repo = Repository(Progetto(tmp_path / "a.scs", crea=True))
+    repo.aggiorna_cantiere(nome="Scuola")
+    bozza = composizioni.componi(repo, "PSC")
+    contenuto = pdf.converti_dati(composizioni.contenuto(repo, bozza["id"]))
+    dialogo = DialogoAnteprima(contenuto, "PSC", "PSC - Scuola")
+    assert dialogo.documento.pageCount() > 5
+    dialogo._zoom(1.2)
+    dialogo.close()
+    repo.progetto.chiudi()

@@ -24,12 +24,14 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QStackedWidget,
+    QTabWidget,
     QToolBar,
     QVBoxLayout,
     QWidget,
 )
 
-from sicurcantiere import __version__, controlli
+from sicurcantiere import __version__, controlli, modelli
+from sicurcantiere.cronologia import Cronologia
 from sicurcantiere.db import ErroreProgetto, Progetto, anteprima
 from sicurcantiere.repository import Repository
 from sicurcantiere.ui import aggiornamenti, archivio_anagrafiche, tema
@@ -40,6 +42,7 @@ from sicurcantiere.ui import licenza as licenza_ui
 from sicurcantiere.ui.guida import DialogoGuida
 from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI, aggiorna_pulsanti_ai
 from sicurcantiere.ui.pagine import Pagina, primario
+from sicurcantiere.ui.primo_avvio import DialogoPrimoAvvio
 
 MAX_RECENTI = 8
 INTERVALLO_STATO_MS = 3000
@@ -192,6 +195,15 @@ class Benvenuto(QWidget):
             da_psc.clicked.connect(finestra.nuovo_da_psc)
             da_psc.setEnabled(stato.utilizzabile)
             pulsanti.addWidget(da_psc, 1)
+        numero_modelli = len(modelli.elenco(edizione.estensione))
+        if numero_modelli:
+            da_modello = PulsanteGrande(
+                "modello", "Nuovo da un modello...",
+                "1 modello di cantiere salvato" if numero_modelli == 1
+                else f"{numero_modelli} modelli di cantiere salvati", "", False)
+            da_modello.clicked.connect(finestra.nuovo_da_modello)
+            da_modello.setEnabled(stato.utilizzabile)
+            pulsanti.addWidget(da_modello, 1)
         colonna.addLayout(pulsanti)
 
         passi = QFrame()
@@ -263,6 +275,7 @@ class FinestraPrincipale(QMainWindow):
         # chi chiude senza salvare può tornare alla copia fatta in quel momento.
         self._salvato_a = 0
         self._istantanea: Path | None = None
+        self.cronologia: Cronologia | None = None
 
         # Barra laterale: cantiere aperto ed elenco numerato delle pagine, con i problemi di ognuna.
         self.navigazione = QListWidget()
@@ -361,23 +374,44 @@ class FinestraPrincipale(QMainWindow):
             "Controlla &aggiornamenti...", lambda: aggiornamenti.controlla(self, manuale=True))
         self.azione_ai = self._azione("Impostazioni assistente &AI...", lambda: DialogoImpostazioniAI(self).exec())
         self.azione_archivio = self._azione("Archivio &anagrafiche...", lambda: archivio_anagrafiche.gestisci(self))
+        self.azione_da_modello = self._azione("Nuovo da un &modello...", self.nuovo_da_modello,
+                                              suggerimento="Crea un cantiere a partire da un modello salvato")
+        self.azione_salva_modello = self._azione(
+            "Salva come mo&dello...", self.salva_come_modello,
+            suggerimento="Conserva il cantiere come punto di partenza per i prossimi, senza documenti e revisioni")
+        self.azione_annulla = self._azione("&Annulla", self.annulla, QKeySequence.StandardKey.Undo,
+                                           "Annulla l'ultima modifica al cantiere (Ctrl+Z)")
+        self.azione_ripeti = self._azione("&Ripeti", self.ripeti, QKeySequence.StandardKey.Redo,
+                                          "Ripeti la modifica annullata (Ctrl+Y)")
+        self.azione_cerca = self._azione("&Cerca nel cantiere...", self.cerca, QKeySequence.StandardKey.Find,
+                                         "Cerca fasi, rischi, attrezzature, imprese, lavoratori e testi (Ctrl+F)")
+        self.azione_panoramica = self._azione("&Panoramica del programma", self.mostra_panoramica)
         self.azioni_progetto = [self.azione_salva, self.azione_salva_con_nome, self.azione_chiudi,
-                                self.azione_psc, self.azione_controlli]
+                                self.azione_psc, self.azione_controlli, self.azione_salva_modello,
+                                self.azione_cerca]
 
     def _crea_menu(self) -> None:
         menu = self.menuBar().addMenu("&File")
         menu.addAction(self.azione_nuovo)
         if self.edizione.chiave == "pos":
             menu.addAction(self.azione_da_psc)
+        menu.addAction(self.azione_da_modello)
         menu.addAction(self.azione_apri)
         menu.addAction(self.azione_salva)
         menu.addAction(self.azione_salva_con_nome)
+        menu.addAction(self.azione_salva_modello)
         self.menu_recenti = menu.addMenu("File &recenti")
         self.menu_recenti.aboutToShow.connect(self._popola_recenti)
         menu.addAction(self.azione_chiudi)
         menu.addSeparator()
         esci = self._azione("&Esci", self.close, QKeySequence.StandardKey.Quit)
         menu.addAction(esci)
+
+        modifica = self.menuBar().addMenu("&Modifica")
+        modifica.addAction(self.azione_annulla)
+        modifica.addAction(self.azione_ripeti)
+        modifica.addSeparator()
+        modifica.addAction(self.azione_cerca)
 
         strumenti = self.menuBar().addMenu("&Strumenti")
         strumenti.addAction(self.azione_psc)
@@ -391,6 +425,7 @@ class FinestraPrincipale(QMainWindow):
 
         aiuto = self.menuBar().addMenu("&Aiuto")
         aiuto.addAction(self.azione_guida)
+        aiuto.addAction(self.azione_panoramica)
         aiuto.addAction(self.azione_aggiornamenti)
         aiuto.addAction(self.azione_licenza)
         aiuto.addSeparator()
@@ -404,6 +439,11 @@ class FinestraPrincipale(QMainWindow):
         barra.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         for a in (self.azione_nuovo, self.azione_apri, self.azione_salva, self.azione_salva_con_nome):
             barra.addAction(a)
+        barra.addSeparator()
+        for a in (self.azione_annulla, self.azione_ripeti, self.azione_cerca):
+            barra.addAction(a)
+        barra.widgetForAction(self.azione_annulla).setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        barra.widgetForAction(self.azione_ripeti).setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         barra.addSeparator()
         barra.addAction(self.azione_psc)
         barra.widgetForAction(self.azione_psc).setObjectName("generate")
@@ -441,6 +481,8 @@ class FinestraPrincipale(QMainWindow):
             (self.azione_psc, "psc"),
             (self.azione_controlli, "controlli"), (self.azione_tema, "tema"),
             (self.azione_info, "info"), (self.azione_ai, "ai"),
+            (self.azione_annulla, "annulla"), (self.azione_ripeti, "ripeti"), (self.azione_cerca, "cerca"),
+            (self.azione_da_modello, "modello"), (self.azione_salva_modello, "modello"),
         ):
             azione.setIcon(icona(nome, c))
         self.setWindowIcon(icona_applicazione(self.edizione.colore))
@@ -506,6 +548,16 @@ class FinestraPrincipale(QMainWindow):
         return str(Path(recenti[0]).parent) if recenti else str(Path.home())
 
     def nuovo(self) -> None:
+        self._nuovo()
+
+    def nuovo_da_modello(self) -> None:
+        from sicurcantiere.ui.modelli import DialogoModelli
+
+        dialogo = DialogoModelli(self.edizione.estensione, self)
+        if dialogo.exec() and dialogo.scelto() is not None:
+            self._nuovo(dialogo.scelto())
+
+    def _nuovo(self, modello: Path | None = None) -> None:
         if not self.conferma_chiusura():
             return
         # Niente conferma di sovrascrittura di Windows: scegliere un cantiere esistente qui di
@@ -531,7 +583,116 @@ class FinestraPrincipale(QMainWindow):
                 return
             if scelta != "sostituisci":
                 return
-        self._carica(Progetto(percorso, crea=True))
+        if modello is None:
+            self._carica(Progetto(percorso, crea=True))
+            return
+        self._chiudi_progetto()  # il file da sostituire potrebbe essere quello aperto
+        try:
+            Progetto(percorso, crea=True).chiudi()  # copia di sicurezza dell'eventuale file sostituito
+            percorso.unlink()
+            modelli.crea_da_modello(modello, percorso)
+        except (ErroreProgetto, OSError) as e:
+            QMessageBox.critical(self, "Nuovo cantiere", f"Impossibile creare il cantiere dal modello:\n{e}")
+            return
+        self.apri_file(percorso, chiedi=False)
+
+    def salva_come_modello(self) -> None:
+        from sicurcantiere.ui.modelli import chiedi_nome_modello
+
+        if not self.progetto:
+            return
+        self._salva_in_sospeso()
+        nome = chiedi_nome_modello(self, self.pagine[0].repo.cantiere()["nome"] or self.progetto.percorso.stem)
+        if not nome:
+            return
+        esistenti = {p.stem.lower() for p in modelli.elenco(self.edizione.estensione)}
+        if nome.lower() in esistenti and QMessageBox.question(
+                self, "Salva come modello", f"Esiste già un modello «{nome}». Vuoi sostituirlo?") \
+                != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.progetto.conn.commit()
+            modello = modelli.salva_come_modello(self.progetto.conn, nome, self.edizione.estensione)
+        except OSError as e:
+            QMessageBox.critical(self, "Salva come modello", f"Impossibile salvare il modello:\n{e}")
+            return
+        self.statusBar().showMessage(f"Modello «{modello.stem}» salvato: lo trovi in «File > Nuovo da un "
+                                     "modello...».", 6000)
+
+    # --- annulla, ripeti e ricerca ---
+
+    def _registra_cronologia(self) -> None:
+        if self.cronologia is not None:
+            self.cronologia.registra()
+        self._aggiorna_annulla()
+
+    def _aggiorna_annulla(self) -> None:
+        c = self.cronologia
+        self.azione_annulla.setEnabled(c is not None and c.puo_annullare())
+        self.azione_ripeti.setEnabled(c is not None and c.puo_ripetere())
+
+    def annulla(self) -> None:
+        if self.cronologia is None:
+            return
+        self._salva_in_sospeso()
+        if self.cronologia.annulla():
+            self._dopo_ripristino("Modifica annullata.")
+        else:
+            self._aggiorna_annulla()
+
+    def ripeti(self) -> None:
+        if self.cronologia is None:
+            return
+        self._salva_in_sospeso()
+        self.cronologia.registra()  # una modifica nuova cancella i passi da ripetere
+        if self.cronologia.ripeti():
+            self._dopo_ripristino("Modifica ripetuta.")
+        else:
+            self._aggiorna_annulla()
+
+    def _dopo_ripristino(self, messaggio: str) -> None:
+        self._salvato_a = -1  # il file è cambiato: alla chiusura si chiede se salvare
+        self._ricarica_pagine()
+        self._aggiorna_annulla()
+        self.statusBar().showMessage(messaggio, 3000)
+
+    def _ricarica_pagine(self) -> None:
+        """Ricostruisce le pagine dopo «Annulla» o «Ripeti», restando nella stessa pagina e scheda."""
+        riga = max(0, self.navigazione.currentRow())
+        repo = self.pagine[0].repo
+        schede = [[t.currentIndex() for t in p.findChildren(QTabWidget)] for p in self.pagine]
+        self.setUpdatesEnabled(False)
+        try:
+            for pagina in self.pagine:
+                self.contenitore.removeWidget(pagina)
+                pagina.deleteLater()
+            self.pagine = [classe(repo) for classe in self.edizione.pagine]
+            for pagina, indici in zip(self.pagine, schede):
+                self.contenitore.addWidget(pagina)
+                for tab, indice in zip(pagina.findChildren(QTabWidget), indici):
+                    if 0 <= indice < tab.count():
+                        tab.setCurrentIndex(indice)
+            self.contenitore.setCurrentWidget(self.pagine[riga])
+            self.pagine[riga].aggiorna()
+        finally:
+            self.setUpdatesEnabled(True)
+        self._aggiorna_stato()
+
+    def cerca(self) -> None:
+        from sicurcantiere.ui.ricerca import DialogoRicerca
+
+        if self.pagine:
+            self._salva_in_sospeso()
+            DialogoRicerca(self.pagine[0].repo, self.vai_a_sezione, self).exec()
+
+    def mostra_panoramica(self) -> None:
+        DialogoPrimoAvvio(self.edizione.nome, self.edizione.nome.split()[-1], self).exec()
+
+    def mostra_panoramica_al_primo_avvio(self) -> None:
+        from sicurcantiere.ui import primo_avvio
+
+        if primo_avvio.da_mostrare():
+            self.mostra_panoramica()
 
     def _scelta_file_esistente(self, percorso: Path) -> str:
         """Chiede cosa fare se il nuovo cantiere ha il nome di un file esistente: apri, sostituisci o annulla."""
@@ -708,6 +869,8 @@ class FinestraPrincipale(QMainWindow):
         self.setWindowTitle(f"{progetto.percorso.name} - {self.edizione.nome}")
         self.stato_file.setText(str(progetto.percorso))
         self.stato_salvataggio.setText("Salvataggio automatico attivo")
+        self.cronologia = Cronologia(progetto)
+        self._aggiorna_annulla()
         self._timer_stato.start()
         self._aggiorna_stato()
 
@@ -721,6 +884,8 @@ class FinestraPrincipale(QMainWindow):
     def _chiudi_progetto(self) -> None:
         self._salva_in_sospeso()
         self._timer_stato.stop()
+        self.cronologia = None
+        self._aggiorna_annulla()
         self.navigazione.blockSignals(True)
         self.navigazione.clear()
         self.navigazione.blockSignals(False)
@@ -803,6 +968,7 @@ class FinestraPrincipale(QMainWindow):
         if modifiche != self._modifiche_viste:
             self._modifiche_viste = modifiche
             self.stato_salvataggio.setText(f"Salvato alle {datetime.now():%H:%M:%S}")
+        self._registra_cronologia()
         elenco = self.edizione.controlla(self.pagine[0].repo) if self.pagine else []
         errori = sum(1 for s in elenco if s.livello == controlli.ERRORE)
         avvisi = len(elenco) - errori

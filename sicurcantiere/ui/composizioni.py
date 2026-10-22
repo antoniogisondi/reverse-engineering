@@ -109,6 +109,7 @@ class PannelloComposizioni(QWidget):
         self.p_componi = QPushButton(f"Componi la bozza del {nome}", intestazione)
         tema.imposta_variante(self.p_componi, "primary")
         self.p_apri = QPushButton("Apri in Word", intestazione)
+        self.p_anteprima = QPushButton("Anteprima", intestazione)
         self.p_capitoli = QPushButton("Capitoli...", intestazione)
         self.p_emetti = QPushButton("Emetti...", intestazione)
         self.p_altro = QPushButton("Altro", intestazione)
@@ -116,6 +117,7 @@ class PannelloComposizioni(QWidget):
         self.p_riprendi = menu.addAction("Riprendi le modifiche fatte in Word")
         self.p_consegna = menu.addAction("Segna come consegnato...")
         self.p_esporta = menu.addAction("Esporta in Word...")
+        self.p_esporta_pdf = menu.addAction("Esporta in PDF...")
         self.p_confronta = menu.addAction("Confronta con la revisione precedente")
         menu.addSeparator()
         self.p_annulla = menu.addAction("Annulla")
@@ -134,14 +136,19 @@ class PannelloComposizioni(QWidget):
                                     "precedente (o tra le due revisioni selezionate).")
         self.p_annulla.setToolTip("Bozza: la elimina. Revisione emessa: la segna come annullata e la conserva "
                                   "nello storico.")
-        for pulsante, slot in ((self.p_componi, self.componi), (self.p_apri, self.apri_in_word),
+        self.p_anteprima.setToolTip("Mostra il documento pagina per pagina, senza aprire Word; da qui si può "
+                                    "salvare in PDF.")
+        self.p_esporta_pdf.setToolTip("Salva il documento in PDF, per l'invio al committente o alle imprese.")
+        for pulsante, slot in ((self.p_componi, self.componi), (self.p_anteprima, self.anteprima),
+                               (self.p_apri, self.apri_in_word),
                                (self.p_capitoli, self.modifica_capitoli), (self.p_emetti, self.emetti)):
             pulsante.clicked.connect(lambda _=False, s=slot: s())
             lay_intestazione.addWidget(pulsante)
         lay_intestazione.addWidget(self.p_altro)
         lay_intestazione.addStretch()
         for azione, slot in ((self.p_riprendi, self.riprendi_da_word), (self.p_consegna, self.consegna),
-                             (self.p_esporta, self.esporta), (self.p_confronta, self.confronta),
+                             (self.p_esporta, self.esporta), (self.p_esporta_pdf, self.esporta_pdf),
+                             (self.p_confronta, self.confronta),
                              (self.p_annulla, self.annulla)):
             azione.triggered.connect(lambda _=False, s=slot: s())
 
@@ -260,6 +267,8 @@ class PannelloComposizioni(QWidget):
                                else f"Componi la bozza del {self.nome}")
         self.p_altro.setEnabled(c is not None)
         self.p_apri.setEnabled(c is not None)
+        self.p_anteprima.setEnabled(c is not None)
+        self.p_esporta_pdf.setEnabled(c is not None)
         self.p_riprendi.setEnabled(bool(c) and stato == comp.BOZZA and self._modificata_in_word(c))
         self.p_capitoli.setEnabled(bool(self.documento()) and bool(getattr(self, "_righe", [])))
         self.p_emetti.setEnabled(stato == comp.BOZZA)
@@ -473,6 +482,43 @@ class PannelloComposizioni(QWidget):
         if QMessageBox.question(self, "Esporta", f"Documento salvato: {Path(percorso).name}. Vuoi aprirlo ora?") \
                 == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(percorso))
+
+    def anteprima(self) -> None:
+        from sicurcantiere.ui import anteprima
+
+        c = self.selezionata()
+        if c is not None:
+            nome = self._nome_file(c)
+            anteprima.mostra(self, comp.contenuto(self.repo, c["id"]), nome, nome, self.apri_in_word)
+
+    def esporta_pdf(self) -> None:
+        from sicurcantiere.documenti import pdf
+        from sicurcantiere.ui.importa_psc import in_background
+
+        c = self.selezionata()
+        if c is None:
+            return
+        if not pdf.disponibile():
+            QMessageBox.information(self, "Esporta in PDF", "Per creare il PDF serve Microsoft Word oppure "
+                                                            "LibreOffice installato su questo computer.")
+            return
+        predefinito = self.repo.progetto.percorso.with_name(f"{self._nome_file(c)}.pdf")
+        percorso, _ = QFileDialog.getSaveFileName(self, "Esporta in PDF", str(predefinito), "PDF (*.pdf)")
+        if not percorso:
+            return
+        contenuto = comp.contenuto(self.repo, c["id"])
+
+        def converti(_avanzamento):
+            dati = pdf.converti_dati(contenuto)
+            Path(percorso).write_bytes(dati)
+            return percorso
+
+        def fatto(salvato: str) -> None:
+            if QMessageBox.question(self, "Esporta in PDF", f"PDF salvato: {Path(salvato).name}. Vuoi aprirlo "
+                                    "ora?") == QMessageBox.StandardButton.Yes:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(salvato))
+
+        in_background(self, "Esporta in PDF", "Creazione del PDF in corso...", converti, fatto)
 
     def confronta(self) -> None:
         scelte = self._selezionate()

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Callable
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QBrush, QColor, QDesktopServices
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -43,11 +42,11 @@ def salva_e_apri(genitore: QWidget, repo: Repository, nome: str, funzione: Calla
     try:
         file = funzione(percorso)
     except PermissionError:
-        QMessageBox.warning(genitore, "Errore", "Impossibile salvare il file: verifica che non sia aperto in Word.")
+        QMessageBox.warning(genitore, "Salvataggio non riuscito", "Impossibile salvare il file: verifica che non sia aperto in Word.")
         return
-    risposta = QMessageBox.question(genitore, "Documento generato", f"Documento creato: {Path(file).name}.\n\nVuoi aprirlo ora?")
-    if risposta == QMessageBox.StandardButton.Yes:
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
+    from sicurcantiere.ui.anteprima import documento_creato
+
+    documento_creato(genitore, file)
 
 
 def dpi_suggeriti(repo: Repository, lavoratore: dict[str, Any]) -> list[str]:

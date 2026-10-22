@@ -106,3 +106,27 @@ def mostra(parent: QWidget, contenuto_docx: bytes, titolo: str, nome_file: str,
         DialogoAnteprima(contenuto_pdf, titolo, nome_file, apri_word, parent).exec()
 
     in_background(parent, "Anteprima", "Preparazione dell'anteprima (conversione in PDF)...", converti, fatto)
+
+
+def documento_creato(genitore: QWidget, file: str | Path, titolo: str = "Documento generato",
+                     avviso: str = "") -> None:
+    """Dopo la creazione di un documento: aprirlo in Word, vederlo in anteprima (e salvarlo in PDF) o chiudere."""
+    from PySide6.QtWidgets import QMessageBox as M
+
+    file = Path(file)
+    box = M(M.Icon.Information, titolo, f"Il documento «{file.name}» è stato creato.", parent=genitore)
+    if avviso:
+        box.setInformativeText(avviso)
+    word = box.addButton("Apri in Word", M.ButtonRole.AcceptRole)
+    vedi = box.addButton("Anteprima e PDF", M.ButtonRole.ActionRole)
+    box.addButton("Chiudi", M.ButtonRole.RejectRole)
+    box.setDefaultButton(word)
+    box.exec()
+
+    def apri() -> None:
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
+
+    if box.clickedButton() is word:
+        apri()
+    elif box.clickedButton() is vedi:
+        mostra(genitore, file.read_bytes(), file.stem, file.stem, apri)

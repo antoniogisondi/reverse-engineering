@@ -35,11 +35,14 @@ def _libreoffice() -> str | None:
 def _con_word(docx: Path, pdf: Path, attesa: int) -> bool:
     if os.name != "nt":
         return False
+    def stringa(percorso: Path) -> str:  # stringa PowerShell tra apici (l'apice si raddoppia)
+        return "'" + str(percorso).replace("'", "''") + "'"
+
     comando = (
         "$ErrorActionPreference='Stop';"
         "$w=New-Object -ComObject Word.Application;$w.Visible=$false;$w.DisplayAlerts=0;"
-        f"try{{$d=$w.Documents.Open('{docx}',$false,$true);"
-        f"$d.ExportAsFixedFormat('{pdf}',17);$d.Close(0)}}finally{{$w.Quit()}}"
+        f"try{{$d=$w.Documents.Open({stringa(docx)},$false,$true);"
+        f"$d.ExportAsFixedFormat({stringa(pdf)},17);$d.Close(0)}}finally{{$w.Quit()}}"
     )
     try:
         esito = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", comando],

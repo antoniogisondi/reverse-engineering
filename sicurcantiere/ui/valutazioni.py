@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -513,9 +511,9 @@ class PaginaValutazioni(Pagina):
         except PermissionError:
             QMessageBox.warning(self, "Errore", "Impossibile salvare il file: verifica che non sia aperto in Word.")
             return
-        if QMessageBox.question(self, "Relazione generata", f"Relazione creata: {Path(file).name}.\n\nVuoi aprirla ora?") \
-                == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
+        from sicurcantiere.ui.anteprima import documento_creato
+
+        documento_creato(self, file, "Relazione generata")
 
     def aggiorna(self) -> None:
         messaggi = automatiche.sincronizza(self.repo)
