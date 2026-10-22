@@ -94,6 +94,7 @@ class PannelloIdoneita(QScrollArea):
         while self.griglia.count():
             w = self.griglia.takeAt(0).widget()
             if w is not None:
+                w.hide()  # fino all'eliminazione resterebbe visibile nell'angolo del riquadro
                 w.deleteLater()
         self.righe.clear()
         for r, (chiave, testo) in enumerate(anagrafiche.voci_idoneita(impresa)):

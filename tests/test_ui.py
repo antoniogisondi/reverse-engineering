@@ -1170,3 +1170,18 @@ def test_anteprima_pdf_della_bozza(app, tmp_path):
     dialogo._zoom(1.2)
     dialogo.close()
     repo.progetto.chiudi()
+
+
+def test_finestra_sta_su_un_portatile(app, tmp_path):
+    """Con tutte le pagine caricate la finestra deve poter stare su uno schermo 1366x768."""
+    from sicurcantiere.ui.edizioni import EDIZIONI
+
+    for chiave, edizione in EDIZIONI.items():
+        f = FinestraPrincipale(edizione)
+        f._carica(Progetto(tmp_path / f"p{edizione.estensione}", crea=True))
+        f.resize(1366, 740)
+        for riga in range(len(f.pagine)):
+            f.navigazione.setCurrentRow(riga)
+        assert f.minimumSizeHint().width() <= 1366, chiave
+        assert f.minimumSizeHint().height() <= 740, chiave
+        f.close()

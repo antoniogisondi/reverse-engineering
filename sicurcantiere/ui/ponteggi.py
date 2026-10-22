@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QFrame,
     QScrollArea,
     QSplitter,
     QTabWidget,
@@ -95,7 +96,11 @@ class PaginaPonteggi(Pagina):
         self.verifiche.pulsanti.insertWidget(2, carica)
 
         self.schede = QTabWidget()
-        self.schede.addTab(self.dati, "Dati del ponteggio")
+        scorrimento_dati = QScrollArea()
+        scorrimento_dati.setWidgetResizable(True)
+        scorrimento_dati.setFrameShape(QFrame.Shape.NoFrame)
+        scorrimento_dati.setWidget(self.dati)
+        self.schede.addTab(scorrimento_dati, "Dati del ponteggio")
         self.schede.addTab(scorrimento, "Testi del PiMUS")
         self.schede.addTab(self.verifiche, "Verifiche (Allegato XIX)")
         self.schede.setEnabled(False)

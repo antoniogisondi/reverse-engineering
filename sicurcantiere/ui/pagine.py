@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
+    QBoxLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -1413,6 +1414,13 @@ class PaginaDocumenti(Pagina):
         "schede": "Schede dei lavoratori (mansioni, rischi, DPI, formazione)",
         "idoneita": "Verifica dell'idoneità tecnico-professionale (Allegato XVII)",
     }
+    # etichette dei pulsanti quando la finestra è stretta (portatili): il nome completo resta nel suggerimento
+    NOMI_BREVI = {
+        "psc": "PSC: componi la bozza", "pos": "POS: componi la bozza", "fascicolo": "Fascicolo dell'opera",
+        "notifica": "Notifica preliminare", "dpi": "Consegna dei DPI", "sostanze": "Sostanze pericolose",
+        "tesserini": "Tesserini", "schede": "Schede dei lavoratori", "idoneita": "Idoneità (Allegato XVII)",
+    }
+    LARGHEZZA_AFFIANCATA = 1350  # sotto questa larghezza i documenti vanno sopra il riquadro delle composizioni
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -1426,17 +1434,23 @@ class PaginaDocumenti(Pagina):
             riga.addWidget(self.impresa, 1)
             layout.addLayout(riga)
         self.componibile = next((k for k in self.documenti if k in self.COMPONIBILI), None)
+        self._pulsanti_documenti: list[tuple[str, QPushButton]] = []
         for chiave in self.documenti:
             b = QPushButton(self.NOMI[chiave])
+            b.setToolTip(self.NOMI[chiave])
             if chiave in self.COMPONIBILI:
-                b.setText(f"{self.NOMI[chiave]}: componi la bozza")
-                b.setToolTip("Il documento viene composto e salvato nel cantiere, nel riquadro a destra: da lì "
-                             "puoi aprirlo, ricomporlo, emetterlo e consegnarlo.")
+                b.setToolTip(f"{self.NOMI[chiave]}: il documento viene composto e salvato nel cantiere, nel "
+                             "riquadro «Documenti composti», da cui puoi aprirlo, ricomporlo, emetterlo e "
+                             "consegnarlo.")
             if chiave == self.principale:
                 primario(b)
             b.clicked.connect(lambda _=False, k=chiave: self.genera(k))
-            layout.addWidget(b)
+            self._pulsanti_documenti.append((chiave, b))
+        self._griglia_documenti = QGridLayout()
+        self._griglia_documenti.setSpacing(6)
+        layout.addLayout(self._griglia_documenti)
         layout.addStretch()
+        self._stretta: bool | None = None
         avviso = QLabel(AVVISO_RESPONSABILITA)
         avviso.setObjectName("hint")
         avviso.setWordWrap(True)
@@ -1462,7 +1476,8 @@ class PaginaDocumenti(Pagina):
         self.revisioni.imposta_titolo("Revisioni del documento")
 
         self.composizioni = None
-        alto = QHBoxLayout()
+        alto = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self._alto = alto
         alto.addWidget(griglia, 1)
         self.schede = QTabWidget(self)
         if self.componibile:
@@ -1475,6 +1490,34 @@ class PaginaDocumenti(Pagina):
         self.schede.addTab(self.revisioni, "Revisioni")
         self.layout_.addLayout(alto, 3)
         self.layout_.addWidget(self.schede, 2)
+        # la larghezza minima è quella della disposizione stretta: affiancati i riquadri chiederebbero più
+        # spazio di un portatile, e la finestra non potrebbe stringersi fino a far scattare la disposizione
+        self._disponi(stretta=True)
+        self.setMinimumWidth(self.minimumSizeHint().width())
+
+    def _disponi(self, stretta: bool) -> None:
+        """Documenti accanto al riquadro delle composizioni (schermi larghi) o sopra, su tre colonne
+        con nomi brevi (portatili)."""
+        if stretta == self._stretta:
+            return
+        self._stretta = stretta
+        colonne = 3 if stretta else 1
+        for n, (chiave, pulsante) in enumerate(self._pulsanti_documenti):
+            self._griglia_documenti.removeWidget(pulsante)
+            if stretta:
+                pulsante.setText(self.NOMI_BREVI[chiave])
+            else:
+                pulsante.setText(f"{self.NOMI[chiave]}: componi la bozza" if chiave in self.COMPONIBILI
+                                 else self.NOMI[chiave])
+            self._griglia_documenti.addWidget(pulsante, n // colonne, n % colonne)
+        self._alto.setDirection(QBoxLayout.Direction.TopToBottom if stretta else QBoxLayout.Direction.LeftToRight)
+        if self.composizioni is not None:
+            self._alto.setStretch(0, 0 if stretta else 1)
+            self._alto.setStretch(1, 1 if stretta else 2)
+
+    def resizeEvent(self, evento) -> None:
+        super().resizeEvent(evento)
+        self._disponi(evento.size().width() < self.LARGHEZZA_AFFIANCATA)
 
     def _documento_composto(self) -> str | None:
         if self.componibile == "psc":

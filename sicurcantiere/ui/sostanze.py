@@ -80,6 +80,7 @@ class PannelloClassificazione(QWidget):
         while self.pittogrammi.count():
             w = self.pittogrammi.takeAt(0).widget()
             if w is not None:
+                w.hide()
                 w.deleteLater()
         codici = sostanze.codici_h(testo_codici)
         for codice in sostanze.pittogrammi(codici):

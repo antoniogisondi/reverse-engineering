@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFileDialog,
-    QFormLayout,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -29,7 +28,6 @@ from PySide6.QtWidgets import (
 
 from sicurcantiere import anagrafiche
 from sicurcantiere.repository import Repository
-from sicurcantiere.ui import tema
 
 DATA_VUOTA = QDate(1900, 1, 1)
 FILTRO_IMMAGINI = "Immagini (*.png *.jpg *.jpeg *.bmp)"
@@ -154,22 +152,67 @@ class ModuloRecord(QWidget):
         self._modificati: set[str] = set()
         self._caricamento = False
         self._opzioni: dict[str, Any] = {}
-        self.modulo = QFormLayout(self)
+        # campi in griglia, con l'etichetta sopra: su due colonne quando c'è spazio (i campi lunghi, le
+        # immagini e i gruppi di spunte occupano sempre tutta la riga)
+        self.modulo = QGridLayout(self)
+        self.modulo.setContentsMargins(9, 6, 9, 9)
+        self.modulo.setHorizontalSpacing(18)
+        self.modulo.setVerticalSpacing(10)
+        self._voci: list[tuple[QWidget, bool]] = []  # (blocco, a tutta riga)
         for voce in campi:
             campo, etichetta = voce[0], voce[1]
             if campo is None:
                 titolo = QLabel(etichetta)
                 titolo.setObjectName("sectionTitle")
-                self.modulo.addRow(titolo)
+                self._voci.append((titolo, True))
                 continue
             tipo = voce[2] if len(voce) > 2 else "testo"
             self._opzioni[campo] = voce[3] if len(voce) > 3 else []
             self.tipi[campo] = tipo
             contenitore = self._crea(campo, tipo, self._opzioni[campo])
-            self.modulo.addRow("" if tipo == "spunta" else etichetta, contenitore)
+            blocco = QWidget()
+            lb = QVBoxLayout(blocco)
+            lb.setContentsMargins(0, 0, 0, 0)
+            lb.setSpacing(4)
             if tipo == "spunta":
                 self.campi[campo].setText(etichetta)
-        tema.stile_modulo(self.modulo)
+            else:
+                nome = QLabel(etichetta)
+                nome.setObjectName("fieldLabel")
+                nome.setBuddy(self.campi[campo])
+                lb.addWidget(nome)
+            lb.addWidget(contenitore)
+            self._voci.append((blocco, tipo in self.TIPI_A_TUTTA_RIGA))
+        self._colonne = 0
+        self._disponi(1)
+
+    TIPI_A_TUTTA_RIGA = ("testo_lungo", "dpi", "immagine", "spunte")
+    LARGHEZZA_DUE_COLONNE = 760
+
+    def _disponi(self, colonne: int) -> None:
+        if colonne == self._colonne:
+            return
+        self._colonne = colonne
+        for blocco, _ in self._voci:
+            self.modulo.removeWidget(blocco)
+        riga = colonna = 0
+        for blocco, largo in self._voci:
+            if largo or colonne == 1:
+                if colonna:
+                    riga, colonna = riga + 1, 0
+                self.modulo.addWidget(blocco, riga, 0, 1, colonne)
+                riga += 1
+                continue
+            self.modulo.addWidget(blocco, riga, colonna)
+            colonna += 1
+            if colonna == colonne:
+                riga, colonna = riga + 1, 0
+        for c in range(2):
+            self.modulo.setColumnStretch(c, 1 if c < colonne else 0)
+
+    def resizeEvent(self, evento) -> None:  # noqa: N802 - nome di Qt
+        super().resizeEvent(evento)
+        self._disponi(2 if evento.size().width() >= self.LARGHEZZA_DUE_COLONNE else 1)
 
     # --- creazione dei campi ---
 
