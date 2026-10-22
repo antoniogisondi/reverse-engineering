@@ -186,7 +186,7 @@ def test_migrazione_da_v1(tmp_path):
     assert p.query("PRAGMA user_version")[0][0] == VERSIONE_SCHEMA
     fase = r.elenco("fasi")[0]
     assert fase["descrizione"] == "Vecchia fase" and fase["zona"] == ""
-    assert r.cantiere()["costo_uomo_giorno"] == 250
+    assert r.cantiere()["costo_uomo_giorno"] == 0  # vuoto: vale il valore tipico di 250 €
     p.chiudi()
 
 
@@ -343,9 +343,27 @@ def test_anteprima(tmp_path):
     from sicurcantiere.db import anteprima
 
     p = Progetto(tmp_path / "a.scs", crea=True)
-    Repository(p).aggiorna_cantiere(nome="Scuola", comune="Bari", provincia="BA")
+    r = Repository(p)
+    r.aggiorna_cantiere(nome="Scuola", comune="Bari", provincia="BA")
     p.chiudi()
-    assert anteprima(tmp_path / "a.scs") == {"nome": "Scuola", "comune": "Bari", "provincia": "BA"}
+    assert anteprima(tmp_path / "a.scs") == {"nome": "Scuola", "comune": "Bari", "provincia": "BA",
+                                             "committente": "", "impresa": ""}
+    # con committente, impresa e un documento composto: la pagina iniziale ne mostra lo stato
+    from sicurcantiere import composizioni
+
+    p = Progetto(tmp_path / "a.scs")
+    r = Repository(p)
+    r.inserisci("soggetti", ruolo="Committente", nome="Comune di Bari")
+    r.inserisci("imprese", ragione_sociale="Alfa srl")
+    composizioni.componi(r, "PSC")
+    p.chiudi()
+    dati = anteprima(tmp_path / "a.scs")
+    assert dati["committente"] == "Comune di Bari" and dati["impresa"] == "Alfa srl"
+    assert dati["stato"] == "bozza" and dati["documento"] == "PSC" and dati["mancanti"] > 0
+    import shutil
+
+    shutil.rmtree(tmp_path / "copie", ignore_errors=True)
+    anteprima(tmp_path / "a.scs")
     assert not (tmp_path / "copie").exists()  # sola lettura: niente copia di sicurezza
     (tmp_path / "rotto.scs").write_bytes(b"x" * 200)
     assert anteprima(tmp_path / "rotto.scs") is None

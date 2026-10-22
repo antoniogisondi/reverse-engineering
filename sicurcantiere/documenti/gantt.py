@@ -59,8 +59,8 @@ def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any]
     from PySide6.QtCore import QPointF, QRectF, Qt
     from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen
 
+    from sicurcantiere.documenti import stile
     from sicurcantiere.ui.gantt import (
-        COLORE_AFFOLLAMENTO,
         COLORE_INTERFERENZA,
         COLORE_SENZA_IMPRESA,
         COLORI_IMPRESE,
@@ -218,7 +218,9 @@ def _disegna(righe: list[tuple[str, dict[str, Any] | None]], ctx: dict[str, Any]
         for g in giornate:
             if n == 0 and massimo:
                 h = (grafico_h - _px(0.1)) * g.lavoratori / massimo
-                p.setBrush(COLORE_AFFOLLAMENTO)
+                tinta = QColor("#" + stile.ACCENTO)  # affollamento nel colore del documento, il picco più scuro
+                tinta.setAlpha(255 if g.lavoratori == massimo else 120)
+                p.setBrush(tinta)
             elif n == 1 and g.pericolosita:
                 h = (grafico_h - _px(0.1)) * g.pericolosita / 16
                 p.setBrush(colore_livello(g.pericolosita))

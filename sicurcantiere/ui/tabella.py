@@ -9,8 +9,10 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from PySide6.QtCore import QDate, Qt, QTimer, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QDateEdit,
     QDoubleSpinBox,
@@ -22,15 +24,21 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QSpinBox,
+    QSplitter,
+    QStyle,
     QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
+    QGridLayout,
     QVBoxLayout,
     QWidget,
 )
 
 from sicurcantiere.repository import Repository
+from sicurcantiere.ui import tema
 
 RUOLO_ID = Qt.ItemDataRole.UserRole
 
@@ -49,6 +57,8 @@ class Colonna:
     larghezza: int | None = None
     suggerimento: str = ""  # spiegazione mostrata passando sull'intestazione
     disegno: Callable[[QWidget], QStyledItemDelegate] | None = None  # delegato che disegna la cella (badge)
+    vuota: str = ""  # se indicato, la cella vuota è evidenziata con questo testo (per esempio «da assegnare»)
+    aiuto: Callable[[dict[str, Any]], str] | None = None  # testo completo al passaggio del mouse sulla cella
 
 
 def formatta(colonna: Colonna, riga: dict[str, Any]) -> str:
@@ -80,7 +90,7 @@ class _Delegato(QStyledItemDelegate):
         col = self.tabella.colonne[indice.column()]
         if col.tipo in ("calcolata", "spunta"):
             return None
-        if col.tipo == "testo_lungo":
+        if col.tipo in ("testo_lungo", "dpi"):
             return QPlainTextEdit(genitore)
         if col.tipo == "intero":
             e = QSpinBox(genitore)
@@ -107,12 +117,20 @@ class _Delegato(QStyledItemDelegate):
             return e
         return QLineEdit(genitore)
 
+    def initStyleOption(self, opzioni, indice):  # noqa: N802 - nome di Qt
+        super().initStyleOption(opzioni, indice)
+        if opzioni.state & QStyle.StateFlag.State_Selected:
+            opzioni.font.setBold(True)  # la riga selezionata non si confonde con il fondo degli avvisi
+
     def paint(self, painter, opzioni, indice):
         super().paint(painter, opzioni, indice)
-        if self.tabella.colonne[indice.column()].tipo == "scelta":
-            from sicurcantiere.ui import tema
-
+        selezionata = bool(opzioni.state & QStyle.StateFlag.State_Selected)
+        sopra = bool(opzioni.state & QStyle.StateFlag.State_MouseOver)
+        if self.tabella.colonne[indice.column()].tipo == "scelta" and (selezionata or sopra):
             tema.disegna_freccia(painter, opzioni.rect, tema.correnti()["tx3"])
+        if selezionata and indice.column() == self.tabella.prima_colonna_visibile():
+            r = opzioni.rect
+            painter.fillRect(r.x(), r.y(), 3, r.height(), QColor(tema.correnti()["acc_s"]))
 
     def setEditorData(self, editor, indice):
         col = self.tabella.colonne[indice.column()]
@@ -151,6 +169,299 @@ class _Delegato(QStyledItemDelegate):
         self.tabella.salva_cella(indice.row(), indice.column(), valore)
 
 
+class _TestoCrescente(QPlainTextEdit):
+    """Testo su più righe che si allunga mentre si scrive (da 3 righe fino a circa 14)."""
+
+    def __init__(self, genitore=None):
+        super().__init__(genitore)
+        tema.evidenzia_spazi(self)
+        self.document().documentLayout().documentSizeChanged.connect(lambda *_: self._adatta())
+        self._adatta()
+
+    def _adatta(self) -> None:
+        riga = self.fontMetrics().lineSpacing()
+        righe = max(3, min(14, int(self.document().size().height()) + 1))
+        self.setFixedHeight(riga * righe + 16)
+
+    def resizeEvent(self, evento) -> None:  # noqa: N802 - nome di Qt
+        super().resizeEvent(evento)
+        self._adatta()
+
+
+class EditorDPI(QWidget):
+    """DPI come etichette, scelti dall'elenco per parte del corpo (si confrontano meglio e finiscono uguali
+    nei documenti); il testo salvato è l'elenco separato da punto e virgola."""
+
+    cambiato = Signal()
+
+    def __init__(self, genitore=None):
+        super().__init__(genitore)
+        self._voci: list[str] = []
+        self.etichette = QLabel()
+        self.etichette.setWordWrap(True)
+        self.etichette.setTextFormat(Qt.TextFormat.RichText)
+        scegli = QPushButton("Scegli i DPI...")
+        scegli.clicked.connect(self._scegli)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        layout.addWidget(self.etichette)
+        layout.addWidget(scegli, alignment=Qt.AlignmentFlag.AlignLeft)
+
+    def imposta(self, testo: str) -> None:
+        import re
+
+        self._voci = [v.strip() for v in re.split(r"[;\n]", testo or "") if v.strip()]
+        c = tema.correnti()
+        if not self._voci:
+            self.etichette.setText(f"<span style='color:{c['tx3']}'>Nessun DPI indicato.</span>")
+            return
+        self.etichette.setText(" ".join(
+            f"<span style='background:{c['surface2']}; color:{c['tx']}'>&nbsp;{v}&nbsp;</span>&nbsp;"
+            for v in self._voci))
+
+    def testo(self) -> str:
+        return "; ".join(self._voci)
+
+    def _scegli(self) -> None:
+        from sicurcantiere.ui.modulo import DialogoDPI
+
+        dialogo = DialogoDPI(self._voci, [], self)
+        if dialogo.exec():
+            self.imposta("; ".join(dialogo.scelti()))
+            self.cambiato.emit()
+
+
+class PannelloDettaglio(QScrollArea):
+    """Modifica della riga selezionata, a destra dell'elenco: un campo per colonna, etichetta sopra."""
+
+    def __init__(self, tabella: TabellaCrud):
+        super().__init__()
+        self.tabella = tabella
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setObjectName("detailPanel")
+        self._id: int | None = None
+        self._caricamento = False
+        self.editori: dict[str, QWidget] = {}
+        self._timer: dict[str, QTimer] = {}
+
+        contenuto = QWidget()
+        contenuto.setObjectName("detailBody")
+        self.titolo = QLabel()
+        self.titolo.setObjectName("sectionTitle")
+        self.titolo.setWordWrap(True)
+        self.vuoto = QLabel()
+        self.vuoto.setObjectName("hint")
+        self.vuoto.setWordWrap(True)
+        griglia = QGridLayout()
+        griglia.setHorizontalSpacing(14)
+        griglia.setVerticalSpacing(10)
+        riga = colonna = 0
+        for col in tabella.colonne:
+            editore = self._crea(col)
+            if editore is None:
+                continue
+            blocco = QWidget()
+            lb = QVBoxLayout(blocco)
+            lb.setContentsMargins(0, 0, 0, 0)
+            lb.setSpacing(4)
+            if col.tipo != "spunta":
+                nome = QLabel(col.titolo)
+                nome.setObjectName("fieldLabel")
+                nome.setWordWrap(True)
+                if col.suggerimento:
+                    nome.setToolTip(col.suggerimento)
+                lb.addWidget(nome)
+            lb.addWidget(editore)
+            largo = col.tipo in ("testo_lungo", "spunta", "dpi") or col.larghezza is None or (col.larghezza or 0) >= 200
+            if largo:
+                if colonna:
+                    riga, colonna = riga + 1, 0
+                griglia.addWidget(blocco, riga, 0, 1, 2)
+                riga += 1
+            else:
+                griglia.addWidget(blocco, riga, colonna)
+                colonna += 1
+                if colonna == 2:
+                    riga, colonna = riga + 1, 0
+        griglia.setColumnStretch(0, 1)
+        griglia.setColumnStretch(1, 1)
+        self.campi = QWidget()
+        self.campi.setLayout(griglia)
+        self.extra = QVBoxLayout()  # spazio per controlli propri della pagina (etichette DPI, pulsanti AI...)
+        layout = QVBoxLayout(contenuto)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(10)
+        layout.addWidget(self.titolo)
+        layout.addWidget(self.vuoto)
+        layout.addWidget(self.campi)
+        layout.addLayout(self.extra)
+        layout.addStretch()
+        self.setWidget(contenuto)
+        self.carica(None)
+
+    # --- campi ---
+
+    def _crea(self, col: Colonna) -> QWidget | None:
+        campo = col.campo
+        if col.tipo == "calcolata":
+            w = QLabel()
+            w.setObjectName("detailValue")
+            w.setWordWrap(True)
+        elif col.tipo == "testo_lungo":
+            w = _TestoCrescente()
+            self._timer[campo] = t = QTimer(self, singleShot=True, interval=600)
+            t.timeout.connect(lambda: self._salva(campo))
+            w.textChanged.connect(lambda: None if self._caricamento else t.start())
+        elif col.tipo == "intero":
+            w = QSpinBox()
+            w.setRange(int(col.minimo), int(col.massimo))
+            if col.minimo == 0:
+                tema.numero_vuoto(w)
+            w.valueChanged.connect(lambda *_: None if self._caricamento else self._salva(campo))
+        elif col.tipo == "decimale":
+            w = QDoubleSpinBox()
+            w.setDecimals(2)
+            w.setRange(col.minimo, col.massimo)
+            w.setGroupSeparatorShown(True)
+            if col.minimo == 0:
+                tema.numero_vuoto(w)
+            w.editingFinished.connect(lambda: self._salva(campo))
+        elif col.tipo == "data":
+            from sicurcantiere.ui.modulo import CampoData
+
+            w = CampoData()
+            w.dateChanged.connect(lambda *_: None if self._caricamento else self._salva(campo))
+        elif col.tipo == "scelta":
+            w = QComboBox()
+            w.setEditable(col.scelta_libera)
+            w.activated.connect(lambda *_: self._salva(campo))
+            if col.scelta_libera:
+                w.lineEdit().editingFinished.connect(lambda: self._salva(campo))
+        elif col.tipo == "dpi":
+            w = EditorDPI()
+            w.cambiato.connect(lambda: None if self._caricamento else self._salva(campo))
+        elif col.tipo == "spunta":
+            w = QCheckBox(col.titolo)
+            if col.suggerimento:
+                w.setToolTip(col.suggerimento)
+            w.toggled.connect(lambda *_: None if self._caricamento else self._salva(campo))
+        else:
+            w = QLineEdit()
+            w.editingFinished.connect(lambda: self._salva(campo))
+        self.editori[campo] = w
+        return w
+
+    def _valore(self, campo: str) -> Any:
+        w = self.editori[campo]
+        if isinstance(w, EditorDPI):
+            return w.testo()
+        if isinstance(w, QPlainTextEdit):
+            return w.toPlainText()
+        if isinstance(w, QCheckBox):
+            return 1 if w.isChecked() else 0
+        if isinstance(w, (QSpinBox, QDoubleSpinBox)):
+            return w.value()
+        if isinstance(w, QComboBox):
+            testo = w.currentText()
+            i = w.findText(testo)
+            return w.itemData(i) if i >= 0 else testo
+        if isinstance(w, QDateEdit):
+            return w.valore()
+        return w.text()
+
+    def _salva(self, campo: str) -> None:
+        if self._caricamento or self._id is None:
+            return
+        r = next((n for n, riga in enumerate(self.tabella._righe) if riga["id"] == self._id), None)
+        if r is None:
+            return
+        c = next(n for n, col in enumerate(self.tabella.colonne) if col.campo == campo)
+        valore = self._valore(campo)
+        if valore is None and self.tabella.riga(r).get(campo) in (None, ""):
+            return
+        self.tabella.salva_cella(r, c, valore)
+        self._aggiorna_calcolate(self.tabella.riga(r))
+
+    def salva_in_sospeso(self) -> None:
+        for campo, timer in self._timer.items():
+            if timer.isActive():
+                timer.stop()
+                self._salva(campo)
+
+    def _aggiorna_calcolate(self, riga: dict[str, Any]) -> None:
+        for col in self.tabella.colonne:
+            if col.tipo == "calcolata":
+                self.editori[col.campo].setText(formatta(col, riga) or "—")
+        self.titolo.setText(self._titolo(riga))
+
+    def _titolo(self, riga: dict[str, Any]) -> str:
+        for col in self.tabella.colonne:
+            if col.tipo not in ("spunta", "calcolata"):
+                testo = formatta(col, riga).strip()
+                if testo:
+                    return testo.split("\n")[0][:120]
+        return "Nuova voce"
+
+    def carica(self, id_: int | None) -> None:
+        self.salva_in_sospeso()
+        self._id = id_
+        riga = next((r for r in self.tabella._righe if r["id"] == id_), None) if id_ is not None else None
+        self.campi.setVisible(riga is not None)
+        self.titolo.setVisible(riga is not None)
+        self.vuoto.setVisible(riga is None)
+        self.vuoto.setText(self.tabella.testo_vuoto())
+        if riga is None:
+            return
+        self._caricamento = True
+        try:
+            for col in self.tabella.colonne:
+                w = self.editori.get(col.campo)
+                valore = riga.get(col.campo)
+                if w is None or col.tipo == "calcolata":
+                    continue
+                if isinstance(w, EditorDPI):
+                    w.imposta(valore or "")
+                elif isinstance(w, QPlainTextEdit):
+                    if w.toPlainText() != (valore or ""):
+                        w.setPlainText(valore or "")
+                elif isinstance(w, QCheckBox):
+                    w.setChecked(bool(valore))
+                elif isinstance(w, QSpinBox):
+                    w.setValue(int(valore or 0))
+                elif isinstance(w, QDoubleSpinBox):
+                    w.setValue(float(valore or 0))
+                elif isinstance(w, QDateEdit):
+                    w.imposta(valore)
+                elif isinstance(w, QComboBox):
+                    w.clear()
+                    for v, etichetta in col.scelte() if col.scelte else []:
+                        w.addItem(etichetta, v)
+                    i = w.findData(valore)
+                    if i >= 0:
+                        w.setCurrentIndex(i)
+                    elif col.scelta_libera:
+                        w.setEditText(str(valore or ""))
+                    else:
+                        w.setCurrentIndex(-1)
+                else:
+                    w.setText("" if valore is None else str(valore))
+        finally:
+            self._caricamento = False
+        self._aggiorna_calcolate(riga)
+
+    def primo_campo(self) -> None:
+        """Cursore sul primo campo da compilare (dopo «Aggiungi»)."""
+        for col in self.tabella.colonne:
+            w = self.editori.get(col.campo)
+            if w is not None and col.tipo not in ("calcolata", "spunta"):
+                w.setFocus()
+                if isinstance(w, QComboBox) and not col.scelta_libera:
+                    QTimer.singleShot(0, w.showPopup)
+                return
+
+
 class TabellaCrud(QFrame):
     """Elenco di record con pulsanti Aggiungi/Elimina, in un riquadro con intestazione."""
 
@@ -160,7 +471,8 @@ class TabellaCrud(QFrame):
     def __init__(self, repo: Repository, tabella: str, colonne: list[Colonna],
                  valori_nuovo: Callable[[], dict[str, Any]] | None = None,
                  valida: Callable[[dict[str, Any]], str | None] | None = None,
-                 genitore: QWidget | None = None):
+                 genitore: QWidget | None = None, elenco: list[str] | None = None,
+                 vuoto: str = ""):
         super().__init__(genitore)
         self.repo = repo
         self.nome_tabella = tabella
@@ -169,6 +481,10 @@ class TabellaCrud(QFrame):
         self.valida = valida
         self.filtro: dict[str, Any] = {}
         self._righe: list[dict[str, Any]] = []
+        self.elenco = elenco  # colonne visibili nell'elenco; le altre si modificano nel pannello di dettaglio
+        self._vista: Callable[[dict[str, Any]], bool] | None = None  # righe mostrate (filtri dell'elenco)
+        self._filtri: list[tuple[QPushButton, str, Callable[[dict[str, Any]], bool] | None]] = []
+        self._testo_vuoto = vuoto
 
         self.vista = QTableWidget(0, len(colonne))
         self.vista.setAlternatingRowColors(True)
@@ -180,6 +496,7 @@ class TabellaCrud(QFrame):
                 self.vista.setItemDelegateForColumn(n, c.disegno(self.vista))
         self.vista.setItemDelegate(_Delegato(self))
         self.vista.setShowGrid(False)
+        self.vista.setMouseTracking(True)
         self.vista.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.vista.verticalHeader().setMinimumSectionSize(32)
         # Altezza delle righe secondo il testo, ma rifatta quando cambia la larghezza delle colonne:
@@ -238,7 +555,74 @@ class TabellaCrud(QFrame):
         layout.setContentsMargins(1, 1, 1, 1)
         layout.setSpacing(0)
         layout.addWidget(intestazione)
-        layout.addWidget(self.vista)
+        self.riga_filtri = QHBoxLayout()
+        self.riga_filtri.setContentsMargins(10, 6, 10, 6)
+        self.riga_filtri.setSpacing(6)
+        self._contenitore_filtri = QWidget()
+        self._contenitore_filtri.setLayout(self.riga_filtri)
+        self._contenitore_filtri.hide()
+        layout.addWidget(self._contenitore_filtri)
+        self.dettaglio: PannelloDettaglio | None = None
+        if elenco:
+            for i, c in enumerate(colonne):
+                self.vista.setColumnHidden(i, c.campo not in elenco)
+            intestazione_vista = self.vista.horizontalHeader()
+            for i, c in enumerate(colonne):
+                if c.campo in elenco and c.tipo == "testo_lungo":
+                    intestazione_vista.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+            self.vista.setWordWrap(False)
+            self.vista.verticalHeader().setMaximumSectionSize(48)
+            self.dettaglio = PannelloDettaglio(self)
+            self.divisore = QSplitter(Qt.Orientation.Horizontal)
+            self.divisore.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            self.divisore.setChildrenCollapsible(False)
+            self.divisore.addWidget(self.vista)
+            self.divisore.addWidget(self.dettaglio)
+            self.divisore.setStretchFactor(0, 3)
+            self.divisore.setStretchFactor(1, 2)
+            self.dettaglio.setMinimumWidth(300)
+            self.selezione_cambiata.connect(self.dettaglio.carica)
+            layout.addWidget(self.divisore)
+        else:
+            layout.addWidget(self.vista)
+
+    def aggiungi_filtri(self, filtri: list[tuple[str, Callable[[dict[str, Any]], bool] | None]]) -> None:
+        """Pulsanti a scelta sopra l'elenco («Tutti», «Alti e molto alti»...), con il numero di voci."""
+        for nome, predicato in filtri:
+            b = QPushButton(nome)
+            b.setCheckable(True)
+            b.setObjectName("filterChip")
+            b.clicked.connect(lambda _=False, pulsante=b: self._scegli_filtro(pulsante))
+            self.riga_filtri.addWidget(b)
+            self._filtri.append((b, nome, predicato))
+        self.riga_filtri.addStretch()
+        self._contenitore_filtri.show()
+        self._filtri[0][0].setChecked(True)
+
+    def _scegli_filtro(self, pulsante: QPushButton) -> None:
+        for b, _nome, predicato in self._filtri:
+            b.setChecked(b is pulsante)
+            if b is pulsante:
+                self._vista = predicato
+        self._applica_vista()
+
+    def _applica_vista(self) -> None:
+        for b, nome, predicato in self._filtri:
+            b.setText(f"{nome}  {sum(1 for r in self._righe if predicato is None or predicato(r))}")
+        for r, riga in enumerate(self._righe):
+            self.vista.setRowHidden(r, self._vista is not None and not self._vista(riga))
+
+    def prima_colonna_visibile(self) -> int:
+        return next((i for i in range(len(self.colonne)) if not self.vista.isColumnHidden(i)), 0)
+
+    def testo_vuoto(self) -> str:
+        if self._righe:
+            return "Seleziona una voce nell'elenco per vederne e modificarne i dati."
+        return self._testo_vuoto or "Nessuna voce. Usa «Aggiungi» per inserire la prima."
+
+    def salva_in_sospeso(self) -> None:
+        if self.dettaglio is not None:
+            self.dettaglio.salva_in_sospeso()
 
     def _adatta_righe(self) -> None:
         if self.isVisible():
@@ -290,6 +674,8 @@ class TabellaCrud(QFrame):
         self.vista.blockSignals(False)
         self.vista.resizeRowsToContents()
         self.conteggio.setText(str(len(self._righe)))
+        if self._filtri:
+            self._applica_vista()
         self.seleziona(selezionato)
         self.selezione_cambiata.emit(self.id_selezionato())
 
@@ -315,6 +701,15 @@ class TabellaCrud(QFrame):
                 item.setCheckState(Qt.CheckState.Checked if self._righe[r].get(col.campo) else Qt.CheckState.Unchecked)
             if col.tipo in ("intero", "decimale", "calcolata"):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            if col.aiuto is not None:
+                item.setToolTip(col.aiuto(self._righe[r]))
+            if col.vuota and self._righe[r].get(col.campo) in (None, "", 0):
+                # dato obbligatorio mancante: cella evidenziata, come i dati da completare dei documenti
+                c_ = tema.correnti()
+                item.setText(col.vuota)
+                item.setBackground(QColor(c_["warn_bg"]))
+                item.setForeground(QColor(c_["warn"]))
+                item.setToolTip(f"{col.titolo}: {col.vuota}")
             self.vista.setItem(r, c, item)
 
     def _spunta_cambiata(self, item: QTableWidgetItem) -> None:
@@ -357,10 +752,20 @@ class TabellaCrud(QFrame):
     # --- azioni ---
 
     def aggiungi(self) -> None:
+        self.salva_in_sospeso()
         nuovo = self.repo.inserisci(self.nome_tabella, **{**self.filtro, **self.valori_nuovo()})
         self.ricarica()
         self.seleziona(nuovo)
         self.modificata.emit()
+        if self.dettaglio is not None:
+            self.dettaglio.carica(nuovo)
+            self.dettaglio.primo_campo()
+        else:
+            col = self.prima_colonna_visibile()
+            r = next((n for n, riga in enumerate(self._righe) if riga["id"] == nuovo), None)
+            if r is not None and self.colonne[col].tipo not in ("calcolata", "spunta"):
+                self.vista.setCurrentCell(r, col)
+                self.vista.editItem(self.vista.item(r, col))
 
     def elimina(self) -> None:
         id_ = self.id_selezionato()

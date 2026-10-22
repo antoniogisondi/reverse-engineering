@@ -69,6 +69,9 @@ def fine_dopo_giorni_lavorativi(inizio: date, giorni: int) -> date:
     return giorno
 
 
+COSTO_UOMO_GIORNO = 250.0  # valore tipico, usato se nel cantiere il costo non è indicato
+
+
 def durata_stimata(importo: float, incidenza_manodopera: float, costo_uomo_giorno: float,
                    lavoratori: int) -> int | None:
     """Giorni lavorativi stimati di una fase (Gantt analitico).

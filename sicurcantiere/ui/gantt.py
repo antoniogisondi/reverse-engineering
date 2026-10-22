@@ -11,16 +11,16 @@ from datetime import date, timedelta
 from typing import Any
 
 from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import QToolTip, QWidget
 
 from sicurcantiere import analisi
 
-ALTEZZA_RIGA = 26
-ALTEZZA_INTESTAZIONE = 40
+ALTEZZA_RIGA = 40  # due righe: fase e impresa
+ALTEZZA_INTESTAZIONE = 44  # mese, settimane e l'etichetta «oggi»
 ALTEZZA_GRAFICO = 60
 ALTEZZA_LEGENDA = 30
-LARGHEZZA_ETICHETTE = 260
+LARGHEZZA_ETICHETTE = 300
 MARGINE_BORDO = 6  # pixel sensibili sul bordo destro della barra
 
 ZOOM = {"Giorni": 18, "Settimane": 6, "Mesi": 2}
@@ -33,11 +33,16 @@ COLORI_IMPRESE = [QColor(c) for c in (
 COLORE_SENZA_IMPRESA = QColor("#9AA5B1")
 COLORE_INTERFERENZA = QColor("#D93B30")
 COLORE_OGGI = QColor("#E8792B")
-COLORE_AFFOLLAMENTO = QColor("#7A5BA6")
 COLORE_FINE_SETTIMANA = QColor(128, 128, 128, 30)
 # Colori per classe di rischio: basso, medio, alto, molto alto.
 COLORI_PERICOLOSITA = [(9, QColor("#C0392B")), (6, QColor("#E67E22")), (3, QColor("#F1C40F")),
                        (1, QColor("#27AE60"))]
+
+
+def _colore_tema(chiave: str) -> QColor:
+    from sicurcantiere.ui import tema
+
+    return QColor(tema.correnti()[chiave])
 
 
 def colore_livello(livello: int) -> QColor:
@@ -50,6 +55,7 @@ def colore_livello(livello: int) -> QColor:
 class Gantt(QWidget):
     # id della fase, nuova data di inizio, nuova data di fine (ISO)
     fase_modificata = Signal(int, str, str)
+    fase_cliccata = Signal(int)
 
     def __init__(self, genitore: QWidget | None = None):
         super().__init__(genitore)
@@ -61,6 +67,7 @@ class Gantt(QWidget):
         self.pixel_giorno = ZOOM[ZOOM_PREDEFINITO]
         self.oggi = date.today()
         self._trascinamento: dict[str, Any] | None = None
+        self.selezionata: int | None = None
         self.setMouseTracking(True)
         self.setMinimumHeight(ALTEZZA_INTESTAZIONE + ALTEZZA_RIGA)
 
@@ -74,6 +81,11 @@ class Gantt(QWidget):
         self.interferenze = analisi.interferenze(fasi, livelli)
         self.giornate = analisi.andamento(fasi, livelli)
         self._ridimensiona()
+
+    def seleziona(self, id_: int | None) -> None:
+        if id_ != self.selezionata:
+            self.selezionata = id_
+            self.update()
 
     def imposta_zoom(self, nome: str) -> None:
         self.pixel_giorno = ZOOM[nome]
@@ -89,7 +101,9 @@ class Gantt(QWidget):
             return COLORE_SENZA_IMPRESA
         ordine = sorted(self.imprese)
         indice = ordine.index(impresa_id) if impresa_id in ordine else impresa_id
-        return COLORI_IMPRESE[indice % len(COLORI_IMPRESE)]
+        # la prima impresa (di solito l'affidataria) nel colore del programma, le altre in colori distinti
+        tavolozza = [_colore_tema("acc_s")] + [c for c in COLORI_IMPRESE if c.name().upper() != "#2E9C8F"]
+        return tavolozza[indice % len(tavolozza)]
 
     # --- geometria ---
 
@@ -116,8 +130,8 @@ class Gantt(QWidget):
 
     def _rett_barra(self, r: int, inizio: date, fine: date) -> QRectF:
         y = self._y_righe() + r * ALTEZZA_RIGA
-        return QRectF(self._x(inizio), y + 5, ((fine - inizio).days + 1) * self.pixel_giorno,
-                      ALTEZZA_RIGA - 10)
+        return QRectF(self._x(inizio), y + 10, ((fine - inizio).days + 1) * self.pixel_giorno,
+                      ALTEZZA_RIGA - 20)
 
     def _date(self, f: dict[str, Any]) -> tuple[date | None, date | None]:
         if self._trascinamento and self._trascinamento["id"] == f["id"]:
@@ -166,17 +180,17 @@ class Gantt(QWidget):
                 p.setPen(griglia)
                 p.drawLine(QPointF(x, 0), QPointF(x, fondo))
                 p.setPen(testo)
-                p.drawText(QRectF(x + 3, 2, 120, 18), Qt.AlignmentFlag.AlignVCenter,
+                p.drawText(QRectF(x + 3, 0, 120, 16), Qt.AlignmentFlag.AlignVCenter,
                            f"{MESI[giorno.month - 1]} {giorno.year}")
             # Riga inferiore: giorni o settimane.
             if self.pixel_giorno >= ZOOM["Giorni"]:
                 p.setPen(debole)
-                p.drawText(QRectF(x, 20, self.pixel_giorno, 18), Qt.AlignmentFlag.AlignCenter, str(giorno.day))
+                p.drawText(QRectF(x, 16, self.pixel_giorno, 14), Qt.AlignmentFlag.AlignCenter, str(giorno.day))
             elif self.pixel_giorno >= ZOOM["Settimane"] and giorno.weekday() == 0:
                 p.setPen(griglia)
-                p.drawLine(QPointF(x, 20), QPointF(x, fondo))
+                p.drawLine(QPointF(x, 16), QPointF(x, fondo))
                 p.setPen(debole)
-                p.drawText(QRectF(x + 2, 20, 7 * self.pixel_giorno, 18), Qt.AlignmentFlag.AlignVCenter,
+                p.drawText(QRectF(x + 2, 16, 7 * self.pixel_giorno, 14), Qt.AlignmentFlag.AlignVCenter,
                            giorno.strftime("%d/%m"))
         p.setPen(griglia)
         p.drawLine(QPointF(0, ALTEZZA_INTESTAZIONE), QPointF(self.width(), ALTEZZA_INTESTAZIONE))
@@ -187,15 +201,32 @@ class Gantt(QWidget):
         for i in self.interferenze:
             for f in (i.fase_a, i.fase_b):
                 periodi_interferenza.setdefault(f["id"], []).append((i.inizio, i.fine))
+        debole = self.palette().placeholderText().color()
         for r, f in enumerate(self.fasi):
             y = self._y_righe() + r * ALTEZZA_RIGA
+            if f["id"] == self.selezionata:
+                p.fillRect(QRectF(0, y, self.width(), ALTEZZA_RIGA), _colore_tema("sel"))
+                p.fillRect(QRectF(0, y, 3, ALTEZZA_RIGA), _colore_tema("acc_s"))
             p.setPen(griglia)
             p.drawLine(QPointF(0, y + ALTEZZA_RIGA), QPointF(self.width(), y + ALTEZZA_RIGA))
+            # nome della fase sopra, impresa sotto (più piccola)
+            carattere = p.font()
+            grassetto = QFont(carattere)
+            grassetto.setBold(f["id"] == self.selezionata)
+            p.setFont(grassetto)
             p.setPen(testo)
             etichetta = f"{f['codice']} {f['descrizione']}".strip()
-            p.drawText(QRectF(6, y, LARGHEZZA_ETICHETTE - 12, ALTEZZA_RIGA), Qt.AlignmentFlag.AlignVCenter,
-                       p.fontMetrics().elidedText(etichetta, Qt.TextElideMode.ElideRight,
-                                                  LARGHEZZA_ETICHETTE - 12))
+            larghezza = LARGHEZZA_ETICHETTE - 16
+            p.drawText(QRectF(10, y + 3, larghezza, 18), Qt.AlignmentFlag.AlignVCenter,
+                       p.fontMetrics().elidedText(etichetta, Qt.TextElideMode.ElideRight, larghezza))
+            piccolo = QFont(carattere)
+            piccolo.setPointSizeF(max(6.5, carattere.pointSizeF() - 1.5))
+            p.setFont(piccolo)
+            p.setPen(debole)
+            impresa = self.imprese.get(f.get("impresa_id")) if f.get("impresa_id") else "impresa da definire"
+            p.drawText(QRectF(10, y + 20, larghezza, 16), Qt.AlignmentFlag.AlignVCenter,
+                       p.fontMetrics().elidedText(impresa or "", Qt.TextElideMode.ElideRight, larghezza))
+            p.setFont(carattere)
             inizio, fine = self._date(f)
             if not (inizio and fine) or fine < inizio:
                 continue
@@ -222,14 +253,16 @@ class Gantt(QWidget):
         if not (origine <= self.oggi <= origine + timedelta(days=self._giorni())):
             return
         x = self._x(self.oggi) + self.pixel_giorno / 2
-        p.setPen(QPen(COLORE_OGGI, 2, Qt.PenStyle.DashLine))
-        p.drawLine(QPointF(x, ALTEZZA_INTESTAZIONE), QPointF(x, self.height() - ALTEZZA_LEGENDA))
-        etichetta = QRectF(x + 3, ALTEZZA_INTESTAZIONE + 2, 34, 15)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(COLORE_OGGI)
-        p.drawRoundedRect(etichetta, 3, 3)
-        p.setPen(QColor("#FFFFFF"))
-        p.drawText(etichetta, Qt.AlignmentFlag.AlignCenter, "oggi")
+        p.setPen(QPen(COLORE_OGGI, 1.5, Qt.PenStyle.DashLine))
+        p.drawLine(QPointF(x, ALTEZZA_INTESTAZIONE - 12), QPointF(x, self.height() - ALTEZZA_LEGENDA))
+        # «oggi» nella riga delle date, senza coprire le barre delle fasi
+        carattere = QFont(p.font())
+        carattere.setBold(True)
+        p.setFont(carattere)
+        p.setPen(COLORE_OGGI)
+        p.drawText(QRectF(x - 20, ALTEZZA_INTESTAZIONE - 14, 40, 13), Qt.AlignmentFlag.AlignCenter, "oggi")
+        carattere.setBold(False)
+        p.setFont(carattere)
 
     def _disegna_grafici(self, p: QPainter, testo: QColor) -> None:
         y0 = self._y_grafici()
@@ -241,7 +274,9 @@ class Gantt(QWidget):
             x = self._x(g.giorno)
             if massimo:
                 h = (ALTEZZA_GRAFICO - 4) * g.lavoratori / massimo
-                p.setBrush(COLORE_AFFOLLAMENTO)
+                tinta = _colore_tema("acc_s")
+                tinta.setAlpha(255 if g.lavoratori == massimo else 110)  # il picco più scuro
+                p.setBrush(tinta)
                 p.drawRect(QRectF(x, y0 + ALTEZZA_GRAFICO - h, self.pixel_giorno, h))
             if g.pericolosita:
                 h = (ALTEZZA_GRAFICO - 4) * g.pericolosita / 16
@@ -300,7 +335,17 @@ class Gantt(QWidget):
             return f, barra, pos.x() >= barra.right() - MARGINE_BORDO
         return None
 
+    def _riga_in(self, pos: QPointF) -> dict[str, Any] | None:
+        r = int((pos.y() - self._y_righe()) // ALTEZZA_RIGA)
+        if pos.y() < self._y_righe() or not (0 <= r < len(self.fasi)):
+            return None
+        return self.fasi[r]
+
     def mousePressEvent(self, evento) -> None:
+        riga = self._riga_in(evento.position()) if self.periodo else None
+        if riga is not None and evento.button() == Qt.MouseButton.LeftButton:
+            self.seleziona(riga["id"])
+            self.fase_cliccata.emit(riga["id"])
         trovata = self._fase_in(evento.position())
         if evento.button() != Qt.MouseButton.LeftButton or trovata is None:
             return super().mousePressEvent(evento)

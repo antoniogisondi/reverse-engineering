@@ -82,7 +82,7 @@ QStatusBar {
 }
 QStatusBar::item { border: none; }
 QStatusBar QLabel { color: @tx3; font-size: 12px; padding: 0 8px; }
-QStatusBar QLabel#filePath { font-family: "@mono"; }
+QStatusBar QLabel#filePath { color: @tx2; }
 QStatusBar QLabel#savedLabel { color: @ok; }
 /* indicatore errori/avvisi cliccabile: objectName = "checksIndicator", proprietà level */
 QPushButton#checksIndicator {
@@ -260,6 +260,26 @@ QComboBox::drop-down:hover { background: @surface2; }
 QComboBox::down-arrow { image: url(@icon_arrow); width: 14px; height: 14px; }
 QComboBox::down-arrow:disabled { image: url(@icon_arrow_off); }
 QComboBox::down-arrow:on { top: 1px; }
+/* campi data: stesso pulsante delle tendine; vuoti con «gg/mm/aaaa» in grigio */
+QDateEdit { padding-right: 30px; }
+QDateEdit::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+    border-left: 1px solid @line;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+QDateEdit::drop-down:hover { background: @surface2; }
+QDateEdit::down-arrow { image: url(@icon_arrow); width: 14px; height: 14px; }
+QDateEdit::down-arrow:disabled { image: url(@icon_arrow_off); }
+QDateEdit[vuota="true"] { color: @tx3; }
+QSpinBox[vuoto="true"], QDoubleSpinBox[vuoto="true"] { color: @tx3; }
+/* pannello di dettaglio accanto agli elenchi */
+QScrollArea#detailPanel { background: @surface; border-left: 1px solid @line; }
+QWidget#detailBody { background: @surface; }
+QLabel#detailValue { font-weight: 600; color: @tx; }
 QComboBox QAbstractItemView {
     background: @surface;
     border: 1px solid @line2;
@@ -445,3 +465,100 @@ QFrame#navRule { background: @line; max-height: 1px; min-height: 1px; border: no
 QLabel#infoBanner { padding: 8px 12px; color: @tx; }
 QPushButton[variant="primary"] QLabel#largeNote { color: @acc_tx; }
 QLabel#kbd { max-height: 18px; }
+
+/* note di pagina con stato (costi a zero, zona mancante...) */
+QLabel#hint[state="warning"] {
+    color: @warn;
+    background: @warn_bg;
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+QLabel#hint[state="error"] {
+    color: @err;
+    background: @err_bg;
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+
+/* filtri sopra gli elenchi («Tutti», «Alti e molto alti»...) */
+QPushButton#filterChip {
+    border: 1px solid @line2;
+    border-radius: 13px;
+    padding: 3px 12px;
+    min-height: 18px;
+    background: @surface;
+    color: @tx2;
+}
+QPushButton#filterChip:hover { background: @surface2; }
+QPushButton#filterChip:checked { background: @acc_soft; border-color: @acc_s; color: @acc_s; font-weight: 600; }
+
+/* scelta della vista («Elenco» / «Cronoprogramma») */
+QPushButton#segment {
+    border: 1px solid @line2;
+    border-radius: 0;
+    padding: 5px 16px;
+    background: @surface;
+    color: @tx2;
+}
+QPushButton#segment:first { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+QPushButton#segment:last { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+QPushButton#segment:hover { background: @surface2; }
+QPushButton#segment:checked { background: @acc_soft; border-color: @acc_s; color: @acc_s; font-weight: 600; }
+/* collegamenti testuali nei pannelli («Rischi e misure (12) ›») */
+QPushButton#linkButton {
+    border: none;
+    background: transparent;
+    color: @acc_s;
+    padding: 2px 0;
+    text-align: left;
+}
+QPushButton#linkButton:hover { text-decoration: underline; }
+
+/* stato del documento in testa alla pagina dei documenti («Il POS non è ancora pronto...») */
+QLabel#statusBanner {
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    background: @surface2;
+    color: @tx;
+}
+QLabel#statusBanner[state="error"] { background: @err_bg; color: @err; }
+QLabel#statusBanner[state="warning"] { background: @warn_bg; color: @warn; }
+QLabel#statusBanner[state="ok"] { background: @ok_bg; color: @ok; }
+
+/* pagina iniziale: righe dei cantieri recenti */
+QPushButton#recentRow {
+    min-height: 54px;
+    background: @surface;
+    border: none;
+    border-bottom: 1px solid @line;
+    border-radius: 0;
+    text-align: left;
+    padding: 0;
+}
+QPushButton#recentRow:hover { background: @surface2; }
+QPushButton#recentRow QLabel { background: transparent; }
+QLabel#recentCell { color: @tx2; }
+QLabel#statusPill {
+    border-radius: 10px;
+    padding: 3px 10px;
+    background: @surface2;
+    color: @tx2;
+    font-weight: 600;
+    font-size: 12px;
+}
+QLabel#statusPill[level="ok"] { background: @ok_bg; color: @ok; }
+QLabel#statusPill[level="warning"] { background: @warn_bg; color: @warn; }
+QLabel#statusPill[level="error"] { background: @err_bg; color: @err; }
+QPushButton#closeButton {
+    border: none;
+    background: transparent;
+    color: @tx3;
+    font-size: 16px;
+    padding: 0;
+}
+QPushButton#closeButton:hover { color: @tx; background: @surface2; border-radius: 13px; }
+
+/* stati vuoti al centro della pagina */
+QLabel#emptyState { color: @tx2; font-size: 13px; padding: 24px 80px; }
+QLabel#thumb { border: 1px solid @line; border-radius: 3px; background: @surface2; color: @tx3; font-size: 10px; }

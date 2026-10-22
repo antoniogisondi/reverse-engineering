@@ -4,7 +4,7 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.21.2, ottobre 2026.*
+*Ultimo aggiornamento: versione 0.22.0, ottobre 2026.*
 
 ## Lo scopo
 
@@ -297,6 +297,43 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 - **Schermi da portatile (1366×768)**: la finestra ci sta sempre; sotto i 1350 pixel la pagina dei
   documenti si dispone in verticale, i moduli vanno su una o due colonne secondo lo spazio e le
   schede lunghe scorrono.
+- **Revisione UX/UI (ottobre 2026)**, dalle revisioni di PSC e POS:
+  - *elenco e dettaglio*: Soggetti, figure dell'impresa, Costi, Fascicolo, Macchine e Rischi e misure hanno
+    un elenco compatto e il pannello di modifica a destra; «Aggiungi» apre il pannello sul primo campo;
+  - *Rischi e misure*: filtri «Tutti», «Alti e molto alti», «Da valutare»; DPI come etichette scelte
+    dall'elenco per parte del corpo;
+  - *Fasi e cronoprogramma (PSC)*: due viste, «Elenco» e «Cronoprogramma»; il Gantt a tutta altezza con
+    fase e impresa su due righe, «oggi» nella riga delle date, affollamento nel colore del programma, e il
+    dettaglio della fase a destra con i collegamenti a descrizione, rischi, macchine e interferenze;
+    importo, manodopera, squadra e zona si modificano nel dettaglio;
+  - *Interferenze*: elenco con gravità colorata e stato della prescrizione (da scrivere, generica,
+    scritta); la prescrizione si scrive a destra, con «Usa la generica» o l'assistente AI; zona mancante
+    segnalata con il collegamento a Fasi;
+  - *Documenti e controlli*: in testa lo stato («Il POS non è ancora pronto: 1 errore»), poi l'elenco da
+    sistemare con «Vai alla pagina», un solo pulsante «Componi la bozza», lo storico e gli altri
+    documenti; nel PSC l'impresa si sceglie solo per la verifica dell'idoneità; la notifica è segnata
+    «non obbligatoria» quando non serve; l'avvertenza legale compare all'emissione (coordinatore per il
+    PSC, datore di lavoro per il POS);
+  - *esiti solo con i dati*: «Da determinare» finché mancano imprese e fasi; Costi, Fascicolo e Sostanze
+    non sono verdi se vuoti (per Fascicolo e Sostanze c'è la dichiarazione esplicita); avviso con i costi
+    a 0,00 €; campi numerici vuoti invece di 0; costo uomo-giorno come suggerimento (250 € tipico);
+  - *pagina iniziale*: cantieri recenti in elenco con impresa o committente, stato del documento, dati
+    obbligatori mancanti e ricerca; nel POS «Nuovo POS da un PSC» è la prima azione; barra laterale e
+    pulsanti nascosti senza cantiere; i tre passi si possono chiudere;
+  - *regole comuni*: riga selezionata con barra laterale e grassetto (non si confonde con gli avvisi),
+    frecce delle tendine solo sulla riga selezionata, date vuote con «gg/mm/aaaa», celle obbligatorie
+    vuote evidenziate («da assegnare»), spazi da riempire «____» evidenziati in giallo e contati negli
+    avvisi, numeri della barra laterale spiegati al passaggio del mouse, nome del file in basso con il
+    percorso nel suggerimento, «Cantiere senza nome», un solo pulsante pieno per pagina;
+  - *altro*: Relazione con «2 di 5» per scheda, «Non pertinente...» con il motivo e riquadri che si
+    allungano; costi con totale in alto, subtotali per categoria e prezzari recenti; Macchine con un solo
+    «Aggiungi dall'archivio...» con ricerca e le azioni AI in un menu; «Prepara il POS dell'impresa» come
+    pulsante principale nelle Imprese del PSC; ruoli obbligatori mancanti aggiungibili con un clic;
+    Struttura con il livello e la valutazione in riquadri colorati; anteprima delle immagini nei moduli;
+    stato vuoto al centro in Sostanze.
+  - *rimandate*: comune con CAP e provincia da elenco ISTAT, correttore ortografico, elenco dei codici
+    ATECO, proposta delle schede II del fascicolo dalle lavorazioni, ipotesi dell'AI accanto ai
+    parametri delle valutazioni.
 - **Testi rivisti** in tutto il programma, nei documenti, nell'archivio e nel gestionale delle
   licenze: tono professionale e uniforme, riferimenti normativi nella forma «art. 90, comma 9»,
   nessun riferimento ad altri software del settore.

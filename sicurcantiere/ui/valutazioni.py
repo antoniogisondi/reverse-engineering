@@ -108,6 +108,13 @@ def _collega(w: QWidget, slot) -> None:
         w.textChanged.connect(slot)
 
 
+
+
+def _quante(elenco: str) -> str:
+    """«7 lavorazioni» al posto dell'elenco, che compare al passaggio del mouse."""
+    n = len([v for v in elenco.split("; ") if v.strip()])
+    return "nessuna" if not n else "1 lavorazione" if n == 1 else f"{n} lavorazioni"
+
 class EditorParametri(QWidget):
     """Modulo dei parametri di un metodo, con l'eventuale tabella dei compiti."""
 
@@ -271,8 +278,9 @@ class PaginaValutazioni(Pagina):
                 "Lavoratori esposti allo stesso rischio, a cui si riferisce l'esito "
                 "(per esempio «Manovali», «Carpentieri»); per il rumore e le vibrazioni è il gruppo "
                 "omogeneo di esposizione.")),
-            Colonna("lavorazioni", "Lavorazioni", "calcolata", larghezza=240,
-                    calcola=lambda r: lavorazioni_valutazione(self.repo, r) or "(nessuna)",
+            Colonna("lavorazioni", "Lavorazioni", "calcolata", larghezza=130,
+                    calcola=lambda r: _quante(lavorazioni_valutazione(self.repo, r)),
+                    aiuto=lambda r: lavorazioni_valutazione(self.repo, r).replace("; ", "\n") or "Nessuna lavorazione",
                     suggerimento="Lavorazioni in cui si presenta il rischio: si scelgono con il pulsante «Lavorazioni...»."),
             Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga, disegno=tema.DelegatoRisultato),
         ], valori_nuovo=lambda: {"metodo": "niosh"})

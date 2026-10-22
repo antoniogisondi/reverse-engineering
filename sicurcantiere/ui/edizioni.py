@@ -76,7 +76,11 @@ class PaginaImpresePSC(PaginaImprese):
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
-        self.tabella.aggiungi_pulsante("Prepara il POS dell'impresa...", self.prepara_pos)
+        # il collegamento con SicurCantiere POS è l'azione principale della pagina
+        prepara = self.tabella.aggiungi_pulsante("Prepara il POS dell'impresa...", self.prepara_pos)
+        tema.imposta_variante(prepara, "primary")
+        prepara.setToolTip("Crea il file del POS dell'impresa selezionata con i dati del PSC (fasi, rischi, "
+                           "interferenze e prescrizioni), da completare in SicurCantiere POS.")
 
     def prepara_pos(self, destinazione: str | None = None) -> Path | None:
         """File .spo con i dati dell'impresa selezionata, da completare in SicurCantiere POS."""

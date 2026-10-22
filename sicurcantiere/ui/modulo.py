@@ -41,7 +41,16 @@ class CampoData(QDateEdit):
         self.setCalendarPopup(True)
         self.setDisplayFormat("dd/MM/yyyy")
         self.setMinimumDate(DATA_VUOTA)
-        self.setSpecialValueText("non indicata")
+        self.setSpecialValueText("gg/mm/aaaa")
+        self.dateChanged.connect(lambda *_: self._segna_vuota())
+        self._segna_vuota()
+
+    def _segna_vuota(self) -> None:
+        vuota = self.date() == DATA_VUOTA
+        if self.property("vuota") != vuota:
+            self.setProperty("vuota", vuota)
+            self.style().unpolish(self)
+            self.style().polish(self)
 
     def mousePressEvent(self, evento) -> None:  # noqa: N802 - nome di Qt
         super().mousePressEvent(evento)
@@ -239,17 +248,24 @@ class ModuloRecord(QWidget):
         elif tipo == "data":
             w = CampoData()
             w.dateChanged.connect(subito)
-        elif tipo == "numero":
+        elif tipo in ("numero", "decimale"):
+            # numero: importo in euro; decimale: con l'unità indicata nelle opzioni (per esempio " %")
             w = QDoubleSpinBox()
             w.setRange(0, 1e10)
             w.setDecimals(2)
             w.setGroupSeparatorShown(True)
-            w.setSuffix(" €")
+            w.setSuffix(" €" if tipo == "numero" else (opzioni if isinstance(opzioni, str) else ""))
+            from sicurcantiere.ui import tema
+
+            tema.numero_vuoto(w)
             w.valueChanged.connect(modificato)
             w.editingFinished.connect(lambda: self._salva(campo))
         elif tipo == "intero":
             w = QSpinBox()
             w.setRange(0, 1000)
+            from sicurcantiere.ui import tema
+
+            tema.numero_vuoto(w)
             w.valueChanged.connect(modificato)
             w.editingFinished.connect(lambda: self._salva(campo))
         elif tipo == "spunta":
@@ -270,7 +286,10 @@ class ModuloRecord(QWidget):
                 w.caselle.append(casella)
             griglia.setColumnStretch(3, 1)
         elif tipo in ("testo_lungo", "dpi"):
+            from sicurcantiere.ui import tema
+
             w = QPlainTextEdit()
+            tema.evidenzia_spazi(w)
             w.setFixedHeight(70)
             timer = QTimer(self, singleShot=True, interval=700)
             timer.timeout.connect(lambda: self._salva(campo))
@@ -289,6 +308,13 @@ class ModuloRecord(QWidget):
         riga.addWidget(w, 1)
         if tipo == "immagine":
             w.setPlaceholderText("Nessuna immagine")
+            # anteprima dell'immagine, non solo il nome del file
+            anteprima = QLabel()
+            anteprima.setFixedSize(64, 48)
+            anteprima.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            anteprima.setObjectName("thumb")
+            w.textChanged.connect(lambda testo: immagine_anteprima(anteprima, testo, 46, ""))
+            riga.addWidget(anteprima)
             sfoglia = QPushButton("Sfoglia...")
             sfoglia.clicked.connect(lambda: self._scegli_immagine(campo))
             togli = QPushButton("Rimuovi")
@@ -329,7 +355,7 @@ class ModuloRecord(QWidget):
             return w.currentData()
         if tipo == "data":
             return w.valore()
-        if tipo == "numero":
+        if tipo in ("numero", "decimale"):
             return w.value()
         if tipo == "intero":
             return int(w.value())
@@ -354,7 +380,7 @@ class ModuloRecord(QWidget):
             w.setCurrentIndex(max(w.findData(valore), 0))
         elif tipo == "data":
             w.imposta(valore)
-        elif tipo == "numero":
+        elif tipo in ("numero", "decimale"):
             w.setValue(float(valore or 0))
         elif tipo == "intero":
             w.setValue(int(valore or 0))
@@ -395,14 +421,14 @@ class ModuloRecord(QWidget):
         self.setEnabled(self.record is not None)
 
 
-def immagine_anteprima(etichetta: QLabel, percorso: str, lato: int = 150) -> None:
+def immagine_anteprima(etichetta: QLabel, percorso: str, lato: int = 150, vuota: str = "(Nessuna foto)") -> None:
     """Mostra la foto (o il testo «Nessuna foto») in un'etichetta."""
     from PySide6.QtGui import QPixmap
 
     pixmap = QPixmap(percorso) if percorso else QPixmap()
     if pixmap.isNull():
         etichetta.setPixmap(QPixmap())
-        etichetta.setText("(Nessuna foto)")
+        etichetta.setText(vuota)
     else:
         etichetta.setPixmap(pixmap.scaled(lato, lato, Qt.AspectRatioMode.KeepAspectRatio,
                                           Qt.TransformationMode.SmoothTransformation))

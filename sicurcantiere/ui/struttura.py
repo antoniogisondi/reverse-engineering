@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QLabel, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 
 from sicurcantiere import analisi
 from sicurcantiere.repository import Repository
 from sicurcantiere.struttura import struttura_fase
+from sicurcantiere.ui import tema
 from sicurcantiere.ui.icone import icona
 from sicurcantiere.valutazioni import METODI
 
-ROSSO, GIALLO = QColor("#C0392B"), QColor("#9A6B00")
+GIALLO = QColor("#9A6B00")
 
 
 class StrutturaFase(QWidget):
@@ -21,6 +23,7 @@ class StrutturaFase(QWidget):
         self.albero = QTreeWidget()
         self.albero.setHeaderLabels(["Struttura della fase", "Livello / dettaglio"])
         self.albero.setColumnWidth(0, 520)
+        self.albero.setItemDelegateForColumn(1, tema.DelegatoStruttura(self.albero))
         aiuto = QLabel("Riepilogo in sola lettura: rischi, misure e DPI si modificano nelle altre schede; "
                        "i lavoratori si assegnano con «Mansioni...» nella pagina dell'impresa.")
         aiuto.setObjectName("pageSubtitle")
@@ -42,12 +45,16 @@ class StrutturaFase(QWidget):
         for r in rischi:
             livello = analisi.livello_rischio(r["probabilita"], r["danno"])
             dettaglio = f"{livello} {analisi.classe_rischio(livello)}"
+            valutazione = None
             if r.get("valutazione_id"):
                 v = self.repo.leggi("valutazioni", r["valutazione_id"])
                 if v and v["metodo"] in METODI:
                     esito = METODI[v["metodo"]].esegui(self.repo.dati_valutazione(v["id"]))
                     dettaglio += f" - valutazione: {esito.indice_testo} {esito.classe}"
-            nodo = self._nodo(padre, r["descrizione"], dettaglio, "interferenze", ROSSO if livello >= 6 else None)
+                    valutazione = (f"{esito.indice_testo} {esito.classe}", esito.colore)
+            nodo = self._nodo(padre, r["descrizione"], dettaglio, "interferenze")
+            # livello nel riquadro colorato e, accanto, il risultato della valutazione in un secondo riquadro
+            nodo.setData(1, Qt.ItemDataRole.UserRole, (livello, valutazione))
             if r["misure"]:
                 self._nodo(nodo, "Misure: " + r["misure"], colore=GIALLO)
             if r["dpi"]:
@@ -73,7 +80,9 @@ class StrutturaFase(QWidget):
                                 "imprese")
         addetto = self._nodo(lavoratori, s["addetto"], "", "soggetti")
         self._rischi(addetto, s["rischi_lavorazione"])
-        self._attrezzature(addetto, s["attrezzi"], operatore=False)
+        if s["attrezzi"]:
+            attrezzi = self._nodo(addetto, "ATTREZZI", str(len(s["attrezzi"])), "valutazioni")
+            self._attrezzature(attrezzi, s["attrezzi"], operatore=False)
         if s["macchine"]:
             macchine = self._nodo(self.albero, "MACCHINE", str(len(s["macchine"])), "cantiere")
             self._attrezzature(macchine, s["macchine"], operatore=True)

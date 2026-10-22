@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 
 from sicurcantiere import anagrafiche, analisi
@@ -99,8 +101,14 @@ def controlla(repo: Repository) -> list[Segnalazione]:
                    f"Interferenza grave tra {i.fase_a['codice']} e {i.fase_b['codice']}: indicare prescrizioni "
                    "specifiche.")
 
-    if not repo.elenco("costi"):
+    costi = repo.elenco("costi")
+    if not costi:
         avviso("Costi", "Compilare la stima dei costi della sicurezza.")
+    elif analisi.totale_costi(costi) <= 0:
+        avviso("Costi", "Il totale dei costi della sicurezza è 0,00 €: indicare quantità e prezzi delle voci.")
+    if not repo.elenco("interventi") and repo.testo(NESSUN_INTERVENTO) != "1":
+        avviso("Fascicolo", "Inserire gli interventi di manutenzione dell'opera (schede II) oppure dichiarare che "
+                            "non ne sono previsti.")
 
     # contenuti minimi del PSC scritti nella relazione (Allegato XV punti 2.1.2, 2.2 e 2.3)
     from sicurcantiere import relazione
@@ -124,7 +132,38 @@ def controlla(repo: Repository) -> list[Segnalazione]:
     if senza_categoria:
         avviso("Costi", f"Assegnare la categoria (Allegato XV punto 4.1.1) alle voci di costo che ne "
                               f"sono prive ({len(senza_categoria)}).")
+    s.extend(_controlla_spazi(repo, "Fasi", "Relazione"))
     return s
+
+
+_SPAZI = re.compile(r"_{2,}|\w_(?=\s|$)")
+
+
+def spazi_da_riempire(testo: str) -> int:
+    """Spazi lasciati da riempire nei testi con i trattini bassi («attestato del _____»)."""
+    return len(_SPAZI.findall(testo or ""))
+
+
+def _controlla_spazi(repo: Repository, sezione_fasi: str, sezione_testi: str) -> list[Segnalazione]:
+    s = []
+    for f in repo.elenco("fasi"):
+        n = sum(spazi_da_riempire(f.get(c) or "") for c in ("dettaglio", "addetto", "modalita", "turni",
+                                                             "procedure_psc"))
+        if n:
+            s.append(Segnalazione(AVVISO, sezione_fasi, f"{f['codice']} {f['descrizione']}: "
+                                  + ("1 spazio da riempire" if n == 1 else f"{n} spazi da riempire")
+                                  + " nei testi della fase (in giallo)."))
+    n = sum(spazi_da_riempire(t["testo"]) for t in repo.progetto.query("SELECT testo FROM relazione"))
+    if n:
+        s.append(Segnalazione(AVVISO, sezione_testi, ("1 spazio da riempire" if n == 1 else
+                                                      f"{n} spazi da riempire") + " nei testi (in giallo)."))
+    return s
+
+
+# dichiarazioni esplicite (nella tabella dei testi): una pagina vuota diventa «completa» solo se l'utente
+# dichiara che è giusto così
+NESSUN_INTERVENTO = "dichiarazione:nessun_intervento"
+NESSUNA_SOSTANZA = "dichiarazione:nessuna_sostanza"
 
 
 def controlla_pos(repo: Repository) -> list[Segnalazione]:
@@ -258,6 +297,9 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
 
     from sicurcantiere import sostanze as classificazione
 
+    if not repo.elenco("sostanze") and repo.testo(NESSUNA_SOSTANZA) != "1":
+        s.append(Segnalazione(AVVISO, "Sostanze", "Indicare le sostanze e miscele pericolose usate in cantiere "
+                                                   "oppure dichiarare che non ne sono usate."))
     for so in repo.elenco("sostanze"):
         nome = so["nome"] or f"Sostanza n. {so['id']}"
         codici = classificazione.codici_h(so["codici_h"])
@@ -297,6 +339,7 @@ def controlla_pos(repo: Repository) -> list[Segnalazione]:
             s.append(Segnalazione(AVVISO, "Valutazioni",
                                   f"«{v['titolo'] or metodo.nome}»: collegare la valutazione a una fase o a "
                                   "un'impresa, altrimenti non compare nel POS."))
+    s.extend(_controlla_spazi(repo, "Lavorazioni", "Testi del POS"))
     return s
 
 

@@ -620,6 +620,15 @@ class DialogoEmetti(QDialog):
             layout.addWidget(nota)
             self.spunta.toggled.connect(self._verifica)
             self.motivo.textChanged.connect(self._verifica)
+        firmatario = ("dal coordinatore per la sicurezza" if nome.upper().startswith("PSC") else
+                      "dal datore di lavoro dell'impresa esecutrice")
+        avvertenza = QLabel(f"Il documento va riletto, completato dove necessario e firmato {firmatario}: il "
+                            "programma è uno strumento di redazione e non sostituisce la valutazione dei rischi.",
+                            self)
+        avvertenza.setWordWrap(True)
+        avvertenza.setObjectName("hint")
+        tema.imposta_stato(avvertenza, "warning")
+        layout.addWidget(avvertenza)
         self.bottoni = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
                                         self)
         self.bottoni.button(QDialogButtonBox.StandardButton.Ok).setText("Emetti")

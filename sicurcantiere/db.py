@@ -433,6 +433,11 @@ MIGRAZIONI: list[str] = [
     ALTER TABLE imprese ADD COLUMN idoneita TEXT NOT NULL DEFAULT '';
     ALTER TABLE imprese ADD COLUMN idoneita_verificata TEXT;
     """,
+    # v0.23: il costo medio uomo-giorno non è più un valore scritto in partenza: vuoto (0) vale il valore
+    # tipico di 250 € (analisi.COSTO_UOMO_GIORNO), mostrato come suggerimento.
+    """
+    UPDATE cantiere SET costo_uomo_giorno = 0 WHERE costo_uomo_giorno = 250;
+    """,
 ]
 
 VERSIONE_SCHEMA = len(MIGRAZIONI)
@@ -452,23 +457,46 @@ def cartella_copie() -> Path:
     return base / "SicurCantiere" / "copie di sicurezza"
 
 
-def anteprima(percorso: str | Path) -> dict[str, str] | None:
-    """Nome e comune del cantiere letti in sola lettura, senza backup né migrazioni.
+def anteprima(percorso: str | Path) -> dict[str, Any] | None:
+    """Dati del cantiere per la pagina iniziale, letti in sola lettura senza backup né migrazioni:
+    nome, comune, provincia, committente, prima impresa e stato dell'ultimo documento composto.
 
     Restituisce None se il file non esiste o non è un progetto leggibile.
     """
+    import json
+
+    def uno(conn, sql: str):
+        try:
+            return conn.execute(sql).fetchone()
+        except sqlite3.Error:
+            return None  # tabella assente nei file più vecchi
+
     try:
         uri = Path(percorso).resolve().as_uri() + "?mode=ro"
         conn = sqlite3.connect(uri, uri=True)
         try:
             riga = conn.execute("SELECT nome, comune, provincia FROM cantiere WHERE id = 1").fetchone()
+            committente = uno(conn, "SELECT nome FROM soggetti WHERE ruolo = 'Committente' AND nome != '' "
+                                    "ORDER BY id LIMIT 1")
+            impresa = uno(conn, "SELECT ragione_sociale FROM imprese WHERE ragione_sociale != '' ORDER BY id LIMIT 1")
+            documento = uno(conn, "SELECT documento, numero, stato, mancanti FROM composizioni "
+                                  "WHERE stato != 'annullata' ORDER BY id DESC LIMIT 1")
         finally:
             conn.close()
     except (sqlite3.Error, OSError, ValueError):
         return None
     if riga is None:
         return None
-    return {"nome": riga[0], "comune": riga[1], "provincia": riga[2]}
+    dati: dict[str, Any] = {"nome": riga[0], "comune": riga[1], "provincia": riga[2],
+                            "committente": committente[0] if committente else "",
+                            "impresa": impresa[0] if impresa else ""}
+    if documento:
+        try:
+            mancanti = [m for m in json.loads(documento[3] or "[]") if m.get("livello") == "obbligatorio"]
+        except (ValueError, AttributeError):
+            mancanti = []
+        dati.update(documento=documento[0], numero=documento[1], stato=documento[2], mancanti=len(mancanti))
+    return dati
 
 
 class ErroreProgetto(Exception):

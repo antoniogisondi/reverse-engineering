@@ -14,9 +14,9 @@ from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -66,11 +66,11 @@ def _data_breve(istante: datetime) -> str:
 
 
 class SchedaRecente(QPushButton):
-    """Scheda cliccabile di un cantiere recente: nome, luogo, file e data di modifica."""
+    """Riga dei cantieri recenti: opera, luogo e data; impresa o committente; stato del documento; dati mancanti."""
 
-    def __init__(self, percorso: str):
+    def __init__(self, percorso: str, edizione: Edizione):
         super().__init__()
-        self.setObjectName("recentCard")
+        self.setObjectName("recentRow")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.percorso = percorso
         dati = anteprima(percorso) or {}
@@ -81,21 +81,46 @@ class SchedaRecente(QPushButton):
             modificato = _data_breve(datetime.fromtimestamp(file.stat().st_mtime))
         except OSError:
             modificato = ""
-        self.setToolTip(percorso)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(4)
-        layout.addWidget(_etichetta(dati.get("nome") or file.stem, "recentTitle"))
-        layout.addWidget(_etichetta(luogo or " ", "pageSubtitle"))
-        riga = QHBoxLayout()
-        riga.setSpacing(8)
-        riga.addWidget(_etichetta(file.suffix, "extBadge"))
-        nome_file = _etichetta(file.stem, "hint")
-        nome_file.setProperty("mono", True)
-        riga.addWidget(nome_file, 1)
-        riga.addWidget(_etichetta(modificato, "hint"))
-        layout.addLayout(riga)
-        self.setMinimumHeight(88)
+        self.setToolTip(f"{percorso}\nFai clic per aprire il cantiere.")
+        nome = dati.get("nome") or file.stem
+        chi = dati.get("impresa") if edizione.chiave in ("pos", "pimus") else dati.get("committente")
+        stato_testo = "Nessun documento"
+        controlli_testo, controlli_livello = "", "neutro"
+        if dati.get("stato"):
+            from sicurcantiere.composizioni import STATI
+
+            stato_testo = f"{STATI.get(dati['stato'], dati['stato'])} rev. {dati.get('numero', 0)}"
+            if dati["stato"] == "consegnata":
+                controlli_testo, controlli_livello = "Consegnato", "ok"
+            elif dati.get("mancanti"):
+                n = dati["mancanti"]
+                controlli_testo = "1 dato obbligatorio mancante" if n == 1 else f"{n} dati obbligatori mancanti"
+                controlli_livello = "warning"
+            elif dati["stato"] == "emessa":
+                controlli_testo, controlli_livello = "Da consegnare", "neutro"
+        self.testo_ricerca = " ".join(str(v) for v in (nome, luogo, chi, file.name)).lower()
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 8, 14, 8)
+        layout.setSpacing(12)
+        sinistra = QVBoxLayout()
+        sinistra.setSpacing(1)
+        titolo = _etichetta(nome, "recentTitle")
+        sinistra.addWidget(titolo)
+        sinistra.addWidget(_etichetta(" · ".join(v for v in (luogo, modificato) if v) or file.name, "hint"))
+        layout.addLayout(sinistra, 5)
+        layout.addWidget(_etichetta(chi or "—", "recentCell"), 3)
+        stato = _etichetta(stato_testo, "statusPill")
+        stato.setProperty("level", "neutro")
+        layout.addWidget(stato, 0, Qt.AlignmentFlag.AlignVCenter)
+        esito = _etichetta(controlli_testo, "statusPill")
+        esito.setProperty("level", controlli_livello)
+        esito.setVisible(bool(controlli_testo))
+        esito.setMinimumWidth(150)
+        layout.addWidget(esito, 0, Qt.AlignmentFlag.AlignVCenter)
+        for figlio in self.findChildren(QLabel):
+            figlio.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setMinimumHeight(54)
 
 
 class PulsanteGrande(QPushButton):
@@ -114,7 +139,7 @@ class PulsanteGrande(QPushButton):
         testi = QVBoxLayout()
         testi.setSpacing(2)
         testi.addWidget(_etichetta(titolo, "largeTitle"))
-        testi.addWidget(_etichetta(nota, "largeNote"))
+        testi.addWidget(_etichetta(nota, "largeNote", True))
         layout = QHBoxLayout(self)
         layout.setContentsMargins(18, 10, 16, 10)
         layout.setSpacing(14)
@@ -122,14 +147,13 @@ class PulsanteGrande(QPushButton):
         layout.addLayout(testi, 1)
         if scorciatoia:
             layout.addWidget(_etichetta(scorciatoia, "kbd"), 0, Qt.AlignmentFlag.AlignVCenter)
-        self.setMinimumHeight(70)
+        self.setMinimumHeight(74)
 
 
 class Benvenuto(QWidget):
     """Pagina iniziale: marchio del programma, nuovo e apri, i tre passi e i cantieri recenti."""
 
-    COLONNE_RECENTI = 3
-    MAX_SCHEDE = 6
+    MAX_SCHEDE = 8
 
     def __init__(self, finestra: FinestraPrincipale, recenti: list[str]):
         super().__init__()
@@ -180,68 +204,92 @@ class Benvenuto(QWidget):
 
         pulsanti = QHBoxLayout()
         pulsanti.setSpacing(12)
-        nuovo = PulsanteGrande("nuovo", "Nuovo cantiere...",
-                               "Crea un nuovo cantiere e inizia dalla prima pagina", "Ctrl+N", True)
+        da_psc_primario = edizione.chiave == "pos"  # per l'impresa il percorso più comune parte dal PSC
+        nuovo = PulsanteGrande("nuovo", "Nuovo cantiere...", "Da una pagina vuota", "Ctrl+N", not da_psc_primario)
         nuovo.clicked.connect(finestra.nuovo)
-        apri = PulsanteGrande("apri", "Apri cantiere...", "Apri un cantiere salvato, anche in una cartella di rete", "Ctrl+O", False)
+        apri = PulsanteGrande("apri", "Apri cantiere...", "Anche da una cartella di rete", "Ctrl+O", False)
         apri.clicked.connect(finestra.apri)
         nuovo.setEnabled(stato.utilizzabile)
         apri.setEnabled(stato.utilizzabile)
-        pulsanti.addWidget(nuovo, 1)
-        pulsanti.addWidget(apri, 1)
-        if edizione.chiave == "pos":
-            da_psc = PulsanteGrande("psc", "Nuovo POS da un PSC...", "Parti dal PSC del coordinatore, in formato PDF o Word",
-                                    "", False)
+        if da_psc_primario:
+            da_psc = PulsanteGrande("psc", "Nuovo POS da un PSC...", "L'AI legge il PSC in PDF o Word", "", True)
             da_psc.clicked.connect(finestra.nuovo_da_psc)
             da_psc.setEnabled(stato.utilizzabile)
             pulsanti.addWidget(da_psc, 1)
+        pulsanti.addWidget(nuovo, 1)
+        pulsanti.addWidget(apri, 1)
         numero_modelli = len(modelli.elenco(edizione.estensione))
         if numero_modelli:
             da_modello = PulsanteGrande(
                 "modello", "Nuovo da un modello...",
-                "1 modello di cantiere salvato" if numero_modelli == 1
-                else f"{numero_modelli} modelli di cantiere salvati", "", False)
+                "1 modello salvato" if numero_modelli == 1 else f"{numero_modelli} modelli salvati", "", False)
             da_modello.clicked.connect(finestra.nuovo_da_modello)
             da_modello.setEnabled(stato.utilizzabile)
             pulsanti.addWidget(da_modello, 1)
         colonna.addLayout(pulsanti)
 
-        passi = QFrame()
-        passi.setObjectName("card")
-        lay_passi = QHBoxLayout(passi)
-        lay_passi.setContentsMargins(16, 12, 16, 12)
-        lay_passi.setSpacing(24)
-        for n, (titolo, nota) in enumerate((
-            ("Compila le pagine", "Dall'alto in basso, nella barra a sinistra"),
-            ("Risolvi i controlli", "Errori in rosso, avvisi in arancio"),
-            ("Genera il documento", "In Word, da rileggere e firmare"),
-        ), start=1):
-            numero = QLabel(str(n))
-            numero.setObjectName("stepNumber")
-            numero.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            testi = QVBoxLayout()
-            testi.setSpacing(1)
-            testi.addWidget(_etichetta(titolo, "sectionTitle"))
-            testi.addWidget(_etichetta(nota, "hint"))
-            passo = QHBoxLayout()
-            passo.setSpacing(10)
-            passo.addWidget(numero)
-            passo.addLayout(testi, 1)
-            lay_passi.addLayout(passo, 1)
-        colonna.addWidget(passi)
+        # la striscia dei tre passi serve le prime volte: si può chiudere
+        impostazioni = QSettings()
+        if not impostazioni.value("benvenuto/passi_nascosti", False, type=bool):
+            passi = QFrame()
+            passi.setObjectName("card")
+            lay_passi = QHBoxLayout(passi)
+            lay_passi.setContentsMargins(16, 12, 10, 12)
+            lay_passi.setSpacing(24)
+            for n, (titolo, nota) in enumerate((
+                ("Compila le pagine", "Dall'alto in basso, nella barra a sinistra"),
+                ("Risolvi i controlli", "Errori in rosso, avvisi in arancio"),
+                ("Componi il documento", "Bozza, emissione e consegna"),
+            ), start=1):
+                numero = QLabel(str(n))
+                numero.setObjectName("stepNumber")
+                numero.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                testi = QVBoxLayout()
+                testi.setSpacing(1)
+                testi.addWidget(_etichetta(titolo, "sectionTitle"))
+                testi.addWidget(_etichetta(nota, "hint"))
+                passo = QHBoxLayout()
+                passo.setSpacing(10)
+                passo.addWidget(numero)
+                passo.addLayout(testi, 1)
+                lay_passi.addLayout(passo, 1)
+            chiudi = QPushButton("×")
+            chiudi.setObjectName("closeButton")
+            chiudi.setToolTip("Non mostrare più i tre passi")
+            chiudi.setFixedSize(26, 26)
 
-        if recenti:
-            colonna.addSpacing(8)
-            colonna.addWidget(_etichetta("Cantieri recenti", "sectionTitle"))
-            griglia = QGridLayout()
-            griglia.setSpacing(12)
-            for n, percorso in enumerate(recenti[:self.MAX_SCHEDE]):
-                scheda = SchedaRecente(percorso)
-                scheda.clicked.connect(lambda _=False, p=percorso: finestra.apri_file(p))
-                griglia.addWidget(scheda, n // self.COLONNE_RECENTI, n % self.COLONNE_RECENTI)
-            for c in range(self.COLONNE_RECENTI):
-                griglia.setColumnStretch(c, 1)
-            colonna.addLayout(griglia)
+            def nascondi() -> None:
+                impostazioni.setValue("benvenuto/passi_nascosti", True)
+                passi.hide()
+
+            chiudi.clicked.connect(nascondi)
+            lay_passi.addWidget(chiudi, 0, Qt.AlignmentFlag.AlignTop)
+            colonna.addWidget(passi)
+
+        schede = [SchedaRecente(p, edizione) for p in recenti[:self.MAX_SCHEDE]]
+        if schede:
+            colonna.addSpacing(4)
+            intestazione = QHBoxLayout()
+            intestazione.addWidget(_etichetta("Cantieri recenti", "sectionTitle"))
+            intestazione.addStretch()
+            ricerca = QLineEdit()
+            ricerca.setPlaceholderText("Cerca cantiere, comune o impresa" if edizione.chiave != "psc"
+                                       else "Cerca cantiere, comune o committente")
+            ricerca.setClearButtonEnabled(True)
+            ricerca.setMaximumWidth(300)
+            intestazione.addWidget(ricerca)
+            colonna.addLayout(intestazione)
+            elenco = QFrame()
+            elenco.setObjectName("card")
+            lay_elenco = QVBoxLayout(elenco)
+            lay_elenco.setContentsMargins(1, 1, 1, 1)
+            lay_elenco.setSpacing(0)
+            for scheda in schede:
+                scheda.clicked.connect(lambda _=False, p=scheda.percorso: finestra.apri_file(p))
+                lay_elenco.addWidget(scheda)
+            ricerca.textChanged.connect(
+                lambda testo: [s.setVisible(testo.lower().strip() in s.testo_ricerca) for s in schede])
+            colonna.addWidget(elenco)
 
         contenitore = QWidget()
         contenitore.setMaximumWidth(900)
@@ -294,6 +342,7 @@ class FinestraPrincipale(QMainWindow):
         separatore = QFrame()
         separatore.setObjectName("navRule")
         laterale = QFrame()
+        self.laterale = laterale
         laterale.setObjectName("sidePanel")
         laterale.setFixedWidth(248)
         lay_laterale = QVBoxLayout(laterale)
@@ -439,14 +488,13 @@ class FinestraPrincipale(QMainWindow):
         barra.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         for a in (self.azione_nuovo, self.azione_apri, self.azione_salva, self.azione_salva_con_nome):
             barra.addAction(a)
-        barra.addSeparator()
+        self._separatori = [barra.addSeparator()]
         for a in (self.azione_annulla, self.azione_ripeti, self.azione_cerca):
             barra.addAction(a)
         barra.widgetForAction(self.azione_annulla).setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         barra.widgetForAction(self.azione_ripeti).setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        barra.addSeparator()
-        barra.addAction(self.azione_psc)
-        barra.widgetForAction(self.azione_psc).setObjectName("generate")
+        self._separatori.append(barra.addSeparator())
+        barra.addAction(self.azione_psc)  # non pieno: l'azione principale sta nella pagina dei documenti
         barra.addAction(self.azione_controlli)
         self.addToolBar(barra)
         self.barra_strumenti = barra
@@ -863,11 +911,15 @@ class FinestraPrincipale(QMainWindow):
         self.luogo_cantiere.show()
         self.navigazione.setEnabled(True)
         self.navigazione.setCurrentRow(0)
+        for a in self.azioni_progetto + [self.azione_annulla, self.azione_ripeti] + self._separatori:
+            a.setVisible(True)
         for a in self.azioni_progetto:
             a.setEnabled(True)
+        self.laterale.show()
         self._aggiungi_recente(progetto.percorso)
         self.setWindowTitle(f"{progetto.percorso.name} - {self.edizione.nome}")
-        self.stato_file.setText(str(progetto.percorso))
+        self.stato_file.setText(progetto.percorso.name)
+        self.stato_file.setToolTip(str(progetto.percorso))
         self.stato_salvataggio.setText("Salvataggio automatico attivo")
         self.cronologia = Cronologia(progetto)
         self._aggiorna_annulla()
@@ -910,8 +962,13 @@ class FinestraPrincipale(QMainWindow):
         self.suggerimento_navigazione.show()
         for a in self.azioni_progetto:
             a.setEnabled(False)
+        # sulla pagina iniziale niente barra laterale né pulsanti che non servono senza un cantiere
+        for a in self.azioni_progetto + [self.azione_annulla, self.azione_ripeti] + self._separatori:
+            a.setVisible(False)
+        self.laterale.hide()
         self.setWindowTitle(self.edizione.nome)
         self.stato_file.setText("Nessun cantiere aperto")
+        self.stato_file.setToolTip("")
         self.stato_salvataggio.setText("")
         self.stato_controlli.hide()
 
@@ -993,7 +1050,13 @@ class FinestraPrincipale(QMainWindow):
         if not self.pagine:
             return
         c = self.pagine[0].repo.cantiere()
-        self.nome_cantiere.setText(c["nome"] or self.progetto.percorso.stem)
+        self.nome_cantiere.setText(c["nome"] or "Cantiere senza nome")
+        self.nome_cantiere.setToolTip(c["nome"])
+        corsivo = not c["nome"]
+        if self.nome_cantiere.font().italic() != corsivo:
+            carattere = self.nome_cantiere.font()
+            carattere.setItalic(corsivo)
+            self.nome_cantiere.setFont(carattere)
         self.luogo_cantiere.setText(" ".join(v for v in (c["comune"], f"({c['provincia']})" if c["provincia"]
                                                          else "") if v))
         dichiarate = {s for p in self.pagine for s in p.sezioni_controlli}
@@ -1011,6 +1074,12 @@ class FinestraPrincipale(QMainWindow):
                     != (stato, len(proprie)):
                 item.setData(Qt.ItemDataRole.UserRole + 1, stato)
                 item.setData(Qt.ItemDataRole.UserRole + 2, len(proprie))
+                errori = sum(1 for s in proprie if s.livello == controlli.ERRORE)
+                avvisi = len(proprie) - errori
+                parti = [f"{errori} errore" if errori == 1 else f"{errori} errori"] if errori else []
+                parti += [f"{avvisi} avviso" if avvisi == 1 else f"{avvisi} avvisi"] if avvisi else []
+                item.setToolTip(" e ".join(parti) + " da sistemare in questa pagina" if parti else
+                                "Pagina completa" if stato == "done" else "")
 
     def closeEvent(self, evento) -> None:
         if not self.conferma_chiusura():

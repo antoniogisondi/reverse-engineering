@@ -102,8 +102,12 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     pag = _pagina(f, PaginaInterferenze)
     f.navigazione.setCurrentRow(f.pagine.index(pag))
     assert pag.vista.rowCount() == 1
-    pag.vista.item(0, 5).setText("Lavorare in zone separate")
+    # senza testo: «da scrivere» se grave, altrimenti vale la prescrizione generica
+    assert pag.vista.item(0, 1).text().split("|")[1] in ("da scrivere", "generica")
+    pag.testo.setPlainText("Lavorare in zone separate")
+    pag.salva_in_sospeso()
     assert list(repo.prescrizioni().values()) == ["Lavorare in zone separate"]
+    assert pag.vista.item(0, 1).text().endswith("|scritta")
     repo.elimina("fasi", f2)
 
     imprese = _pagina(f, PaginaImprese)
@@ -182,7 +186,10 @@ def test_riepilogo(app, tmp_path):
     p = Progetto(tmp_path / "r.scs", crea=True)
     r = Repository(p)
     voci = {v.chiave: v for v in calcola(r)}
-    assert voci["psc"].stato == OK and voci["interferenze"].stato == OK
+    # senza imprese e fasi nessun esito: «da determinare», non «non obbligatori»
+    assert voci["psc"].valore == "Da determinare" and voci["psc"].stato != OK
+    assert voci["notifica"].valore == "Da determinare" and voci["interferenze"].valore == "Da determinare"
+    assert voci["importo"].valore == "Da indicare" and voci["importo"].stato == ATTENZIONE
     r.aggiorna_cantiere(importo_lavori=100000)
     a = r.inserisci("imprese", ragione_sociale="A")
     b = r.inserisci("imprese", ragione_sociale="B")
@@ -380,7 +387,9 @@ def test_programma_pos(app, tmp_path):
     finally:
         ui_valutazioni.DialogoFasi = originale
     assert {f1, f2} <= set(repo.fasi_valutazione(v)) and len(repo.fasi_valutazione(v)) == len(repo.elenco("fasi"))
-    assert "A Getti; B Massetti" in pv.tabella.vista.item(pv.tabella.vista.currentRow(), 3).text()
+    cella = pv.tabella.vista.item(pv.tabella.vista.currentRow(), 3)
+    assert cella.text() == f"{len(repo.elenco('fasi'))} lavorazioni"
+    assert "A Getti" in cella.toolTip() and "B Massetti" in cella.toolTip()
     assert "gruppo" in pv.tabella.vista.horizontalHeaderItem(2).toolTip()
 
     doc = _pagina(f, PaginaDocumenti)
@@ -1185,3 +1194,53 @@ def test_finestra_sta_su_un_portatile(app, tmp_path):
         assert f.minimumSizeHint().width() <= 1366, chiave
         assert f.minimumSizeHint().height() <= 720, chiave
         f.close()
+
+
+def test_revisione_ux_elenco_dettaglio_e_documenti(app, tmp_path):
+    from sicurcantiere import controlli
+    from sicurcantiere.ui.pagine import PaginaSoggetti
+
+    p = Progetto(tmp_path / "ux.scs", crea=True)
+    p.chiudi()
+    f = FinestraPrincipale()
+    f.apri_file(tmp_path / "ux.scs")
+    repo = f.pagine[0].repo
+
+    # elenco e dettaglio: «Aggiungi» apre il pannello sul primo campo e i campi si salvano da lì
+    sog = _pagina(f, PaginaSoggetti)
+    f.navigazione.setCurrentRow(f.pagine.index(sog))
+    assert sog.tabella.dettaglio is not None
+    sog.tabella.aggiungi()
+    nuovo = sog.tabella.id_selezionato()
+    nome = sog.tabella.dettaglio.editori["nome"]
+    nome.setText("Ing. Bianchi")
+    nome.editingFinished.emit()
+    assert repo.leggi("soggetti", nuovo)["nome"] == "Ing. Bianchi"
+    assert any(b.text().startswith("+ ") for b in sog._pulsanti_ruoli)  # ruoli obbligatori da inserire
+
+    # rischi: filtri sopra l'elenco
+    fasi = _pagina(f, PaginaFasi)
+    repo.importa_lavorazione(next(l for l in LAVORAZIONI if l["codice"] == "AL.21"))
+    f.navigazione.setCurrentRow(f.pagine.index(fasi))
+    fasi.fasi.seleziona_prima()
+    tutti = len(fasi.rischi.righe())
+    nome_alti, _ = fasi.rischi._filtri[1][1], None
+    fasi.rischi._scegli_filtro(fasi.rischi._filtri[1][0])
+    visibili = sum(1 for r in range(fasi.rischi.vista.rowCount()) if not fasi.rischi.vista.isRowHidden(r))
+    assert 0 < visibili <= tutti and "Alti" in nome_alti
+
+    # documenti: stato in testa e cose da sistemare con la loro pagina
+    doc = _pagina(f, PaginaDocumenti)
+    f.navigazione.setCurrentRow(f.pagine.index(doc))
+    assert "non è ancora pronto" in doc.stato.text() or "si può comporre" in doc.stato.text()
+    assert doc.controlli.count() > 0 and doc.pulsante_componi.isVisible() is not None
+
+    # spazi da riempire e dichiarazioni esplicite
+    fid = repo.elenco("fasi")[0]["id"]
+    repo.aggiorna("fasi", fid, addetto="Sig. Rossi_", modalita="attestato del _____")
+    assert any("spazi da riempire" in s.messaggio for s in controlli.controlla(repo))
+    assert any(s.sezione == "Fascicolo" for s in controlli.controlla(repo))
+    repo.salva_testo(controlli.NESSUN_INTERVENTO, "1")
+    assert not any(s.sezione == "Fascicolo" for s in controlli.controlla(repo))
+    f.salva()
+    f.close()

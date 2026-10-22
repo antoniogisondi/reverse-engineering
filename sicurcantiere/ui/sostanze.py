@@ -7,6 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QPointF, QRectF, Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QPainter, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -24,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sicurcantiere import anagrafiche, sds, sostanze
+from sicurcantiere import anagrafiche, controlli, sds, sostanze
 from sicurcantiere.documenti.comune import nome_fase
 from sicurcantiere.documenti.sostanze import lavorazioni_sostanza
 from sicurcantiere.repository import Repository
@@ -189,6 +190,12 @@ class PaginaSostanze(Pagina):
         self.tabella.aggiungi_pulsante("Lavorazioni...", self._scegli_lavorazioni)
         self.tabella.selezione_cambiata.connect(self._seleziona)
         self.tabella.modificata.connect(self._aggiorna_classificazione)
+        self.nessuna = QCheckBox("In cantiere non si usano sostanze o miscele pericolose")
+        self.nessuna.setToolTip("Dichiarazione esplicita: nel POS compare questa frase; senza prodotti né questa "
+                                "dichiarazione la pagina resta da completare.")
+        self.nessuna.toggled.connect(
+            lambda attiva: self.repo.salva_testo(controlli.NESSUNA_SOSTANZA, "1" if attiva else ""))
+        self.tabella.selezione_cambiata.connect(lambda id_: self.apri_scheda.setEnabled(id_ is not None))
 
         self.dati = ModuloRecord(repo, "sostanze", [
             ("produttore", "Produttore / fornitore"),
@@ -213,7 +220,18 @@ class PaginaSostanze(Pagina):
         divisore.addWidget(self.tabella)
         divisore.addWidget(self.schede)
         divisore.setSizes([260, 520])
+        self.layout_.addWidget(self.nessuna)
         self.layout_.addWidget(divisore)
+        # stato vuoto al centro: cosa serve e perché, invece delle schede di un prodotto che non c'è
+        self.vuoto = QLabel("<b>Nessun prodotto inserito</b><br><br>Importa la scheda di dati di sicurezza in PDF "
+                            "con «Importa da scheda di sicurezza (PDF)...», oppure aggiungi il prodotto a mano.<br>"
+                            "Se in cantiere non si usano sostanze o miscele pericolose (anche sigillanti, schiume, "
+                            "carburanti), spunta la dichiarazione in alto: comparirà nel POS.")
+        self.vuoto.setObjectName("emptyState")
+        self.vuoto.setWordWrap(True)
+        self.vuoto.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout_.addWidget(self.vuoto, 1)
+        self._divisore = divisore
 
     def _imprese(self):
         return [(None, "(da definire)")] + [
@@ -308,3 +326,11 @@ class PaginaSostanze(Pagina):
     def aggiorna(self) -> None:
         self.tabella.ricarica()
         self.tabella.seleziona_prima()
+        self.nessuna.blockSignals(True)
+        self.nessuna.setChecked(self.repo.testo(controlli.NESSUNA_SOSTANZA) == "1")
+        self.nessuna.blockSignals(False)
+        vuota = not self.tabella.righe()
+        self.nessuna.setVisible(vuota)
+        self.schede.setVisible(not vuota)
+        self.vuoto.setVisible(vuota)
+        self.apri_scheda.setEnabled(self.tabella.id_selezionato() is not None)

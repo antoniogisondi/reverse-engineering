@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, QStandardPaths, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics, QIcon, QPainter, QPalette, QPen
+from PySide6.QtGui import (QColor, QFont, QFontDatabase, QFontMetrics, QIcon, QPainter, QPalette, QPen,
+                           QSyntaxHighlighter, QTextCharFormat)
 from PySide6.QtWidgets import (QApplication, QComboBox, QCompleter, QLineEdit, QStyle, QStyledItemDelegate,
                                QStyleOptionViewItem, QWidget)
 
@@ -336,6 +337,106 @@ class DelegatoLivello(_DelegatoBadge):
         return QSize(130, 32)
 
 
+class DelegatoGravita(_DelegatoBadge):
+    """Interferenze: gravità nel riquadro colorato del rischio e, sotto, lo stato della prescrizione
+    (testo della cella «gravità|stato»)."""
+
+    COLORI_STATO = {"da scrivere": "warn", "generica": "tx3", "scritta": "ok"}
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
+        opt = self._sfondo(painter, option, index)
+        gravita, _, stato = str(index.data(Qt.ItemDataRole.DisplayRole) or "").partition("|")
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        c = correnti()
+        alto = QRectF(opt.rect.left(), opt.rect.top() + 2, opt.rect.width(), opt.rect.height() / 2)
+        if gravita.isdigit() and int(gravita):
+            nome, sfondo, testo = LIVELLI_RISCHIO[_corrente["tema"]][livello(int(gravita))]
+            _badge(painter, alto, nome, sfondo, testo, prefisso=gravita)
+        carattere = QFont(painter.font())
+        carattere.setPixelSize(12)
+        carattere.setWeight(QFont.Weight.DemiBold)
+        painter.setFont(carattere)
+        painter.setPen(QColor(c[self.COLORI_STATO.get(stato, "tx3")]))
+        painter.drawText(QRectF(opt.rect.left() + 16, opt.rect.center().y() + 2, opt.rect.width() - 16,
+                                opt.rect.height() / 2 - 4), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                         stato)
+        painter.restore()
+
+    def sizeHint(self, option, index) -> QSize:
+        return QSize(150, 52)
+
+
+class DelegatoControllo(QStyledItemDelegate):
+    """Voce «da sistemare»: etichetta Errore/Avviso, pagina, messaggio e «Vai alla pagina» a destra
+    (dati della voce in UserRole + 1: livello, pagina, messaggio)."""
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
+        dati = index.data(Qt.ItemDataRole.UserRole + 1)
+        if not dati:
+            return super().paint(painter, option, index)
+        livello_, pagina, messaggio = dati
+        c = correnti()
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        r = QRectF(option.rect)
+        if option.state & QStyle.StateFlag.State_MouseOver:
+            painter.fillRect(r, QColor(c["surface2"]))
+        errore = livello_.lower().startswith("err")
+        nome = "Errore" if errore else "Avviso"
+        sfondo, colore = (c["err_bg"], c["err"]) if errore else (c["warn_bg"], c["warn"])
+        badge = QRectF(r.left(), r.top(), 92, r.height())
+        _badge(painter, badge, nome, sfondo, colore)
+        carattere = QFont(painter.font())
+        carattere.setPixelSize(13)
+        painter.setFont(carattere)
+        fm = QFontMetrics(carattere)
+        painter.setPen(QColor(c["tx2"]))
+        x = r.left() + 96
+        larghezza_pagina = 170
+        painter.drawText(QRectF(x, r.top(), larghezza_pagina, r.height()), Qt.AlignmentFlag.AlignVCenter,
+                         fm.elidedText(pagina, Qt.TextElideMode.ElideRight, larghezza_pagina - 8))
+        link = "Vai alla pagina"
+        larghezza_link = fm.horizontalAdvance(link) + 12
+        painter.setPen(QColor(c["acc_s"]))
+        painter.drawText(QRectF(r.right() - larghezza_link, r.top(), larghezza_link, r.height()),
+                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight, link)
+        painter.setPen(QColor(c["tx"]))
+        spazio = r.width() - (x - r.left()) - larghezza_pagina - larghezza_link - 12
+        painter.drawText(QRectF(x + larghezza_pagina, r.top(), max(40.0, spazio), r.height()),
+                         Qt.AlignmentFlag.AlignVCenter,
+                         fm.elidedText(messaggio, Qt.TextElideMode.ElideRight, int(max(40.0, spazio))))
+        painter.restore()
+
+    def sizeHint(self, option, index) -> QSize:
+        return QSize(400, 36)
+
+
+class DelegatoStruttura(_DelegatoBadge):
+    """Vista Struttura: per i rischi, livello nel riquadro colorato e valutazione in un secondo riquadro
+    (UserRole = (livello, (testo, colore) o None)); per le altre righe il testo normale."""
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
+        dati = index.data(Qt.ItemDataRole.UserRole)
+        if not dati:
+            return super().paint(painter, option, index)
+        opt = self._sfondo(painter, option, index)
+        livello_, valutazione = dati
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        nome, sfondo, testo = LIVELLI_RISCHIO[_corrente["tema"]][livello(int(livello_))]
+        rett = QRectF(opt.rect)
+        _badge(painter, rett, nome, sfondo, testo, prefisso=str(livello_))
+        if valutazione:
+            esito, colore = valutazione
+            c = correnti()
+            sfondo_v, testo_v = {"verde": (c["ok_bg"], c["ok"]), "giallo": (c["warn_bg"], c["warn"])}.get(
+                str(colore).lower(), (c["err_bg"], c["err"]))
+            _badge(painter, QRectF(rett.left() + 120, rett.top(), rett.width() - 120, rett.height()),
+                   f"valutazione: {esito}", sfondo_v, testo_v)
+        painter.restore()
+
+
 class DelegatoRisultato(_DelegatoBadge):
     """Risultato di una valutazione: testo «classe|indice|esito», vuoto = «Da eseguire»."""
 
@@ -520,3 +621,39 @@ def campo_con_etichetta(etichetta: str, campo):
     colonna.addWidget(e)
     colonna.addWidget(campo)
     return colonna
+
+
+def numero_vuoto(campo, suggerimento: str = "") -> None:
+    """Campo numerico che a zero appare vuoto (o con un suggerimento in grigio), allineato a destra:
+    uno 0 scritto in partenza sembra un dato inserito."""
+    campo.setSpecialValueText(suggerimento or " ")
+    campo.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+    def segna(*_args) -> None:
+        vuoto = campo.value() == campo.minimum()
+        if campo.property("vuoto") != vuoto:
+            campo.setProperty("vuoto", vuoto)
+            campo.style().unpolish(campo)
+            campo.style().polish(campo)
+
+    campo.valueChanged.connect(segna)
+    segna()
+
+
+class EvidenziaSpazi(QSyntaxHighlighter):
+    """Evidenzia in giallo gli spazi da riempire scritti con i trattini bassi («attestato del ____»), come i
+    dati da completare della bozza."""
+
+    MODELLO = re.compile(r"_{2,}|\w_(?=\s|$)")
+
+    def highlightBlock(self, testo: str) -> None:  # noqa: N802 - nome di Qt
+        formato = QTextCharFormat()
+        c = correnti()
+        formato.setBackground(QColor("#FFE58A" if _corrente["tema"] == "chiaro" else "#5A4A00"))
+        formato.setForeground(QColor(c["tx"]))
+        for m in self.MODELLO.finditer(testo):
+            self.setFormat(m.start(), m.end() - m.start(), formato)
+
+
+def evidenzia_spazi(editor) -> None:
+    editor._evidenzia = EvidenziaSpazi(editor.document())
