@@ -25,7 +25,7 @@ from sicurcantiere.archivio_dati.base import ATTREZZO, DPI_BASE, OPERA, attrezza
 def _elettrocuzione(p: int = 1, d: int = 4, extra: str = "") -> dict[str, Any]:
     return r("Elettrocuzione", p, d,
              "Utensile a doppio isolamento o collegato a terra; alimentazione da quadro di cantiere con "
-             "differenziale da 30 mA (Allegato V, parte I, punto 6); cavi per posa mobile H07RN-F integri, "
+             "differenziale da 30 mA (CEI 64-8, sezione 704); cavi per posa mobile H07RN-F integri, "
              "sollevati da terra e lontani da acqua e spigoli; prese e spine di tipo industriale (CEI EN 60309)."
              + (" " + extra if extra else ""))
 
@@ -342,7 +342,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
           "a scavi allagati; salvagente o cima a disposizione."),
         r("Seppellimento e sprofondamento", 2, 4,
           "L'aggottamento può richiamare terreno fine e franare le pareti: pompa in pozzetto filtrante, "
-          "controllo delle pareti di scavo e degli edifici vicini, armature come da art. 118."),
+          "controllo delle pareti di scavo e degli edifici vicini, armature come da art. 119."),
         r("Movimentazione manuale dei carichi", 2, 2,
           "Calare e sollevare la pompa con la fune o catena di sollevamento, mai con il cavo elettrico."),
         r("Scivolamenti e cadute a livello", 2, 2,
@@ -712,7 +712,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
 
     "Armatura delle pareti di scavo (blindaggio)": attrezzatura(OPERA, rischi=[
         r("Seppellimento e sprofondamento", 2, 4,
-          "Armatura delle pareti oltre 1,50 m di profondità salvo pareti a scarpa sicura (art. 118), "
+          "Armatura delle pareti oltre 1,50 m di profondità salvo pareti a scarpa sicura (art. 119), "
           "dimensionata sulla relazione geotecnica e posata via via che lo scavo procede; nessun lavoratore "
           "in zona non armata; pannelli sporgenti oltre il ciglio di almeno 30 cm; materiali e mezzi tenuti "
           "lontani dal ciglio (art. 120)."),
@@ -769,7 +769,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
 
     "Casseforme": attrezzatura(OPERA, rischi=[
         r("Crollo o ribaltamento di strutture", 2, 4,
-          "Casseforme e loro sostegni realizzati secondo progetto o schema del fabbricante (art. 140, UNI EN "
+          "Casseforme e loro sostegni realizzati secondo progetto o schema del fabbricante (UNI EN "
           "12812); velocità di getto compatibile con la spinta del calcestruzzo; puntelli e saette di "
           "stabilizzazione delle pareti verticali; disarmo autorizzato dal direttore dei lavori."),
         r("Caduta dall'alto", 2, 4,

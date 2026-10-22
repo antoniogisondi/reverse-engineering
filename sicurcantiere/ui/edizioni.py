@@ -274,7 +274,7 @@ PIMUS = Edizione(
     sottotitolo="Piano di montaggio, uso e smontaggio dei ponteggi",
     estensione=".spm", descrizione_file="Ponteggi PiMUS", colore="#2E9C8F",
     pagine=(PaginaCantierePimus, PaginaImpresePimus, PaginaPonteggi),
-    azione_principale="Genera PiMUS", controlla=controlla_pimus,
+    azione_principale="Genera il PiMUS", controlla=controlla_pimus,
 )
 
 EDIZIONI: dict[str, Edizione] = {e.chiave: e for e in (PSC, POS, PIMUS)}

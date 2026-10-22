@@ -98,7 +98,7 @@ SCHEDE: dict[str, dict[str, Any]] = {
         "Macchina con cestello per lavori in quota (PLE).",
         ["verificare comandi, dispositivi di emergenza e parapetti del cestello",
          "posizionare la macchina su terreno piano e portante con gli stabilizzatori",
-         "operatore con formazione specifica (Accordo Stato-Regioni 22 febbraio 2012)"],
+         "operatore con formazione specifica (Accordo Stato-Regioni 17 aprile 2025)"],
         ["agganciare l'imbracatura agli attacchi del cestello", "non sporgersi né salire sui parapetti",
          "non superare la portata e non usare la PLE come apparecchio di sollevamento",
          "delimitare l'area sottostante"],
@@ -201,7 +201,7 @@ NUOVE: dict[str, dict[str, Any]] = {
     ]},
     "Autocarro con gru": {"tipo": "Macchina", "rischi": [
         _r("Caduta del carico sospeso", 2, 4, "Imbracature verificate; ganci con chiusura; area sotto il carico "
-           "delimitata; operatore formato (Accordo Stato-Regioni 22 febbraio 2012).", _DPI),
+           "delimitata; operatore formato (Accordo Stato-Regioni 17 aprile 2025).", _DPI),
         _r("Ribaltamento durante il sollevamento", 2, 4, "Stabilizzatori estesi su terreno portante; rispetto del "
            "diagramma di carico.", _DPI),
         _r("Investimento di persone a terra", 2, 4, "Moviere nelle manovre; nessuno nel raggio d'azione.", _DPI),

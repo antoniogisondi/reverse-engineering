@@ -159,7 +159,7 @@ class AllegatiPSC(QWidget):
         self.logo.setPlaceholderText("Nessun logo: in copertina compaiono i dati dello studio del CSP")
         scegli = QPushButton("Scegli il logo...", self)
         scegli.clicked.connect(self._scegli_logo)
-        togli = QPushButton("Togli", self)
+        togli = QPushButton("Rimuovi", self)
         tema.imposta_variante(togli, "quiet")
         togli.clicked.connect(lambda: self._imposta_logo(""))
         riga_logo = QHBoxLayout()

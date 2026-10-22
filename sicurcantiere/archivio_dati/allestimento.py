@@ -209,7 +209,7 @@ LAVORAZIONI = [
          "terra e di protezione, con collegamento dei quadri, delle masse e delle masse estranee "
          "(ponteggi, gru, silos, baracche metalliche). La necessità della protezione dai fulmini delle "
          "grandi strutture metalliche è valutata con CEI EN 62305-2. L'installatore rilascia la "
-         "dichiarazione di conformità, che va inviata a INAIL e ASL/ARPA entro 30 giorni dalla messa in "
+         "dichiarazione di conformità, che va trasmessa all'INAIL in via telematica entro 30 giorni dalla messa in "
          "esercizio; seguono le verifiche periodiche del D.P.R. 462/2001.",
          "Addetto alla realizzazione dell'impianto di terra e di protezione dalle scariche atmosferiche",
          50, TUTTE,

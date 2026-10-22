@@ -43,7 +43,7 @@ from sicurcantiere.archivio_dati.base import ATTREZZO, DPI_BASE, MACCHINA, OPERA
 def _elettrocuzione(p: int = 1, d: int = 4, extra: str = "") -> dict[str, Any]:
     return r("Elettrocuzione", p, d,
              "Attrezzatura a doppio isolamento o collegata all'impianto di terra; alimentazione da quadro "
-             "di cantiere con differenziale da 30 mA (Allegato V, parte I, punto 6); cavi H07RN-F integri, "
+             "di cantiere con differenziale da 30 mA (CEI 64-8, sezione 704); cavi H07RN-F integri, "
              "protetti dal passaggio di mezzi e lontani da acqua e fanghi; prese e spine industriali "
              "CEI EN 60309 con grado di protezione adeguato all'ambiente." + (" " + extra if extra else ""))
 
