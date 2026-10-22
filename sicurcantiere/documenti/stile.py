@@ -11,6 +11,7 @@ Impostazione grafica propria di SicurCantiere, con gli stessi colori del program
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,22 @@ def imposta_colore(accento: str, scuro: str, tinta: str) -> None:
     global ACCENTO, ACCENTO_SCURO, TINTA, BLU
     ACCENTO, ACCENTO_SCURO, TINTA = accento, scuro, tinta
     BLU = rgb(accento)
+
+
+# Colori dei programmi nei documenti (accento, accento scuro, tinta): gli stessi del programma.
+COLORI_PSC = ("C25E16", "A44C0C", "FDEEE2")
+COLORI_PIMUS = ("1F8577", "17695F", "E1F3F0")
+
+
+@contextmanager
+def colori_documento(accento: str, scuro: str, tinta: str):
+    """Colori del programma per un documento, ripristinati alla fine."""
+    vecchi = (ACCENTO, ACCENTO_SCURO, TINTA)
+    imposta_colore(accento, scuro, tinta)
+    try:
+        yield
+    finally:
+        imposta_colore(*vecchi)
 
 
 # --- utilità XML ---

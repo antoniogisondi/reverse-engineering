@@ -1271,6 +1271,7 @@ class PaginaRelazione(Pagina):
     titolo = "Relazione del PSC"
     voce = "Relazione del PSC"
     icona = "relazione"
+    sezioni_controlli = ("Relazione",)
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
@@ -1291,6 +1292,7 @@ class PaginaFascicolo(Pagina):
     titolo = "Fascicolo dell'opera"
     voce = "Fascicolo dell'opera"
     icona = "fascicolo"
+    sezioni_controlli = ("Fascicolo",)
 
     def __init__(self, repo: Repository):
         super().__init__(repo)

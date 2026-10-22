@@ -80,6 +80,14 @@ def controlla(repo: Repository) -> list[Segnalazione]:
 
     if not repo.elenco("costi"):
         avviso("Costi", "Stima dei costi della sicurezza vuota.")
+
+    # contenuti minimi del PSC scritti nella relazione (Allegato XV punto 2.1.2)
+    from sicurcantiere.relazione import SEZIONI
+
+    obbligatorie = {"area", "organizzazione", "uso_comune", "cooperazione", "emergenze"}
+    for chiave, titolo in SEZIONI:
+        if chiave in obbligatorie and not repo.testo(chiave).strip():
+            avviso("Relazione", f"Sezione «{titolo}» da compilare.")
     return s
 
 

@@ -105,6 +105,24 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   coordinatore.
 - Costi della sicurezza, fascicolo dell'opera e notifica preliminare.
 
+### Il documento finale (PSC, fascicolo, notifica)
+- **Stessa impaginazione del POS**, nei colori arancioni del programma PSC: copertina con
+  committente e firme, indice, revisioni, capitoli numerati con il riferimento di legge.
+- **Capitoli nell'ordine dei contenuti minimi dell'Allegato XV punto 2.1.2**, in quattro parti:
+  - l'opera e i soggetti (lettere a e b);
+  - rischi, scelte e misure: metodo con la matrice P × D colorata, area di cantiere, organizzazione
+    del cantiere, scelte progettuali, lavorazioni con le tabelle dei rischi per fase (lettere c e d);
+  - coordinamento: interferenze con la gravità colorata e le prescrizioni, uso comune, cooperazione,
+    emergenze con i numeri nazionali e le strutture del territorio (lettere e-h);
+  - tempi e costi: cronoprogramma settimanale con le interferenze in rosso, uomini-giorno, stima dei
+    costi della sicurezza non soggetti a ribasso (lettere i e l).
+- Firme del coordinatore, del committente o responsabile dei lavori, del CSE e, per accettazione,
+  dei datori di lavoro delle imprese.
+- **Dati da completare** come nel POS: committente, CSP, testi obbligatori della relazione, date e
+  rischi delle fasi, interferenze gravi senza prescrizione, costi.
+- **Fascicolo dell'opera** con le schede dell'Allegato XVI e **notifica preliminare** con le voci
+  dell'Allegato XII, con la stessa grafica e i dati mancanti evidenziati.
+
 ### Dal PSC al POS
 - **PSC fatto con SicurCantiere PSC**: nella pagina Imprese, «Prepara il POS dell'impresa...» crea il
   file `.spo` dell'impresa. Contiene cantiere, soggetti, l'impresa, le sue lavorazioni con rischi,

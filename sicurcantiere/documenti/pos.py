@@ -90,15 +90,15 @@ DOCUMENTI_IN_CANTIERE = [
 ]
 
 
-def _foto_cantiere(repo: Repository) -> list[str]:
+def foto_cantiere(repo: Repository) -> list[str]:
     return [r for r in repo.testo("foto_cantiere").splitlines() if r.strip()]
 
 
-def _descrizione_rischio(r: dict) -> str:
+def descrizione_rischio(r: dict) -> str:
     return f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"]
 
 
-def _tabella_rischi(doc, rischi: list[dict]) -> None:
+def tabella_rischi(doc, rischi: list[dict]) -> None:
     """Rischi della fase: probabilità, danno e livello colorato, misure e DPI del rischio."""
     righe = []
     for r in rischi:
@@ -106,7 +106,7 @@ def _tabella_rischi(doc, rischi: list[dict]) -> None:
         misure = r["misure"].strip()
         if r["dpi"].strip():
             misure = f"{misure}\nDPI: {r['dpi'].strip()}".strip()
-        righe.append([_descrizione_rischio(r),
+        righe.append([descrizione_rischio(r),
                       f"P{r['probabilita']} × D{r['danno']} = {livello}\n{analisi.classe_rischio(livello)}", misure])
     if not righe:
         return
@@ -125,7 +125,7 @@ def _esito_breve(repo: Repository, valutazione: dict) -> list[str]:
     return [e.indice_testo, e.classe]
 
 
-def _dpi_con_icone(doc, testi: list[str], etichetta: str) -> None:
+def dpi_con_icone(doc, testi: list[str], etichetta: str) -> None:
     """DPI in chiaro e, dove c'è, il cartello di obbligo corrispondente."""
     voci = elenco_dpi(testi)
     if not voci:
@@ -269,7 +269,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     if c["descrizione"].strip():
         stile.banda(doc, "Descrizione sintetica dell'opera")
         stile.testo(doc, c["descrizione"])
-    for n, foto in enumerate(_foto_cantiere(repo), 1):
+    for n, foto in enumerate(foto_cantiere(repo), 1):
         stile.immagine(doc, foto, 11, f"Foto {n} - area del cantiere")
 
     stile.capitolo(doc, "Committente e soggetti con compiti di sicurezza", "Allegato XV punto 3.2.1, lettera a)")
@@ -460,7 +460,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         ], 5.0)
         rischi_fase = [r for r in rischi if r["fase_id"] == f["id"]]
         if rischi_fase:
-            _tabella_rischi(doc, rischi_fase)
+            tabella_rischi(doc, rischi_fase)
             collegate = [v for v in valutazioni if f["id"] in repo.fasi_valutazione(v["id"]) and v["metodo"] in METODI]
             if collegate:
                 stile.nota(doc, "Rischi valutati con metodo specifico (capitolo «Valutazioni dei rischi specifici»): "
@@ -469,12 +469,12 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         else:
             stile.testo(doc, "", f"rischi della fase {nome_fase(f)} (nessun rischio valutato)", "Rischi",
                         OBBLIGATORIO)
-        _dpi_con_icone(doc, [r["dpi"] for r in struttura["rischi_lavorazione"]], "DPI dell'addetto:")
+        dpi_con_icone(doc, [r["dpi"] for r in struttura["rischi_lavorazione"]], "DPI dell'addetto:")
         esclusi = repo.rischi_esclusi(fase_id=f["id"])
         if esclusi:
             stile.banda(doc, "Rischi valutati come non presenti")
             stile.tabella_colorata(doc, ["Rischio", "Motivazione"], [
-                [_descrizione_rischio(r), r["motivazione"] or "-"] for r in esclusi], 8.5, larghezze=[6, 11.4])
+                [descrizione_rischio(r), r["motivazione"] or "-"] for r in esclusi], 8.5, larghezze=[6, 11.4])
 
     stile.capitolo(doc, "Opere provvisionali, macchine e impianti utilizzati",
                    "Allegato XV punto 3.2.1, lettera d), e artt. 70-73 e Allegati V-VII")
@@ -515,7 +515,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                 stile._run(p, "Misure preventive e protettive", grassetto=True)
                 stile.testo(doc, "\n".join(s["misure"]))
             if s["dpi"]:
-                _dpi_con_icone(doc, s["dpi"], "DPI dell'operatore:" if macchine else "DPI dell'utilizzatore:")
+                dpi_con_icone(doc, s["dpi"], "DPI dell'operatore:" if macchine else "DPI dell'utilizzatore:")
     for p_ in ponteggi:
         stile.riquadro(doc, p_["nome"] or "Ponteggio", "ponteggio", stile.TESTO3, stile.SUPERFICIE, livello=3)
         stile.scheda(doc, [("Tipo", p_["tipo"]), ("Fabbricante e modello", " ".join(v for v in (p_["fabbricante"],

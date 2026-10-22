@@ -150,8 +150,16 @@ def test_genera_psc(repo, tmp_path):
     doc = Document(file)
     testo = "\n".join(p.text for p in doc.paragraphs)
     celle = "\n".join(c.text for t in doc.tables for r in t.rows for c in r.cells)
-    assert "PIANO DI SICUREZZA E COORDINAMENTO" in testo
+    assert "Piano di sicurezza e coordinamento" in testo
     assert "Presidio di primo soccorso" in testo
+    # capitoli dell'Allegato XV punto 2.1.2 e dati mancanti segnalati
+    for titolo in ("Identificazione e descrizione dell'opera", "Soggetti con compiti di sicurezza",
+                   "Area di cantiere", "Organizzazione del cantiere", "Lavorazioni: rischi e misure per fase",
+                   "Interferenze tra le lavorazioni e prescrizioni operative", "Cronoprogramma dei lavori",
+                   "Stima dei costi della sicurezza"):
+        assert titolo in testo
+    assert "[Da compilare: coordinatore per la progettazione (CSP)]" in testo
+    assert "Comune di Bari" in celle
     assert "Alfa Costruzioni" in celle
     assert "€ 1.500,00" in celle
     assert "Scavo di sbancamento" in celle  # interferenza e cronoprogramma
