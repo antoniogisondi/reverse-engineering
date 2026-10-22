@@ -1,9 +1,9 @@
 """Fasi di lavoro: allestimento e smobilizzo del cantiere; tagli, carotaggi e perforazioni.
 
 Testi redatti da zero per questo progetto. Fonti consultate per verificare contenuti e riferimenti
-(non copiate): D.Lgs. 81/2008 (Titolo IV capi I e II, artt. 71, 73, 80-87, 96, 108-138, 150-151;
+(non copiate): D.Lgs. 81/2008 (Titolo IV, Capi I e II, artt. 71, 73, 80-87, 96, 108-138, 150-151;
 Allegati IV, VI, VII, XIII, XV, XVIII, XIX, XXI, XXII, XXIV-XXXII, XLII, XLIII); D.Lgs. 44/2020
-(silice cristallina respirabile); D.P.R. 462/2001; D.M. 37/2008; D.M. 10/07/2002 e D.M. 22/01/2019
+(silice cristallina respirabile); D.P.R. 462/2001; D.M. 37/2008; D.M. 10 luglio 2002 e D.M. 22 gennaio 2019
 (segnaletica temporanea e formazione per lavori in presenza di traffico); norme CEI 64-8/7 sez. 704,
 guida CEI 64-17, CEI EN 61439-4, CEI EN 60309, CEI EN 62305, CEI 11-27; UNI EN 12811-1, UNI EN 13374,
 UNI EN 1263-1/2, UNI EN 795, UNI EN 363, UNI EN 12158-1, UNI EN 14439, UNI ISO 12480-1,
@@ -64,7 +64,7 @@ _CADUTA_ALTO_MONTAGGIO = r("Caduta dall'alto", 3, 4,
                            "linea di ancoraggio (UNI EN 795, UNI EN 363) in ogni fase non protetta da "
                            "parapetti; mai sganciarsi durante gli spostamenti (doppio cordino); "
                            "piano di recupero di un lavoratore sospeso; formazione e addestramento sui "
-                           "DPI di terza categoria (art. 77 c. 5).", _DPI_ANTICADUTA)
+                           "DPI di terza categoria (art. 77, comma 5).", _DPI_ANTICADUTA)
 _VENTO = r("Microclima: vento, pioggia e temperature estreme", 2, 3,
            "Sospendere i lavori in quota e i sollevamenti con vento oltre i limiti indicati dal "
            "fabbricante o dal piano di montaggio, con pioggia, ghiaccio o scarsa visibilità; "
@@ -92,7 +92,7 @@ _PUNTURE = r("Punture, tagli e abrasioni", 3, 2,
 _SILICE = r("Polveri e fibre (silice cristallina respirabile)", 3, 3,
             "Taglio e foratura a umido con alimentazione d'acqua continua o, a secco, con aspirazione "
             "alla fonte tramite aspiratore di classe H; il taglio di laterizi, pietre e calcestruzzo è "
-            "lavoro che espone a cancerogeno (Allegato XLII, Titolo IX Capo II; VLEP dell'Allegato "
+            "lavoro che espone a cancerogeno (Allegato XLII, Titolo IX, Capo II; VLEP dell'Allegato "
             "XLIII): valutazione dell'esposizione, zona di lavoro delimitata, pulizia ad aspirazione e "
             "non con scopa o aria compressa, sorveglianza sanitaria.", _DPI_POLVERI)
 _IMPIANTI_NASCOSTI = r("Elettrocuzione per contatto con impianti annegati nelle strutture", 2, 4,
@@ -145,7 +145,7 @@ LAVORAZIONI = [
          ["Autocarro con gru", "Autogru", "Avvitatore elettrico", "Utensili manuali", "Scala a mano"], [
              _CARICHI_SOSPESI, _SCHIACCIAMENTO_POSA, _ELETTRO_LINEE,
              r("Ribaltamento o cedimento del monoblocco", 1, 3,
-               "Basamento in cls o su travi livellate e verificato per il carico; moduli sovrapposti "
+               "Basamento in calcestruzzo o su travi livellate e verificato per il carico; moduli sovrapposti "
                "solo se previsto dal fabbricante e collegati con i suoi accessori; ancoraggi "
                "antivento dove richiesto; scale e ballatoi di accesso con parapetto."),
              r("Caduta dall'alto", 2, 3,
@@ -216,7 +216,7 @@ LAVORAZIONI = [
          ["Miniescavatore", "Martello demolitore", "Utensili manuali"], [
              _SOTTOSERVIZI, _MMC,
              r("Urti, colpi, impatti e compressioni", 2, 2,
-               "Infissione dei picchetti con battipicchetto o martello con apposito cuffia; il "
+               "Infissione dei picchetti con battipicchetto o martello con apposita cuffia; il "
                "picchetto è tenuto con un attrezzo di guida e non con le mani; mazze integre e "
                "con manico ben fissato."),
              r("Elettrocuzione", 1, 4,
@@ -262,7 +262,7 @@ LAVORAZIONI = [
          "specializzata secondo le istruzioni del fabbricante, con autogru per il sollevamento di "
          "traliccio, torre, braccio, controbraccio e zavorre. Comprende il collegamento all'impianto di "
          "terra, la taratura dei limitatori di carico e di momento e le prove di funzionamento. Prima "
-         "dell'uso: comunicazione di messa in servizio e prima verifica INAIL (art. 71 c. 11, Allegato "
+         "dell'uso: comunicazione di messa in servizio e prima verifica INAIL (art. 71, comma 11, Allegato "
          "VII).",
          "Addetto al montaggio della gru a torre", 45, ("Nuove costruzioni", "Ristrutturazioni",
                                                         "Opere infrastrutturali"),
@@ -451,9 +451,9 @@ LAVORAZIONI = [
          "Posa dei cartelli di sicurezza all'ingresso e nelle zone di lavoro (Titolo V, Allegati "
          "XXIV-XXXII), dei percorsi pedonali delimitati e, per cantieri su strada o in adiacenza, "
          "della segnaletica temporanea secondo il Codice della Strada (art. 21, D.P.R. 495/1992) e gli "
-         "schemi del D.M. 10/07/2002: preavvisi, delimitazioni con coni e barriere, luci e impianti "
+         "schemi del D.M. 10 luglio 2002: preavvisi, delimitazioni con coni e barriere, luci e impianti "
          "semaforici. Posa, controllo giornaliero e rimozione seguono l'ordine di marcia indicato e "
-         "sono svolti da addetti formati secondo il D.M. 22/01/2019.",
+         "sono svolti da addetti formati secondo il D.M. 22 gennaio 2019.",
          "Addetto alla posa della segnaletica di cantiere e stradale temporanea", 55, TUTTE,
          ["Autocarro", "Trapano elettrico", "Utensili manuali"], [
              r("Investimento da veicoli in transito", 3, 4,
@@ -461,7 +461,7 @@ LAVORAZIONI = [
                "protetti dal veicolo operativo con pannello luminoso; scendere dal veicolo sul lato "
                "opposto al traffico; indumenti ad alta visibilità di classe 3 per strade "
                "extraurbane o con visibilità ridotta; movieri con palette per i sensi unici "
-               "alternati; formazione del D.M. 22/01/2019.",
+               "alternati; formazione del D.M. 22 gennaio 2019.",
                "Casco, calzature di sicurezza, guanti, indumenti ad alta visibilità"),
              _INVESTIMENTO, _MMC, _SCIVOLAMENTI,
              r("Microclima", 2, 2,
@@ -745,7 +745,7 @@ LAVORAZIONI = [
                "bloccati e con spinotti originali; controllo prima di ogni ripresa del lavoro."),
              r("Caduta di materiale dall'alto o a livello", 2, 3,
                "Puntelli e traversi sollevati in due e trattenuti fino al bloccaggio; rimozione "
-               "preventiva di controsoffitti, intonaci e elementi instabili nell'area."),
+               "preventiva di controsoffitti, intonaci ed elementi instabili nell'area."),
              _MMC,
              r("Urti, colpi, impatti e compressioni", 2, 2,
                "Mani lontane dal tubo interno e dai fori di regolazione durante la messa in "

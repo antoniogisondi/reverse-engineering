@@ -62,23 +62,24 @@ def descrizione(stato: licenza.Stato, nome_programma: str) -> str:
     l = stato.licenza
     if stato.tipo == licenza.NON_INCLUSO:
         return (f"{nome_programma} non è incluso nella tua licenza (piano {l.nome_piano}). "
-                "Si può aggiungere passando al piano Completo.")
+                "Puoi aggiungerlo passando al piano Completo.")
     postazioni = "1 postazione" if l.postazioni == 1 else f"{l.postazioni} postazioni"
     testo = f"Licenza {l.nome_piano} n. {l.id} intestata a {l.cliente}, per {postazioni}"
     if l.scadenza is None:
         return testo + ", senza scadenza."
     if l.scaduta():
         return (testo + f", scaduta il {data_it(l.scadenza.isoformat())}. Il programma continua a "
-                "funzionare; per aggiornamenti normativi e assistenza va rinnovata.")
+                "funzionare; per ricevere gli aggiornamenti normativi e l'assistenza è necessario rinnovarla.")
     return testo + f", valida fino al {data_it(l.scadenza.isoformat())}."
 
 
 def testo_barra(stato: licenza.Stato) -> str:
     """Breve indicazione per la barra di stato (vuota se tutto è in regola)."""
     if stato.tipo == licenza.PROVA:
-        return f"Prova gratuita: {stato.giorni_prova} giorni"
+        giorni = "1 giorno rimanente" if stato.giorni_prova == 1 else f"{stato.giorni_prova} giorni rimanenti"
+        return f"Prova gratuita: {giorni}"
     if stato.tipo == licenza.LICENZA and stato.scaduta:
-        return "Licenza scaduta: rinnova per gli aggiornamenti"
+        return "Licenza scaduta: rinnovala per ricevere gli aggiornamenti"
     if stato.tipo == licenza.LICENZA:
         return f"Licenza {stato.licenza.nome_piano} · {stato.licenza.cliente}"
     return ""
@@ -109,7 +110,7 @@ def consenti_cantiere(genitore: QWidget, programma: str, percorso: Path) -> bool
     QMessageBox.information(
         genitore, "Prova gratuita",
         f"La prova gratuita comprende un solo cantiere:\n{scelto}\n\n"
-        "Per lavorare su altri cantieri inserisci la licenza da Aiuto > Licenza.")
+        "Per lavorare su altri cantieri inserisci la licenza in «Aiuto > Licenza».")
     return False
 
 

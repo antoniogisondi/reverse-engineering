@@ -138,8 +138,8 @@ class PannelloIdoneita(QScrollArea):
         impresa["idoneita"] = self._valori()
         regolare = anagrafiche.patente_regolare(impresa)
         self.avviso_patente.setText(
-            "Indicare la situazione della patente: dal 1° ottobre 2024 imprese e lavoratori autonomi che operano nei "
-            "cantieri devono averla, salvo le esenzioni (art. 27)." if regolare is None else
+            "Indica la situazione della patente: dal 1° ottobre 2024 le imprese e i lavoratori autonomi che operano "
+            "nei cantieri devono esserne in possesso, salvo le esenzioni previste (art. 27)." if regolare is None else
             f"Attenzione: con meno di {anagrafiche.CREDITI_MINIMI} crediti, o senza patente, l'impresa non può operare "
             "nel cantiere." if regolare is False else "Patente a crediti regolare.")
         c = tema.correnti()

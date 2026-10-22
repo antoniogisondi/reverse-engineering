@@ -1,12 +1,12 @@
 {% extends "base.html" %}{% block titolo %}{{ l.codice_licenza }}{% endblock %}
 {% block contenuto %}
 <h1 class="mono" style="font-size:20px">{{ l.codice_licenza }}</h1>
-<p class="sotto"><a href="{{ url_for('cliente', id_=l.cliente_id) }}">{{ l.cliente }}</a> · piano {{ nome_piano }} · emessa il {{ l.emessa|data }} · scadenza {{ l.scadenza|data }} · {{ l.postazioni }} PC
+<p class="sotto"><a href="{{ url_for('cliente', id_=l.cliente_id) }}">{{ l.cliente }}</a> · piano {{ nome_piano }} · emessa il {{ l.emessa|data }} · scadenza {{ l.scadenza|data }} · {{ l.postazioni }} {{ 'postazione' if l.postazioni == 1 else 'postazioni' }}
  · <span class="badge b-{{ stato|replace(' ', '-') }}">{{ stato }}</span></p>
 {% if precedente %}<p>Rinnovo di <a class="mono" href="{{ url_for('dettaglio_licenza', id_=precedente.id) }}">{{ precedente.codice_licenza }}</a>.</p>{% endif %}
 {% if successiva %}<p>Rinnovata con <a class="mono" href="{{ url_for('dettaglio_licenza', id_=successiva.id) }}">{{ successiva.codice_licenza }}</a>.</p>{% endif %}
 
-<div class="card"><h2>Codice da mandare al cliente <button type="button" data-copia="codice">Copia il codice</button></h2>
+<div class="card"><h2>Codice da inviare al cliente <button type="button" data-copia="codice">Copia il codice</button></h2>
 <div class="corpo"><textarea id="codice" class="codice" readonly>{{ l.codice }}</textarea>
 <p class="riga" style="justify-content:space-between"><b>Testo dell'email</b>
 <span class="riga"><button type="button" data-copia="testo-consegna">Copia il testo</button>
@@ -14,7 +14,7 @@
 <textarea id="testo-consegna" class="codice" readonly>{{ consegna }}</textarea>
 <form class="riga" method="post" action="{{ url_for('registra_invio', id_=l.id) }}"><input type="hidden" name="token" value="{{ token }}">
 <input type="hidden" name="tipo" value="codice"><button>Segna il codice come consegnato oggi</button>
-{% if not l.email %}<span class="sotto">Il cliente non ha un'email: aggiungila nella sua scheda.</span>{% endif %}</form></div></div>
+{% if not l.email %}<span class="sotto">Per questo cliente non è indicata un'email: aggiungila nella sua scheda.</span>{% endif %}</form></div></div>
 
 {% if rinnovo %}
 <div class="card"><h2>Promemoria di rinnovo</h2><div class="corpo">
@@ -28,7 +28,7 @@
 <div class="card"><h2>Registro degli invii</h2>
 {% if invii %}<table><tr><th>Data</th><th>Invio</th><th>Destinatario</th><th>Registrato da</th></tr>
 {% for i in invii %}<tr><td>{{ i.data|data }}</td><td>{{ tipi_invio[i.tipo] }}</td><td>{{ i.destinatario or "—" }}</td><td>{{ i.utente }}</td></tr>{% endfor %}
-</table>{% else %}<div class="vuoto">Nessun invio registrato: dopo aver mandato il codice premi «Segna il codice come consegnato».</div>{% endif %}</div>
+</table>{% else %}<div class="vuoto">Nessun invio registrato: dopo aver inviato il codice premi «Segna il codice come consegnato oggi».</div>{% endif %}</div>
 
 {% if l.stato == "attiva" %}
 <div class="card"><h2>Rinnovo</h2>
@@ -37,9 +37,9 @@
 <div><label>Piano</label><select name="piano">{% for k, v in piani.items() %}<option value="{{ k }}" {% if k == l.piano %}selected{% endif %}>{{ v[0] }}</option>{% endfor %}</select></div>
 <div><label>Prezzo (€)</label><input name="prezzo" value="{{ l.prezzo }}"></div>
 <div class="largo"><button class="primario">Rinnova per un anno</button></div>
-<div class="tutto sotto">La nuova scadenza parte dalla scadenza attuale (o da oggi, se è già passata). Al cliente va mandato il nuovo codice.</div>
+<div class="tutto sotto">La nuova scadenza decorre da quella attuale (o da oggi, se è già passata). Dopo il rinnovo invia al cliente il nuovo codice.</div>
 </form>
-<form class="corpo" method="post" action="{{ url_for('annulla', id_=l.id) }}" data-conferma="Segnare la licenza come annullata?">
+<form class="corpo" method="post" action="{{ url_for('annulla', id_=l.id) }}" data-conferma="Vuoi segnare la licenza come annullata?">
 <input type="hidden" name="token" value="{{ token }}"><button class="pericolo">Segna come annullata</button>
 <span class="sotto">Solo nel registro: un codice già consegnato resta valido fino alla scadenza.</span></form></div>
 {% endif %}

@@ -118,7 +118,7 @@ def proponi(finestra, versione: aggiornamenti.Versione) -> None:
         finestra, "Aggiornamento disponibile",
         f"È disponibile SicurCantiere {versione.numero} (in uso: {__version__}).\n\n"
         "Il programma scarica la nuova versione, si chiude, la installa e si riapre. "
-        "I cantieri e l'archivio restano dove sono; i dati sono già salvati.\n\nAggiornare ora?")
+        "I cantieri e l'archivio non vengono modificati; i dati sono già salvati.\n\nVuoi aggiornare ora?")
     if risposta == QMessageBox.StandardButton.Yes:
         scarica_e_installa(finestra, versione)
 
@@ -152,7 +152,7 @@ def scarica_e_installa(finestra, versione: aggiornamenti.Versione) -> None:
     def errore(testo: str) -> None:
         attesa.close()
         if not lavoro_corrente.annullato:
-            QMessageBox.warning(finestra, "Aggiornamento", f"{testo}\n\nSi può scaricare la nuova versione "
+            QMessageBox.warning(finestra, "Aggiornamento", f"{testo}\n\nPuoi scaricare la nuova versione "
                                 f"anche dal browser:\n{versione.url_installatore}")
 
     _avvia(lavoro_corrente, scaricato, errore)

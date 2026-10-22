@@ -126,7 +126,7 @@ def genera_chiave() -> str:
     """Crea la chiave di firma (una sola volta) e restituisce la chiave pubblica in base64."""
     file = _file_chiave()
     if file.exists():
-        raise FileExistsError(f"La chiave esiste già: {file}. Non va rigenerata.")
+        raise FileExistsError(f"La chiave di firma esiste già: {file}. Non deve essere rigenerata.")
     privata = Ed25519PrivateKey.generate()
     file.write_bytes(privata.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
                                            serialization.NoEncryption()))
@@ -137,7 +137,7 @@ def genera_chiave() -> str:
 def chiave_privata() -> bytes:
     file = _file_chiave()
     if not file.exists():
-        raise FileNotFoundError("Chiave di firma assente: eseguire «python -m licenze genera-chiave».")
+        raise FileNotFoundError("Chiave di firma assente: esegui «python -m licenze genera-chiave».")
     privata = serialization.load_pem_private_key(file.read_bytes(), password=None)
     return privata.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
                                  serialization.NoEncryption())

@@ -496,7 +496,7 @@ def test_dialogo_archivio_lavorazioni(app, tmp_path):
     archivio.chiudi()
     d = DialogoArchivio()
     nodi = [d.albero.topLevelItem(i).text(0) for i in range(d.albero.topLevelItemCount())]
-    assert nodi[0] == "Allestimento e smobilizzo del cantiere" and nodi[-1].startswith("UTENTE")
+    assert nodi[0] == "Allestimento e smobilizzo del cantiere" and nodi[-1] == "Lavorazioni personalizzate"
     utente = d.albero.topLevelItem(d.albero.topLevelItemCount() - 1)
     utente.child(0).setCheckState(0, QtCore.Qt.CheckState.Checked)
     d.tipologia.setCurrentText("Restauri")  # la spunta resta dopo il cambio di tipologia
@@ -739,7 +739,7 @@ def test_guida_e_avviso_responsabilita(app):
 
     d = DialogoGuida("POS")
     testo = d.findChild(QtWidgets.QTextBrowser).toPlainText()
-    assert "Come si compila un POS" in testo and "spento di serie" in testo
+    assert "Come si compila un POS" in testo and "disattivato per impostazione predefinita" in testo
     assert "firmato" in AVVISO_RESPONSABILITA
 
 

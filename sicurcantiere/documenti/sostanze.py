@@ -1,4 +1,4 @@
-"""Elenco delle sostanze e miscele pericolose con le schede di sicurezza (Allegato XV, 3.2.1 lett. e)."""
+"""Elenco delle sostanze e miscele pericolose con le schede di sicurezza (Allegato XV punto 3.2.1, lettera e)."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def aggiungi_sostanze(doc, repo: Repository, elenco: list[dict[str, Any]], livel
             ", ".join(codici) or "-",
             data_it(s["data_sds"]),
         ])
-    tabella(doc, ["Prodotto", "Uso / lavorazione", "Pittogrammi", "Frasi H", "Scheda SDS del"], righe, dimensione=8)
+    tabella(doc, ["Prodotto", "Uso / lavorazione", "Pittogrammi", "Frasi H", "SDS del"], righe, dimensione=8)
     doc.add_paragraph("Le schede di dati di sicurezza aggiornate sono conservate in cantiere e consultabili "
                       "dai lavoratori.").runs[0].italic = True
 
@@ -90,10 +90,10 @@ def genera_elenco_sostanze(repo: Repository, impresa_id: int, destinazione: str 
     c = repo.cantiere()
     doc = nuovo_documento()
     doc.add_heading("SOSTANZE E MISCELE PERICOLOSE UTILIZZATE IN CANTIERE", 0)
-    doc.add_paragraph("Allegato XV punto 3.2.1 lett. e) e Titolo IX del D.Lgs. 81/2008")
+    doc.add_paragraph("Allegato XV punto 3.2.1, lettera e), e Titolo IX del D.Lgs. 81/2008")
     tabella_voci(doc, [("Impresa", impresa["ragione_sociale"]),
                        ("Cantiere", f"{c['nome']} - {indirizzo_cantiere(c)}".strip(" -"))])
     doc.add_paragraph()
     aggiungi_sostanze(doc, repo, sostanze_impresa(repo, impresa_id), livello=1)
-    firma(doc, "Il Datore di lavoro")
+    firma(doc, "Il datore di lavoro")
     return salva(doc, destinazione)

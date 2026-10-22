@@ -74,10 +74,11 @@ def genera_verifica_idoneita(repo: Repository, impresa_id: int, destinazione: st
             if impresa.get("durc_congruita_data") else "") if v)),
     ], 6.0)
     if anagrafiche.patente_regolare(impresa) is False:
-        stile.nota(doc, f"Patente a crediti assente o con meno di {anagrafiche.CREDITI_MINIMI} crediti: l'impresa non "
-                        "può operare nel cantiere (art. 27).", avviso=True)
+        stile.nota(doc, f"Patente a crediti assente o con meno di {anagrafiche.CREDITI_MINIMI} crediti: "
+                        + ("il lavoratore autonomo" if autonomo else "l'impresa")
+                        + " non può operare nel cantiere (art. 27).", avviso=True)
 
-    stile.banda(doc, "Documenti verificati (Allegato XVII, punto " + ("2)" if autonomo else "1)"))
+    stile.banda(doc, "Documenti verificati (Allegato XVII punto " + ("2)" if autonomo else "1)"))
     voci = anagrafiche.leggi_idoneita(impresa)
     righe = [[str(n), testo, voci[k]["esito"] or "Da verificare", voci[k]["nota"]]
              for n, (k, testo) in enumerate(anagrafiche.voci_idoneita(impresa), 1)]
@@ -91,8 +92,8 @@ def genera_verifica_idoneita(repo: Repository, impresa_id: int, destinazione: st
     stile.banda(doc, "Esito")
     p = doc.add_paragraph()
     stile._run(p, {"Idonea": "Idoneità tecnico-professionale verificata: la documentazione richiesta è completa.",
-                   "Documentazione incompleta": "Documentazione incompleta: l'impresa non può iniziare i lavori finché "
-                                                "non sono acquisiti i documenti mancanti.",
+                   "Documentazione incompleta": "Documentazione incompleta: i lavori non possono iniziare finché non "
+                                                "sono acquisiti i documenti mancanti.",
                    }.get(esito, "Verifica non ancora eseguita."), 10.5,
                stile.LIVELLI[0][1] if esito == "Idonea" else stile.AVVISO, grassetto=True)
 

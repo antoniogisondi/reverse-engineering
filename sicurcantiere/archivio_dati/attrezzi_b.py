@@ -1,13 +1,13 @@
 """Archivio: attrezzi di cantiere (seconda parte) e opere provvisionali.
 
 Rischi generati dall'uso e schede d'uso, scritti per questo progetto. Fonti consultate:
-- D.Lgs. 81/2008: Titolo III (artt. 70-73, Allegati V, VI, VII), Titolo IV Capo II (artt. 111-
-  140 e Allegati XVIII-XXII), Titolo VIII (rumore, vibrazioni), Titolo IX Capi I-III (agenti
+- D.Lgs. 81/2008: Titolo III (artt. 70-73, Allegati V, VI, VII), Titolo IV, Capo II (artt. 111-
+  140 e Allegati XVIII-XXII), Titolo VIII (rumore, vibrazioni), Titolo IX, Capi I-III (agenti
   chimici, cancerogeni, amianto);
 - D.M. 6 settembre 1994 (bonifiche amianto, unità di decontaminazione); D.P.R. 177/2011;
-- norme UNI EN 131, 13374, 1263-1/-2, 795, 1065, 12812, 12811, 60335-2-69, 60079-29-1;
+- norme UNI EN 131, 13374, 1263-1/-2, 795, 1065, 12812, 12811; CEI EN 60335-2-69, 60079-29-1;
 - quaderni tecnici INAIL sui lavori in quota (reti di sicurezza, parapetti provvisori,
-  sistemi di ancoraggio), schede PuntoSicuro sui ponti su cavalletti, testo del D.M. 6/9/1994.
+  sistemi di ancoraggio), schede PuntoSicuro sui ponti su cavalletti, testo del D.M. 6 settembre 1994.
 I testi vanno sempre confrontati con il manuale del fabbricante dell'attrezzatura.
 NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
 tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
@@ -285,7 +285,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
         _rumore(4, 3, "Il rumore alla lancia supera di norma i 100 dB(A)."),
         _vibrazioni(2, 2),
         r("Proiezione di schegge e frammenti", 3, 2,
-          "Distanza di sicurezza e schermature verso passaggi e altre squadre; casco da sabbiatore con visiera."),
+          "Distanza di sicurezza e schermature verso passaggi e altre squadre; casco da sabbiatura con visiera."),
         r("Elettrocuzione", 1, 4,
           "Messa a terra di serbatoio e tubi per disperdere le cariche elettrostatiche; collegamenti del "
           "compressore protetti da differenziale."),
@@ -365,7 +365,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
 
     "Aspiratore con filtro HEPA": attrezzatura(ATTREZZO, rischi=[
         r("Polveri e fibre", 2, 4,
-          "Aspiratore di classe H (UNI EN 60335-2-69, allegato AA) per amianto e polveri pericolose; filtro "
+          "Aspiratore di classe H (CEI EN 60335-2-69, allegato AA) per amianto e polveri pericolose; filtro "
           "HEPA integro e ben alloggiato; sostituzione dei filtri e svuotamento in sacchi chiusi solo "
           "nell'area di lavoro, con DPI respiratori.", DPI_BASE + ", facciale filtrante FFP3, tuta monouso"),
         r("Esposizione ad amianto", 2, 4,
@@ -383,7 +383,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
         ["collegare il tubo direttamente alla cuffia dell'utensile quando possibile",
          "non aprire il contenitore e non battere i filtri durante l'uso",
          "interrompere se l'allarme segnala portata insufficiente"],
-        ["svuotare in sacchi chiusi e etichettati, con DPI respiratori",
+        ["svuotare in sacchi chiusi ed etichettati, con DPI respiratori",
          "pulire l'esterno a umido e conservare l'aspiratore con le bocche tappate",
          "far sostituire i filtri secondo il manuale e registrare la manutenzione"],
         ["facciale filtrante FFP3", "tuta monouso", "guanti in lattice o nitrile", "calzature di sicurezza"])),
@@ -469,7 +469,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
          "sospendere con vento forte o se il carico oscilla"],
         ["lasciare il gancio in alto senza carico e richiudere il cancelletto",
          "togliere l'alimentazione e proteggere la pulsantiera",
-         "annotare sul registro i controlli trimestrali di funi e catene (Allegato VI, punto 3.1.2)"],
+         "annotare sul registro i controlli trimestrali di funi e catene (Allegato VI punto 3.1.2)"],
         ["casco con sottogola", "guanti", "calzature di sicurezza", "imbracatura"])),
 
     "Argano a cavalletto": attrezzatura(ATTREZZO, rischi=[
@@ -538,7 +538,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
         r("Caduta dall'alto", 3, 3,
           "Scala conforme alla UNI EN 131 e all'art. 113 (altezza non oltre 5 m, catena o dispositivo contro "
           "l'apertura); uso solo per lavori brevi e a basso rischio, quando un'attrezzatura più sicura non è "
-          "giustificata (art. 111, c. 3); non salire sugli ultimi gradini salvo piattaforma con guardacorpo; "
+          "giustificata (art. 111, comma 3); non salire sugli ultimi gradini salvo piattaforma con guardacorpo; "
           "una persona alla volta."),
         r("Crollo o ribaltamento di strutture", 2, 3,
           "Appoggio su superficie piana e portante, con piedini antiscivolo integri; scala completamente "
@@ -565,7 +565,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     "Ponte su cavalletti": attrezzatura(OPERA, rischi=[
         r("Caduta dall'alto", 2, 3,
           "Altezza dell'impalcato non oltre 2 m e mai su impalcati di ponteggi (art. 139); impalcato largo "
-          "almeno 90 cm con tavole accostate, fissate ai cavalletti e sbalzi non oltre 20 cm (Allegato XVIII, "
+          "almeno 90 cm con tavole accostate, fissate ai cavalletti e sbalzi non oltre 20 cm (Allegato XVIII "
           "punto 2.2.2); parapetto se posto vicino ad aperture o bordi verso il vuoto."),
         r("Crollo o ribaltamento di strutture", 2, 3,
           "Cavalletti su piano stabile e livellato, mai su mattoni o materiali instabili; vietati ponti "
@@ -593,7 +593,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     "Parapetto provvisorio": attrezzatura(OPERA, rischi=[
         r("Caduta dall'alto", 2, 4,
           "Parapetto con corrente superiore ad almeno 1 m, corrente intermedio e fermapiede di almeno 15 cm "
-          "(Allegato XVIII, punto 2.1.5, e art. 126); sistemi di classe A, B o C secondo la UNI EN 13374 "
+          "(Allegato XVIII punto 2.1.5 e art. 126); sistemi di classe A, B o C secondo la UNI EN 13374 "
           "scelti in base alla pendenza della superficie; montaggio dal lato protetto o con DPI anticaduta "
           "vincolati.", DPI_BASE + ", imbracatura, cordino con assorbitore"),
         r("Crollo o ribaltamento di strutture", 2, 4,
@@ -655,8 +655,8 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
         r("Caduta dall'alto", 2, 4,
           "Dispositivo di ancoraggio temporaneo conforme alla UNI EN 795 (tipo B o C) installato secondo il "
           "manuale su struttura di resistenza verificata; tirante d'aria calcolato per evitare l'urto al "
-          "suolo; uso solo con imbracatura e cordino con assorbitore (DPI di III categoria, addestramento "
-          "obbligatorio, art. 77, c. 5).", DPI_BASE + ", imbracatura, cordino con assorbitore"),
+          "suolo; uso solo con imbracatura e cordino con assorbitore (DPI di terza categoria, addestramento "
+          "obbligatorio, art. 77, comma 5).", DPI_BASE + ", imbracatura, cordino con assorbitore"),
         r("Effetto pendolo e urto contro ostacoli", 2, 3,
           "Linea posizionata il più possibile sopra e in asse alla zona di lavoro; cordini regolabili o "
           "retrattili per limitare la libera caduta."),
@@ -801,7 +801,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     "Unità di decontaminazione (amianto)": attrezzatura(OPERA, rischi=[
         r("Esposizione ad amianto", 2, 4,
           "Unità composta da locale di equipaggiamento, locale doccia, chiusa d'aria e locale incontaminato "
-          "(D.M. 6/9/1994), unico passaggio per entrare e uscire dall'area confinata; flusso d'aria "
+          "(D.M. 6 settembre 1994), unico passaggio per entrare e uscire dall'area confinata; flusso d'aria "
           "dall'esterno verso la zona di lavoro mantenuto dagli estrattori; collaudo di tenuta prima dei "
           "lavori; procedura di uscita stabilita nel piano di lavoro (art. 256).",
           DPI_BASE + ", facciale filtrante FFP3, tuta monouso"),
@@ -818,7 +818,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
         "Struttura modulare con locali in sequenza (equipaggiamento, doccia, chiusa d'aria, locale "
         "incontaminato) per l'ingresso e la decontaminazione dei lavoratori nei cantieri di bonifica "
         "dell'amianto.",
-        ["montarla a contatto con l'area confinata, con teli e porte a battente secondo il D.M. 6/9/1994",
+        ["montarla a contatto con l'area confinata, con teli e porte a battente secondo il D.M. 6 settembre 1994",
          "verificare docce con acqua calda, filtri delle acque reflue e illuminazione",
          "eseguire il collaudo di tenuta e la prova della depressione prima di iniziare",
          "affiggere la procedura di ingresso e uscita"],

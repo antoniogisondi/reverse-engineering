@@ -42,13 +42,13 @@ MISURE_COMUNI = {
     GIALLO: ["Esposizione vicina al valore d'azione: mantenere manutenzione delle attrezzature e "
              "controllo dei tempi di utilizzo; informare i lavoratori (art. 184)."],
     ROSSO: [
-        "Programma di misure tecniche e organizzative per ridurre l'esposizione (art. 203 c. 1).",
+        "Programma di misure tecniche e organizzative per ridurre l'esposizione (art. 203, comma 1).",
         "Sorveglianza sanitaria dei lavoratori esposti (art. 204).",
         "Informazione e formazione sui rischi delle vibrazioni e sull'uso corretto delle attrezzature (art. 184).",
     ],
     VIOLA: [
         "Misure immediate per riportare l'esposizione al di sotto del valore limite; individuarne le cause "
-        "e adeguare le misure (art. 203 c. 2).",
+        "e adeguare le misure (art. 203, comma 2).",
         "Sorveglianza sanitaria dei lavoratori esposti (art. 204).",
     ],
 }

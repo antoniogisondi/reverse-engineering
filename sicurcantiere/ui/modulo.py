@@ -248,7 +248,7 @@ class ModuloRecord(QWidget):
             w.setPlaceholderText("Nessuna immagine")
             sfoglia = QPushButton("Sfoglia...")
             sfoglia.clicked.connect(lambda: self._scegli_immagine(campo))
-            togli = QPushButton("Togli")
+            togli = QPushButton("Rimuovi")
             togli.clicked.connect(lambda: (w.setText(""), self._modificati.add(campo), self._salva(campo)))
             riga.addWidget(sfoglia)
             riga.addWidget(togli)
@@ -353,13 +353,13 @@ class ModuloRecord(QWidget):
 
 
 def immagine_anteprima(etichetta: QLabel, percorso: str, lato: int = 150) -> None:
-    """Mostra la foto (o il testo «Foto vuota») in un'etichetta."""
+    """Mostra la foto (o il testo «Nessuna foto») in un'etichetta."""
     from PySide6.QtGui import QPixmap
 
     pixmap = QPixmap(percorso) if percorso else QPixmap()
     if pixmap.isNull():
         etichetta.setPixmap(QPixmap())
-        etichetta.setText("(Foto vuota)")
+        etichetta.setText("(Nessuna foto)")
     else:
         etichetta.setPixmap(pixmap.scaled(lato, lato, Qt.AspectRatioMode.KeepAspectRatio,
                                           Qt.TransformationMode.SmoothTransformation))

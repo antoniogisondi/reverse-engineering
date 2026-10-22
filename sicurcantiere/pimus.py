@@ -32,7 +32,7 @@ SEZIONI: list[tuple[str, str, str]] = [
      "basette regolabili sono usate entro l'estensione massima indicata dal fabbricante."),
     ("tracciamento", "Tracciamento e allineamento",
      "Il ponteggio è tracciato a partire dagli spigoli dell'edificio, mantenendo la distanza dalla "
-     "facciata non superiore a 20 cm o, se maggiore, prevedendo parapetto anche sul lato interno. "
+     "facciata non superiore a 20 cm o, se maggiore, prevedendo il parapetto anche sul lato interno. "
      "Il primo impalcato viene messo in bolla e in squadro prima di proseguire in elevazione."),
     ("dpi", "DPI utilizzati e punti di ancoraggio",
      "Gli addetti utilizzano casco con sottogola, scarpe antinfortunistiche, guanti e imbracatura "
@@ -60,7 +60,7 @@ SEZIONI: list[tuple[str, str, str]] = [
      "1. Delimitazione dell'area e posa delle basette sul piano di ripartizione.\n"
      "2. Posa della prima campata di base, messa in bolla e in squadro.\n"
      "3. Posa dei correnti, delle diagonali e degli impalcati del primo livello.\n"
-     "4. Salita al livello superiore protetti dal parapetto provvisorio o con cordino agganciato.\n"
+     "4. Salita al livello superiore con la protezione del parapetto provvisorio o con il cordino agganciato.\n"
      "5. Posa degli ancoraggi prima di procedere al livello successivo.\n"
      "6. Ripetizione fino alla quota finale; posa di parapetti, fermapiede e mantovana.\n"
      "7. Verifica finale del preposto e consegna del ponteggio per l'uso."),
@@ -76,7 +76,7 @@ SEZIONI: list[tuple[str, str, str]] = [
      "È vietato modificare il ponteggio, rimuovere ancoraggi, parapetti o tavole fermapiede, "
      "depositare materiali oltre il carico ammesso per la classe del ponteggio e salire o scendere "
      "lungo i montanti. L'accesso agli impalcati avviene dalle scale interne o dalle botole. Ogni "
-     "anomalia va segnalata subito al preposto."),
+     "anomalia è segnalata immediatamente al preposto."),
 ]
 
 # Voci di verifica (momento, descrizione), in linea con gli argomenti dell'Allegato XIX.
@@ -115,14 +115,15 @@ def avvisi(ponteggio: dict[str, Any]) -> list[str]:
     if altezza > ALTEZZA_SENZA_PROGETTO or not ponteggio.get("conforme_schemi", 1):
         motivo = (f"altezza superiore a {ALTEZZA_SENZA_PROGETTO:g} m" if altezza > ALTEZZA_SENZA_PROGETTO
                   else "configurazione non conforme agli schemi tipo del libretto")
-        messaggi.append(f"Progetto del ponteggio obbligatorio ({motivo}, art. 133): "
-                        "calcolo di resistenza e stabilità e disegno firmati da ingegnere o architetto abilitato.")
+        messaggi.append(f"Progetto del ponteggio obbligatorio ({motivo}, art. 133): acquisire il "
+                        "calcolo di resistenza e stabilità e il disegno esecutivo firmati da un ingegnere o "
+                        "architetto abilitato.")
         if not str(ponteggio.get("progettista", "")).strip():
             messaggi.append("Indicare il progettista del ponteggio.")
     if not str(ponteggio.get("autorizzazione", "")).strip():
         messaggi.append("Indicare gli estremi dell'autorizzazione ministeriale del ponteggio (art. 131).")
     if not str(ponteggio.get("preposto", "")).strip():
-        messaggi.append("Indicare il preposto alle operazioni di montaggio e smontaggio (art. 136 c. 6).")
+        messaggi.append("Indicare il preposto alle operazioni di montaggio e smontaggio (art. 136, comma 6).")
     if not ponteggio.get("impresa_id"):
         messaggi.append("Indicare l'impresa che esegue il montaggio.")
     return messaggi

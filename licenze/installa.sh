@@ -26,7 +26,7 @@ fi
 . /etc/os-release
 case "${ID:-}" in
     ubuntu|debian) ;;
-    *) echo "Sistema non previsto (${PRETTY_NAME:-sconosciuto}): servono Ubuntu o Debian."; exit 1 ;;
+    *) echo "Sistema non supportato (${PRETTY_NAME:-sconosciuto}): è richiesto Ubuntu o Debian."; exit 1 ;;
 esac
 
 mkdir -p "$CONF"
@@ -77,7 +77,7 @@ if [ ! -f "$DATI/chiave_privata.pem" ]; then
     esegui genera-chiave
     NUOVA_CHIAVE=1
 else
-    echo "Chiave già presente (non viene toccata)."
+    echo "Chiave di firma già presente: non viene modificata."
     NUOVA_CHIAVE=0
 fi
 
@@ -208,7 +208,7 @@ systemctl enable --now sicurcantiere-licenze sicurcantiere-licenze-ai
 systemctl restart sicurcantiere-licenze sicurcantiere-licenze-ai
 
 if [ -n "$DOMINIO" ] && command -v ufw >/dev/null 2>&1; then
-    echo "== Firewall: aperte solo SSH (rete interna) e le porte web 80/443"
+    echo "== Firewall: aperti solo SSH (rete interna) e le porte web 80/443"
     ufw allow OpenSSH >/dev/null
     ufw allow 80/tcp >/dev/null
     ufw allow 443/tcp >/dev/null
@@ -226,12 +226,13 @@ fi
 
 echo
 if [ -n "$DOMINIO" ]; then
-    echo "Fatto. Gestionale: https://$DOMINIO"
-    echo "Se non si apre: il dominio deve puntare all'IP pubblico dell'ufficio e il router deve inoltrare"
+    echo "Installazione completata. Gestionale: https://$DOMINIO"
+    echo "Se la pagina non si apre, verificare che il dominio punti all'IP pubblico dell'ufficio e che il router inoltri"
     echo "le porte 80 e 443 a questa macchina ($(hostname -I | awk '{print $1}')). Controllo: journalctl -u caddy"
-    echo "Al primo accesso attivare subito la verifica in due passaggi (Impostazioni)."
+    echo "Al primo accesso attivare subito la verifica in due passaggi (Impostazioni > Verifica in due passaggi)."
 else
-    echo "Fatto. Gestionale: https://$(hostname -I | awk '{print $1}'):$PORTA  (al primo accesso il browser avvisa del certificato: è normale)"
+    echo "Installazione completata. Gestionale: https://$(hostname -I | awk '{print $1}'):$PORTA"
+    echo "Al primo accesso il browser segnala il certificato interno: è normale, accettarlo una volta."
 fi
 echo
 echo "Assistente AI incluso nelle licenze:"
@@ -239,7 +240,7 @@ echo " 1. inserire le chiavi dei fornitori in $CONF/ai.env (sudo nano $CONF/ai.e
 echo "    e riavviare: sudo systemctl restart sicurcantiere-licenze-ai"
 echo " 2. renderlo raggiungibile dai programmi dei clienti (una volta sola):"
 echo "    sudo tailscale funnel --bg $PORTA_AI"
-echo "    poi mandare l'indirizzo https://...ts.net mostrato da: tailscale funnel status"
+echo "    poi inserire nel programma l'indirizzo https://...ts.net mostrato da: tailscale funnel status"
 if [ "$NUOVA_CHIAVE" = 1 ]; then
-    echo "IMPORTANTE: copia $DATI/chiave_privata.pem in un posto sicuro e manda solo la chiave pubblica."
+    echo "IMPORTANTE: copiare $DATI/chiave_privata.pem in un luogo sicuro e non trasmetterla a nessuno: va distribuita solo la chiave pubblica."
 fi

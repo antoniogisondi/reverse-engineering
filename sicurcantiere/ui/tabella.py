@@ -366,7 +366,7 @@ class TabellaCrud(QFrame):
         id_ = self.id_selezionato()
         if id_ is None:
             return
-        risposta = QMessageBox.question(self, "Elimina", "Eliminare la riga selezionata?")
+        risposta = QMessageBox.question(self, "Elimina", "Vuoi eliminare la riga selezionata?")
         if risposta != QMessageBox.StandardButton.Yes:
             return
         self.repo.elimina(self.nome_tabella, id_)

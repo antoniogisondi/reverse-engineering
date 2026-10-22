@@ -66,13 +66,13 @@ def aggiorna_sedi() -> bool:
     return True
 
 DATI_INVIATI = (
-    "<b>Cosa viene inviato</b>, solo quando premi un pulsante dell'assistente:"
+    "<b>Dati inviati</b>, solo quando premi un pulsante dell'assistente:"
     "<ul><li>le descrizioni di lavorazioni, rischi, macchine e attrezzature;</li>"
     "<li>i dati generali dell'opera (natura, comune, importo, descrizione) e i testi del POS di cui chiedi la bozza;</li>"
     "<li>la descrizione dell'attività da valutare;</li>"
     "<li>il testo della scheda di sicurezza o del PSC che importi;</li>"
     "<li>il codice di licenza, per il controllo del credito.</li></ul>"
-    "<b>Cosa non viene inviato</b>: nomi, dati e idoneità dei lavoratori, nominativi di committente, "
+    "<b>Dati non inviati</b>: nomi, dati e idoneità dei lavoratori, nominativi di committente, "
     "coordinatori e imprese, indirizzo del cantiere (salvo quelli scritti nel PSC che importi). "
     "Non scrivere dati personali nelle descrizioni."
 )
@@ -157,12 +157,12 @@ def assistente() -> AssistenteAI:
 
 def perche_non_disponibile() -> str:
     if licenza_ai() is None:
-        return (f"{NOME}: l'assistente AI è incluso nella licenza e si usa senza chiavi né account. "
-                "Si attiva inserendo una licenza valida in Aiuto > Licenza.")
+        return ("L'assistente AI è incluso nella licenza e si usa senza chiavi né account: per attivarlo "
+                "inserisci una licenza valida in «Aiuto > Licenza».")
     if not server_ai():
         return "L'assistente AI non è ancora disponibile in questa versione del programma."
-    return ("L'assistente AI è spento: si accende da Strumenti > Impostazioni assistente AI, dove è spiegato "
-            "quali dati vengono inviati.")
+    return ("L'assistente AI è disattivato: puoi attivarlo da «Strumenti > Impostazioni assistente AI», dove "
+            "sono indicati i dati che vengono inviati.")
 
 
 class DialogoImpostazioniAI(QDialog):
@@ -181,9 +181,9 @@ class DialogoImpostazioniAI(QDialog):
         self.attiva.setEnabled(disponibile)
         self.attiva.toggled.connect(self._mostra_stato)
         spiegazione = QLabel(
-            f"{NOME}: l'assistente è incluso nella licenza, senza chiavi né account da creare, con un credito "
-            "mensile secondo il piano. È spento di serie: finché non lo accendi i suoi pulsanti non compaiono e "
-            "nessun dato lascia questo computer." if disponibile else perche_non_disponibile())
+            "L'assistente è incluso nella licenza, senza chiavi né account da creare, con un credito mensile "
+            "stabilito dal piano. È disattivato per impostazione predefinita: finché non lo attivi, i suoi "
+            "pulsanti non compaiono e nessun dato lascia questo computer." if disponibile else perche_non_disponibile())
         spiegazione.setWordWrap(True)
         spiegazione.setObjectName("hint")
 
@@ -193,7 +193,7 @@ class DialogoImpostazioniAI(QDialog):
             self.motore.addItem("Avanzato, con Claude (consuma 8 crediti per token)", AVANZATO)
         self.motore.setCurrentIndex(max(self.motore.findData(motore()), 0))
         self.motore.currentIndexChanged.connect(self._mostra_stato)
-        self.credito = QLabel("Credito mensile secondo il piano della licenza.")
+        self.credito = QLabel("Credito mensile stabilito dal piano della licenza.")
         self.credito.setWordWrap(True)
         verifica = QPushButton("Verifica il credito")
         verifica.clicked.connect(self._verifica_credito)
@@ -266,7 +266,7 @@ def credito_integrato() -> dict[str, Any]:
     import urllib.request
 
     if not codice_licenza():
-        raise ErroreAI("L'assistente incluso richiede una licenza: inserirla in Aiuto > Licenza.")
+        raise ErroreAI("L'assistente AI richiede una licenza: inseriscila in «Aiuto > Licenza».")
     richiesta = urllib.request.Request(f"{server_ai()}/api/ai/stato", method="POST",
                                        data=json.dumps({"licenza": codice_licenza()}).encode(),
                                        headers={"Content-Type": "application/json"})
@@ -280,7 +280,8 @@ def credito_integrato() -> dict[str, Any]:
             messaggio = ""
         raise ErroreAI(messaggio or f"Servizio SicurCantiere AI non disponibile ({e.code}).") from e
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
-        raise ErroreAI("Impossibile contattare il servizio SicurCantiere AI: controllare la connessione.") from e
+        raise ErroreAI("Impossibile contattare il servizio SicurCantiere AI: verifica la connessione a "
+                       "Internet.") from e
     _ricorda_sedi(stato)
     return stato
 

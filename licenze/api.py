@@ -98,10 +98,10 @@ def crea_api() -> Flask:
             return None, _errore("Codice di licenza non valido.", 403)
         riga = conn.execute("SELECT * FROM licenze WHERE codice = ?", ("".join((codice or "").split()),)).fetchone()
         if riga is None or riga["stato"] == "annullata":
-            return None, _errore("Licenza non attiva per l'assistente AI: contattare SicurCantiere.", 403)
+            return None, _errore("Licenza non attiva per l'assistente AI: contatta l'assistenza SicurCantiere.", 403)
         if dati.scaduta():
-            return None, _errore("Licenza scaduta: l'assistente AI incluso torna disponibile con il rinnovo. "
-                                 "Il resto del programma continua a funzionare.", 403)
+            return None, _errore("Licenza scaduta: l'assistente AI incluso tornerà disponibile con il rinnovo. "
+                                 "Le altre funzioni del programma restano disponibili.", 403)
         return (riga, dati), None
 
     @app.post("/api/ai/stato")
@@ -124,7 +124,7 @@ def crea_api() -> Flask:
         if not isinstance(testo, str) or not isinstance(schema, dict) or nome_motore not in MOLTIPLICATORI:
             return _errore("Richiesta non valida.", 400)
         if len(testo) > MAX_TESTO or len(json.dumps(schema)) > MAX_SCHEMA:
-            return _errore("Richiesta troppo lunga: dividerla in parti più brevi.", 413)
+            return _errore("Richiesta troppo lunga: dividi il testo in parti più brevi.", 413)
         conn = archivio.connessione()
         trovata, errore = licenza_valida(conn, dati_richiesta.get("licenza", ""))
         if errore:
@@ -132,21 +132,21 @@ def crea_api() -> Flask:
         riga, dati = trovata
         motore = motori()[nome_motore]
         if nome_motore == ai.AVANZATO and dati.piano not in PIANI_AVANZATO:
-            return _errore("Il motore avanzato (Claude) è incluso nel piano Studio: usare il motore Standard.", 403)
+            return _errore("Il motore avanzato (Claude) è incluso solo nel piano Studio: usa il motore Standard.", 403)
         if motore is None:
-            return _errore("Il servizio SicurCantiere AI non è configurato: riprovare più tardi.", 503)
+            return _errore("Il servizio SicurCantiere AI non è al momento disponibile: riprova più tardi.", 503)
         cliente = riga["cliente_id"]
         recenti = conn.execute("SELECT COUNT(*) FROM consumi_ai WHERE cliente_id = ? AND istante > ?",
                                (cliente, time.time() - 60)).fetchone()[0]
         if recenti >= RICHIESTE_AL_MINUTO:
-            return _errore("Troppe richieste in poco tempo: riprovare tra un minuto.", 429)
+            return _errore("Troppe richieste in poco tempo: riprova tra un minuto.", 429)
         credito = situazione(conn, cliente, dati.piano)
         if credito["residuo"] <= 0:
-            return _errore("Credito AI del mese esaurito: torna disponibile il primo del mese prossimo, oppure "
-                           "si può acquistare una ricarica. Il resto del programma funziona normalmente.", 402)
+            return _errore("Credito AI del mese esaurito: tornerà disponibile il primo giorno del mese prossimo, oppure "
+                           "puoi acquistare una ricarica. Le altre funzioni del programma restano disponibili.", 402)
         if credito["usati_oggi"] >= credito["tetto_oggi"]:
-            return _errore("Raggiunto il limite giornaliero dell'assistente AI (il 30% del credito del mese): "
-                           "torna disponibile domani.", 429)
+            return _errore("Hai raggiunto il limite giornaliero dell'assistente AI (30% del credito mensile): "
+                           "tornerà disponibile domani.", 429)
 
         massimo = os.environ.get(f"SICURCANTIERE_AI_{nome_motore.upper()}_MAX_TOKEN", "")
         assistente = ai.AssistenteAI(fornitore=motore.fornitore, api_key=motore.chiave, modello=motore.modello,
@@ -160,7 +160,7 @@ def crea_api() -> Flask:
                                "SICURCANTIERE_AI_%s_MAX_TOKEN", nome_motore, assistente.uso[1], nome_motore.upper())
         except ai.ErroreAI as e:
             app.logger.warning("Errore del fornitore AI: %s", e)
-            return _errore("Il servizio SicurCantiere AI non ha potuto rispondere: riprovare tra qualche minuto.", 502)
+            return _errore("Il servizio SicurCantiere AI non ha potuto rispondere: riprova tra qualche minuto.", 502)
         entrata, uscita = assistente.uso
         crediti = (entrata + uscita) * MOLTIPLICATORI[nome_motore]
         adesso = datetime.now()
@@ -174,6 +174,6 @@ def crea_api() -> Flask:
 
     @app.errorhandler(413)
     def troppo_grande(_):
-        return _errore("Richiesta troppo lunga: dividerla in parti più brevi.", 413)
+        return _errore("Richiesta troppo lunga: dividi il testo in parti più brevi.", 413)
 
     return app

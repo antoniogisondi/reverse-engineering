@@ -56,7 +56,7 @@ def estrai_testo(percorso: str | Path, avanzamento=None) -> str:
                     avanzamento(n, len(lettore.pages))
                 pagine.append(pagina.extract_text() or "")
         except (PdfReadError, OSError, ValueError) as e:
-            raise ErroreImportazione(f"Il PDF non si può leggere: {e}") from e
+            raise ErroreImportazione(f"Impossibile leggere il PDF: {e}") from e
         testo = "\f".join(pagine)
     elif estensione == ".docx":
         from docx import Document
@@ -64,7 +64,7 @@ def estrai_testo(percorso: str | Path, avanzamento=None) -> str:
         try:
             doc = Document(str(percorso))
         except Exception as e:  # noqa: BLE001 - file Word danneggiato o non valido
-            raise ErroreImportazione(f"Il file Word non si può leggere: {e}") from e
+            raise ErroreImportazione(f"Impossibile leggere il file Word: {e}") from e
         righe = [p.text for p in doc.paragraphs]
         for tabella in doc.tables:
             for riga in tabella.rows:
@@ -74,10 +74,10 @@ def estrai_testo(percorso: str | Path, avanzamento=None) -> str:
     elif estensione in (".txt", ".md"):
         testo = percorso.read_text(encoding="utf-8", errors="replace")
     else:
-        raise ErroreImportazione("Formato non supportato: servono un PDF o un file Word (.docx).")
+        raise ErroreImportazione("Formato non supportato: scegli un PDF o un file Word (.docx).")
     if len(re.sub(r"\s", "", testo)) < 500:
-        raise ErroreImportazione("Nel documento non c'è testo da leggere: probabilmente è una scansione. "
-                                 "Serve il PDF originale o il file Word del PSC.")
+        raise ErroreImportazione("Il documento non contiene testo leggibile: probabilmente è una scansione. "
+                                 "Usa il PDF originale o il file Word del PSC.")
     return testo
 
 

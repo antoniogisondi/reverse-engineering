@@ -55,7 +55,7 @@ _CADUTA_BORDO = r(
     "ultimo impalcato in prossimità della linea di gronda, oppure parapetti provvisori UNI EN 13374 "
     "di classe adeguata alla pendenza della falda; dove la protezione collettiva non basta, imbracatura "
     "collegata a linea vita provvisoria o ancoraggi verificati (art. 115); addetti formati e addestrati "
-    "all'uso dei DPI di terza categoria (art. 77 c. 5).",
+    "all'uso dei DPI di terza categoria (art. 77, comma 5).",
     DPI_ANTICADUTA)
 
 _CADUTA_ATTRAVERSO = r(
@@ -163,7 +163,7 @@ _ELETTRICO_LINEE = r(
 _INTERFERENZA_STRADA = r(
     "Investimento da mezzi in manovra", 2, 4,
     "Area di lavoro a terra delimitata e separata dal traffico; segnaletica temporanea secondo il D.M. "
-    "10/07/2002 quando si occupa la sede stradale; moviere durante le manovre e le operazioni di "
+    "10 luglio 2002 quando si occupa la sede stradale; moviere durante le manovre e le operazioni di "
     "sollevamento; indumenti ad alta visibilità.")
 
 _URTI_CARICHI = r(
@@ -211,7 +211,7 @@ _CO = [
                "Ponteggio perimetrale con parapetto di sommità prima di iniziare; dall'interno lavorare da "
                "trabattelli o ponti su cavalletti e, dove manca un piano di calpestio, reti di sicurezza "
                "UNI EN 1263 sotto la zona di posa; nessuno cammina sulle travi: chi deve operare in quota "
-               "sulla struttura si aggancia a ancoraggi provvisori verificati (art. 115).",
+               "sulla struttura si aggancia ad ancoraggi provvisori verificati (art. 115).",
                DPI_ANTICADUTA),
              _URTI_CARICHI,
              r("Crollo o ribaltamento di strutture", 2, 4,
@@ -803,7 +803,7 @@ _FA = [
                "Imbracatura con cordino di trattenuta corto agganciato al punto di ancoraggio del "
                "cestello; non sporgersi, non salire sui parapetti e non uscire dal cestello in quota sui "
                "balconi o sulle coperture; formazione e abilitazione dell'operatore (Accordo Stato-Regioni "
-               "sulle attrezzature, art. 73 c. 5).",
+               "sulle attrezzature, art. 73, comma 5).",
                DPI_ANTICADUTA),
              r("Urti, colpi, impatti e compressioni contro cornicioni e sporgenze", 2, 4,
                "Avvicinarsi lentamente alla facciata; attenzione a balconi, cornicioni, insegne e rami "

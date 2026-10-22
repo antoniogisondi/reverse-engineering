@@ -100,7 +100,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     responsabile = next((s for s in soggetti if s["ruolo"] in (anagrafiche.RESPONSABILE_LAVORI,
                                                               anagrafiche.COMMITTENTE) and s["nome"].strip()), None)
     stile.firme(doc, [("Il committente o il responsabile dei lavori", responsabile["nome"] if responsabile else "")])
-    stile.nota(doc, "La notifica è trasmessa prima dell'inizio dei lavori e ne va esposta una copia in cantiere, in "
-                    "maniera visibile, custodita a disposizione dell'organo di vigilanza (art. 99). Va aggiornata in "
-                    "caso di variazioni.")
+    stile.nota(doc, "La notifica è trasmessa prima dell'inizio dei lavori; una copia è affissa in maniera visibile "
+                    "presso il cantiere e custodita a disposizione dell'organo di vigilanza territorialmente "
+                    "competente (art. 99). La notifica è aggiornata in caso di variazioni.")
     return salva(doc, destinazione)

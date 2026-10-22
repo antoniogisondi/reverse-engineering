@@ -1,6 +1,6 @@
 # SicurCantiere
 
-Famiglia di programmi desktop per la sicurezza nei cantieri temporanei o mobili
+Suite di programmi per Windows dedicata alla sicurezza nei cantieri temporanei o mobili
 (Titolo IV del D.Lgs. 81/2008):
 
 | Programma | Per chi | Documenti | File |
@@ -9,16 +9,15 @@ Famiglia di programmi desktop per la sicurezza nei cantieri temporanei o mobili
 | **SicurCantiere PSC** | Coordinatore (CSP/CSE) | PSC, fascicolo dell'opera, notifica preliminare | `.scs` |
 | **SicurCantiere PiMUS** | Impresa che monta i ponteggi | PiMUS con verifiche | `.spm` |
 
-I programmi condividono archivi, motore dei documenti e assistente AI. I file hanno la
+I programmi condividono archivi, generazione dei documenti e assistente AI. I file hanno la
 stessa struttura interna, quindi ogni programma può aprire anche quelli degli altri
-(per esempio il POS può partire dal file del PSC ricevuto dal coordinatore).
+(per esempio il POS può essere predisposto a partire dal file del PSC ricevuto dal coordinatore).
 
-È un progetto scritto da zero a partire dalla normativa. Non contiene codice,
-archivi o contenuti di software commerciali.
+Il software e i suoi archivi sono stati sviluppati interamente a partire dalla normativa vigente.
 
 ## Funzioni
 
-L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e dei prossimi passi è in
+L'elenco completo e aggiornato delle funzionalità e degli sviluppi previsti è disponibile in
 [docs/funzionalita.md](docs/funzionalita.md).
 
 - **Dati generali** del cantiere, con verifica automatica degli obblighi:
@@ -53,10 +52,10 @@ L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e d
   demolizioni, bonifiche, movimento terra, fondazioni speciali, strutture, murature, coperture, facciate,
   opere interne, impianti, rinnovabili, reti, strade, pubblica illuminazione, aree verdi, restauri, tagli
   e perforazioni), filtrabili per tipologia di intervento, e di **116 macchine, attrezzi e opere
-  provvisionali** con rischi e scheda d'uso. Contenuti scritti da zero dalla normativa: i punti da far
-  verificare a un coordinatore sono in [docs/verifiche-archivio.md](docs/verifiche-archivio.md). Nodo
-  **UTENTE** con le lavorazioni personalizzate salvate da un cantiere e riutilizzabili negli altri
-- **Fasi di lavoro** con descrizione dell'attività, addetto, modalità organizzative, turni, procedure richieste
+  provvisionali** con rischi e scheda d'uso. I contenuti sono redatti a partire dalla normativa; i punti
+  sottoposti a revisione tecnica sono elencati in [docs/verifiche-archivio.md](docs/verifiche-archivio.md).
+  Il nodo **UTENTE** raccoglie le lavorazioni personalizzate salvate da un cantiere e riutilizzabili negli altri
+- **Fasi di lavoro** con descrizione dell'attività, addetti, modalità organizzative, turni, procedure richieste
   dal PSC, vista **Struttura** (lavoratori, attrezzi, macchine, rischi, misure, DPI) e collegamento di ogni
   rischio alla sua valutazione specifica
 - **Schede d'uso** di macchine e attrezzi con misure prima, durante e dopo l'uso e DPI dell'operatore, riportate
@@ -65,7 +64,7 @@ L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e d
   → uomini-giorno e durata; grafici di **affollamento** e **pericolosità**
 - **Interferenze** tra imprese diverse nella stessa zona, ordinate per gravità, con
   prescrizioni del coordinatore per ogni coppia di fasi
-- **Costi della sicurezza** con totale
+- **Costi della sicurezza** con totale complessivo
 - **Relazione** del PSC (sezioni dell'Allegato XV)
 - **Dal PSC al POS**: nel PSC, «Prepara il POS dell'impresa...» crea il file `.spo` dell'impresa con
   le sue lavorazioni e le prescrizioni sulle interferenze. Nel POS, «Nuovo POS da un PSC...» legge con
@@ -74,18 +73,19 @@ L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e d
 - **Fascicolo dell'opera**: interventi di manutenzione e documentazione di supporto
 - **Documenti Word**: PSC, POS per impresa, fascicolo dell'opera, notifica preliminare,
   con tabella delle **revisioni** nel frontespizio
-- **Impaginazione del POS**: grafica propria con capitoli numerati nell'ordine dell'Allegato XV 3.2.1
+- **Impaginazione del POS**: grafica dedicata con capitoli numerati nell'ordine dell'Allegato XV punto 3.2.1
   (tre parti), copertina con firme, intestazione con revisione e «Pagina X di Y», indice automatico,
   schede e tabelle leggere, livello di rischio colorato, foto del cantiere, cartelli scelti in base ai
   rischi, icone dei DPI, numeri utili e documenti da tenere in cantiere
 - **Controlli di completezza** prima della stampa (errori e avvisi)
-- **Interfaccia** con tema chiaro e scuro e colore proprio per ogni programma (foglio di stile in
-  `sicurcantiere/risorse/tema`, caratteri Ubuntu con la Ubuntu Font Licence in `sicurcantiere/risorse/font`, installati anche in Windows per i documenti Word):
+- **Interfaccia** con tema chiaro e scuro e colore distintivo per ogni programma (foglio di stile in
+  `sicurcantiere/risorse/tema`; caratteri Ubuntu, distribuiti con la Ubuntu Font Licence in
+  `sicurcantiere/risorse/font` e installati anche in Windows per i documenti Word):
   barra laterale con le pagine numerate e il numero di problemi di ognuna, tabelle in riquadri,
   livelli di rischio e risultati delle valutazioni a colori, controlli che portano alla pagina da correggere
 - **Pagina iniziale** con le schede dei cantieri recenti; **riepilogo a riquadri** del cantiere
   (importo, durata, uomini-giorno, picco di lavoratori, interferenze, obblighi, controlli)
-- **Valutazioni dei rischi specifici con metodi normati** (non semplici checklist):
+- **Valutazioni dei rischi specifici con metodi normati** (non semplici liste di controllo):
   - sollevamento manuale, compito semplice e composto: **NIOSH** (UNI ISO 11228-1), con peso limite
     raccomandato, indice di sollevamento (LI / CLI) e tutti i fattori;
   - **traino e spinta** (UNI ISO 11228-2, metodo 1): forze iniziali e di mantenimento misurate confrontate
@@ -99,15 +99,15 @@ L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e d
     limite dell'art. 201, minuti di utilizzo che portano al valore d'azione per ogni attrezzatura;
   - risultato in tempo reale con classe colorata e **misure suggerite in base ai fattori più penalizzanti**;
   - valutazioni necessarie create in automatico dai rischi delle lavorazioni e delle loro macchine e
-    attrezzature (anche quelle scritte a mano, riconosciute dal nome): ogni lavorazione con
+    attrezzature (anche quelle inserite manualmente, riconosciute dal nome): ogni lavorazione con
     movimentazione manuale, movimenti ripetitivi, rumore o vibrazioni resta collegata a una
-    valutazione, che rimane «da eseguire» finché non se ne inseriscono i parametri
+    valutazione, che rimane «da eseguire» finché non se ne inseriscono i parametri;
   - relazione Word per ogni valutazione e inclusione automatica nel POS dell'impresa
 - **Assistente AI** (DeepSeek predefinito, OpenAI/ChatGPT e Claude in alternativa):
   - compila i parametri NIOSH/OCRA dalla descrizione dell'attività, dichiarando le ipotesi fatte;
   - suggerisce rischi, misure e DPI di una fase di lavoro;
   - scrive bozze delle sezioni della relazione del PSC e del PiMUS a partire dai dati del cantiere
-- **Sostanze e miscele pericolose** (POS, Allegato XV 3.2.1 lett. e): importazione dalla scheda
+- **Sostanze e miscele pericolose** (POS, Allegato XV punto 3.2.1, lettera e)): importazione dalla scheda
   di sicurezza in PDF (frasi H, avvertenza, data di revisione; l'assistente AI completa produttore,
   DPI, misure e conservazione), pittogrammi ricavati dalle frasi H con le precedenze del CLP,
   categorie di pericolo (cancerogeni/mutageni, tossici per la riproduzione, sensibilizzanti,
@@ -118,21 +118,18 @@ L'elenco completo e aggiornato delle funzionalità, delle scelte di prodotto e d
   scala giorni/settimane/mesi, linea di oggi, barre trascinabili per spostare le fasi o
   cambiarne la durata
 
-Le funzioni da implementare sono state individuate dalla documentazione pubblica dei
-software del settore e realizzate da zero: vedi [docs/analisi-funzionale.md](docs/analisi-funzionale.md).
-
 Ogni cantiere è un singolo file (database SQLite) con l'estensione del programma, per esempio
 `Cliente X.spo` nel programma POS: l'estensione viene aggiunta automaticamente. I documenti
 generati (PSC, POS, PiMUS, fascicolo, notifica, relazioni di valutazione) sono file Word `.docx` separati.
 
 ## Assistente AI
 
-Menu **Strumenti > Impostazioni assistente AI**: scegliere il fornitore (DeepSeek è il
-predefinito, con il modello `deepseek-flash`; in alternativa OpenAI o Claude), incollare la chiave API
-e, se si vuole, cambiare modello. Senza chiave nelle impostazioni si usa la variabile d'ambiente
+Dal menu **Strumenti > Impostazioni assistente AI** si sceglie il fornitore (DeepSeek è il
+predefinito, con il modello `deepseek-flash`; in alternativa OpenAI o Claude), si incolla la chiave API
+e, se necessario, si cambia il modello. In assenza di una chiave nelle impostazioni si usa la variabile d'ambiente
 `DEEPSEEK_API_KEY` (oppure `OPENAI_API_KEY` o `ANTHROPIC_API_KEY`). Su Windows la variabile si imposta da
 Pannello di controllo > Sistema > Impostazioni di sistema avanzate > Variabili d'ambiente, oppure con
-`setx DEEPSEEK_API_KEY "la-tua-chiave"` dal prompt dei comandi, poi riaprendo il programma.
+`setx DEEPSEEK_API_KEY "la-tua-chiave"` dal prompt dei comandi, riaprendo poi il programma.
 L'assistente propone valori e testi: vanno sempre verificati, e le ipotesi fatte vengono
 mostrate e riportate nella relazione.
 
@@ -143,9 +140,9 @@ mostrate e riportate nella relazione.
 - All'apertura viene fatta una copia di sicurezza del cantiere nella cartella del programma
   (Windows: `%APPDATA%\SicurCantiere\copie di sicurezza`), tenendo le ultime 5 per ogni cantiere:
   accanto ai file dei cantieri non compaiono altri file.
-- Schema del file versionato con migrazioni: i progetti vecchi si aggiornano
-  da soli; quelli creati con versioni più recenti vengono rifiutati invece di essere danneggiati.
-- Gli errori imprevisti vengono registrati nel log e mostrati senza chiudere il programma
+- Schema del file versionato con migrazioni: i file creati con versioni precedenti si aggiornano
+  automaticamente; quelli creati con versioni più recenti non vengono aperti, per non danneggiarli.
+- Gli errori imprevisti vengono registrati nel file di log e segnalati senza chiudere il programma
   (Windows: `%APPDATA%\SicurCantiere\<nome del programma>\sicurcantiere.log`).
 
 ## Avvio da sorgente
@@ -167,7 +164,7 @@ python -m pytest
 
 ## Eseguibile e installatore per Windows
 
-Da Windows lanciare `scripts\build_windows.bat`: esegue i test, genera le icone e crea i tre
+Da Windows eseguire `scripts\build_windows.bat`: lo script esegue i test, genera le icone e crea i tre
 eseguibili in `dist\`. Se è installato [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 crea anche l'installatore `dist\SicurCantiere-<versione>-setup.exe`, che permette di scegliere
 quali programmi installare e associa le estensioni: con un doppio clic su un file `.spo` si apre
@@ -185,7 +182,7 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 | `sicurcantiere/valutazioni/` | Metodi NIOSH, OCRA, rumore e vibrazioni (tabelle e soglie in un unico punto per metodo) |
 | `sicurcantiere/pimus.py` | Contenuti e controlli del PiMUS |
 | `sicurcantiere/sostanze.py`, `sds.py` | Classificazione dalle frasi H e lettura delle schede di sicurezza |
-| `sicurcantiere/ai.py` | Assistente AI (OpenAI e Claude) |
+| `sicurcantiere/ai.py` | Assistente AI (DeepSeek, OpenAI e Claude) |
 | `sicurcantiere/documenti/` | Generazione di PSC, POS, fascicolo e notifica in DOCX |
 | `sicurcantiere/ui/` | Interfaccia grafica (PySide6/Qt); programmi e pagine in `edizioni.py`, tema in `tema.py`, icone in `icone.py` |
 | `sicurcantiere/documenti/moduli.py`, `maestranze.py` | Modulistica dell'impresa: consegna DPI, tesserini, schede dei lavoratori |
@@ -194,15 +191,15 @@ il POS, su `.scs` il PSC, su `.spm` il PiMUS.
 
 ## Licenze
 
-Senza licenza i programmi partono con una prova di 30 giorni e un solo cantiere; la licenza è un codice firmato
+Senza licenza i programmi funzionano in prova per 30 giorni, con un solo cantiere. La licenza è un codice firmato
 (`sicurcantiere/licenza.py`) che il programma verifica senza collegarsi a internet. Le licenze si emettono dal
-gestionale web in `licenze/`, da installare sul server dell'ufficio: vedi `licenze/README.md`. Finché nel
+gestionale web in `licenze/`, da installare su un server dell'ufficio: vedi `licenze/README.md`. Finché nel
 programma non c'è la chiave pubblica del gestionale, il controllo delle licenze non è attivo. Il titolare della
-licenza compare nella barra del programma e a piè di pagina dei documenti generati.
+licenza compare nella barra di stato del programma e a piè di pagina dei documenti generati.
 
 ## Prossimi passi
 
-- Ampliamento dell'archivio delle lavorazioni (contenuti scritti da zero)
+- Ampliamento dell'archivio delle lavorazioni
 - DUVRI, PSS, piano di emergenza
 - Altre valutazioni specifiche: rischio chimico
 - Esportazione dei costi in Excel
@@ -210,4 +207,5 @@ licenza compare nella barra del programma e a piè di pagina dei documenti gener
 - Importazione di prezzari regionali per i costi della sicurezza
 - Layout di cantiere (planimetria)
 
-I documenti generati vanno sempre verificati dal coordinatore per la sicurezza.
+I documenti generati devono sempre essere verificati e sottoscritti dal professionista responsabile
+(coordinatore per la sicurezza o datore di lavoro dell'impresa esecutrice, secondo il documento).

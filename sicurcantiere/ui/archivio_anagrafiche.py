@@ -102,7 +102,7 @@ class DialogoAnagrafiche(QDialog):
         voce = self.scelta()
         if voce is None:
             return
-        if QMessageBox.question(self, "Archivio", f"Eliminare «{voce['nome']}» dall'archivio?") \
+        if QMessageBox.question(self, "Archivio", f"Vuoi eliminare «{voce['nome']}» dall'archivio?") \
                 == QMessageBox.StandardButton.Yes:
             self.archivio.elimina(voce["id"])
             self._carica()
@@ -123,7 +123,7 @@ def prendi_persona(genitore: QWidget, repo: Repository, tabella: str, **extra: A
 def salva_persona(genitore: QWidget, repo: Repository, tabella: str, id_: int | None) -> None:
     record = repo.leggi(tabella, id_) if id_ is not None else None
     if record is None:
-        QMessageBox.information(genitore, "Archivio", "Selezionare prima la riga da salvare.")
+        QMessageBox.information(genitore, "Archivio", "Seleziona prima la riga da salvare.")
         return
     archivio = ArchivioAnagrafiche()
     try:
@@ -149,7 +149,7 @@ def prendi_impresa(genitore: QWidget, repo: Repository) -> int | None:
 
 def salva_impresa(genitore: QWidget, repo: Repository, id_: int | None) -> None:
     if id_ is None:
-        QMessageBox.information(genitore, "Archivio", "Selezionare prima l'impresa da salvare.")
+        QMessageBox.information(genitore, "Archivio", "Seleziona prima l'impresa da salvare.")
         return
     archivio = ArchivioAnagrafiche()
     try:

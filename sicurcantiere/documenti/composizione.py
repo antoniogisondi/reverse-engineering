@@ -316,8 +316,8 @@ def _riepilogo(doc, c: Contesto, mancanti: list[dict[str, Any]]) -> None:
     stile.ombreggia_paragrafo(p, stile.AVVISO_SFONDO)
     stile._bordo_paragrafo(p, ("left",), stile.AVVISO, 18, 6)
     stile._spaziatura(p, 4, 6)
-    stile._run(p, "Pagina presente solo nella bozza: nella versione emessa non compare. I dati evidenziati in giallo "
-                  "si compilano nelle pagine del programma indicate qui sotto; quelli rimasti vuoti all'emissione "
+    stile._run(p, "Pagina presente solo nella bozza, non inclusa nella versione emessa. I dati evidenziati in giallo "
+                  "si compilano nelle pagine del programma indicate di seguito; quelli ancora vuoti all'emissione "
                   "diventano righe da compilare a mano.", 8.5, stile.AVVISO)
     if not mancanti:
         stile._run(_paragrafo_bozza(doc, ancora), "Nessun dato mancante: il documento è completo.", colore=stile.TESTO2)

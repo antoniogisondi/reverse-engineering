@@ -97,8 +97,8 @@ class PannelloClassificazione(QWidget):
             self.pittogrammi.addWidget(riquadro)
         self.pittogrammi.addStretch()
         if not codici:
-            self.testo.setText("<i>Inserire le frasi H della scheda di sicurezza (sezione 2), "
-                               "per esempio «H315, H317, H318», oppure importare la scheda in PDF.</i>")
+            self.testo.setText("<i>Inserisci le frasi H della scheda di dati di sicurezza (sezione 2), "
+                               "per esempio «H315, H317, H318», oppure importa la scheda in PDF.</i>")
             return
         frasi = "".join(f"<tr><td><b>{c}</b></td><td>{sostanze.descrizione(c)}</td></tr>" for c in codici)
         parti = [f"<p><b>Indicazioni di pericolo</b></p><table cellspacing='4'>{frasi}</table>"]
@@ -136,7 +136,7 @@ class DialogoFasi(QDialog):
         etichetta.setWordWrap(True)
         layout.addWidget(etichetta)
         if not self.elenco.count():
-            layout.addWidget(QLabel("Inserire prima le lavorazioni nella pagina «Lavorazioni e rischi»."))
+            layout.addWidget(QLabel("Inserisci prima le lavorazioni nella pagina «Lavorazioni e rischi»."))
         layout.addWidget(self.elenco)
         layout.addWidget(pulsanti)
 
@@ -151,14 +151,14 @@ class DialogoLavorazioni(DialogoFasi):
     def __init__(self, repo: Repository, sostanza_id: int, genitore: QWidget | None = None):
         sostanza = repo.leggi("sostanze", sostanza_id) or {}
         super().__init__(repo, set(repo.fasi_sostanza(sostanza_id)), "Lavorazioni in cui si usa la sostanza",
-                         f"<b>{sostanza.get('nome') or 'Sostanza'}</b>: spuntare tutte le lavorazioni "
+                         f"<b>{sostanza.get('nome') or 'Sostanza'}</b>: spunta tutte le lavorazioni "
                          "in cui viene utilizzata.", genitore)
 
 
 class PaginaSostanze(Pagina):
     titolo = "Sostanze e miscele pericolose"
     voce = "Sostanze pericolose"
-    sottotitolo = "Prodotti con frasi H usati in cantiere: importali dalla scheda di sicurezza in PDF."
+    sottotitolo = "Prodotti con frasi H usati in cantiere: importali dalla scheda di dati di sicurezza in PDF."
     icona = "sostanze"
     sezioni_controlli = ("Sostanze",)
 
@@ -173,7 +173,7 @@ class PaginaSostanze(Pagina):
             Colonna("codici_h", "Frasi H", larghezza=180),
             Colonna("avvertenza", "Avvertenza", "scelta", larghezza=100,
                     scelte=lambda: [("", "-"), ("Pericolo", "Pericolo"), ("Attenzione", "Attenzione")]),
-            Colonna("data_sds", "Scheda SDS del", "data", larghezza=110),
+            Colonna("data_sds", "Data della SDS", "data", larghezza=110),
             Colonna("pittogrammi", "Pittogrammi", "calcolata", calcola=lambda r: ", ".join(
                 sostanze.PITTOGRAMMI[p] for p in sostanze.pittogrammi(sostanze.codici_h(r["codici_h"])))),
         ], valori_nuovo=self._valori_nuovo)
@@ -216,7 +216,7 @@ class PaginaSostanze(Pagina):
 
     def _scegli_lavorazioni(self) -> None:
         if self.id_ is None:
-            QMessageBox.information(self, "Lavorazioni", "Selezionare prima la sostanza.")
+            QMessageBox.information(self, "Lavorazioni", "Seleziona prima una sostanza.")
             return
         dialogo = DialogoLavorazioni(self.repo, self.id_, self)
         if dialogo.exec():
@@ -268,7 +268,7 @@ class PaginaSostanze(Pagina):
         risposta = QMessageBox.question(
             self, "Scheda importata",
             f"Dal PDF sono state lette {len(dati.codici_h)} indicazioni di pericolo.\n"
-            "Completare gli altri dati (produttore, DPI, misure, conservazione) con l'assistente AI?")
+            "Vuoi completare gli altri dati (produttore, DPI, misure, conservazione) con l'assistente AI?")
         if risposta == QMessageBox.StandardButton.Yes:
             esegui_ai(self, "L'assistente sta leggendo la scheda di sicurezza...",
                       lambda ai: ai.estrai_sds(testo), lambda risultato: self._applica_ai(id_, risultato))

@@ -74,7 +74,7 @@ MISURE_COMUNI = {
     GIALLO: ["Informare e formare i lavoratori sulla corretta movimentazione dei carichi (art. 169).",
              "Mantenere percorsi sgombri, in piano e illuminati."],
     ROSSO: ["Adottare ausili meccanici o riorganizzare il lavoro per ridurre il rischio (art. 168).",
-            "Sorveglianza sanitaria dei lavoratori addetti (art. 168 c. 2 lett. d).",
+            "Sorveglianza sanitaria dei lavoratori addetti (art. 168, comma 2, lettera d).",
             "Informazione, formazione e addestramento specifici (art. 169)."],
 }
 MISURE_COMUNI[VIOLA] = ["Intervento immediato: il trasporto non può essere svolto manualmente nelle "
@@ -109,7 +109,7 @@ def calcola(dati: dict[str, Any]) -> Esito:
             continue
         if info["oltre"]:
             note.append(f"«{nome}»: distanza oltre gli {numero_it(info['distanza'], 1)} m delle tavole, "
-                        "usati i valori della distanza massima.")
+                        "si usano i valori della distanza massima.")
         indice_t = t["peso"] / racc
         indici_snook.append((indice_t, t))
         righe.append([nome, numero_it(t["peso"], 1), numero_it(t["frequenza"], 1), numero_it(t["distanza"], 1),

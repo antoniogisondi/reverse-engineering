@@ -97,7 +97,8 @@ def _riquadro(titolo: str, widget: QWidget) -> QGroupBox:
     return g
 
 
-AVVISO_RESPONSABILITA = ("Il documento va riletto, completato dove serve e firmato da chi ne risponde "
+AVVISO_RESPONSABILITA = ("Il documento va riletto, completato dove necessario e firmato da chi ne ha la "
+                         "responsabilità "
                          "(datore di lavoro per il POS, coordinatore per il PSC): il programma è uno strumento "
                          "di redazione e non sostituisce la valutazione dei rischi.")
 
@@ -150,8 +151,8 @@ class TestiLiberi(QWidget):
             editor.textChanged.connect(lambda s=sezione: self._modificato(s))
             riquadro = _riquadro(titolo, editor)
             if contesto_ai is not None:
-                bozza = pulsante_ai("Bozza con l'assistente AI")
-                bozza.setToolTip("Scrive o migliora il testo della sezione partendo dai dati del progetto")
+                bozza = pulsante_ai("Scrivi la bozza con l'assistente AI")
+                bozza.setToolTip("Scrivi o migliora il testo della sezione partendo dai dati del cantiere")
                 bozza.clicked.connect(lambda _=False, s=sezione: self._bozza_ai(s))
                 riquadro.layout().addWidget(bozza, alignment=Qt.AlignmentFlag.AlignRight)
             layout.addWidget(riquadro)
@@ -344,8 +345,8 @@ class PaginaSoggetti(Pagina):
     def __init__(self, repo: Repository):
         super().__init__(repo)
         self.committente_rl = QCheckBox("Il committente è anche responsabile dei lavori")
-        self.committente_rl.setToolTip("Nei documenti il committente compare anche come responsabile dei lavori "
-                                       "e non serve inserire un responsabile dei lavori a parte.")
+        self.committente_rl.setToolTip("Nei documenti il committente compare anche come responsabile dei lavori, "
+                                       "senza dover inserire un responsabile dei lavori a parte.")
         self.committente_rl.toggled.connect(self._salva_committente_rl)
         self.layout_.addWidget(self.committente_rl)
         self.tabella = TabellaCrud(repo, "soggetti", [
@@ -365,7 +366,7 @@ class PaginaSoggetti(Pagina):
                                  "progettista)"),
         ])
         self.tabella.imposta_titolo("Soggetti")
-        self.tabella.aggiungi_pulsante("Dall'archivio...", self._dall_archivio)
+        self.tabella.aggiungi_pulsante("Prendi dall'archivio...", self._dall_archivio)
         self.tabella.aggiungi_pulsante("Salva in archivio", lambda: archivio_anagrafiche.salva_persona(
             self, self.repo, "soggetti", self.tabella.id_selezionato()))
         self.layout_.addWidget(self.tabella)
@@ -408,7 +409,7 @@ class PaginaImprese(Pagina):
         ("data_inizio", "Inizio dei lavori dell'impresa", "data"),
         ("data_fine", "Fine dei lavori dell'impresa", "data"),
         ("orario_lavoro", "Orario di lavoro in cantiere"),
-        (None, "Soggetto incaricato dall'impresa affidataria (art. 97)"),
+        (None, "Soggetto incaricato dall'impresa affidataria (art. 97 del D.Lgs. 81/2008)"),
         ("incaricato_97", "Nominativo"),
         ("incaricato_97_mansione", "Mansione"),
         (None, "Sede legale e recapiti"),
@@ -444,7 +445,7 @@ class PaginaImprese(Pagina):
             Colonna("telefono", "Telefono"),
         ])
         self.tabella.imposta_titolo("Imprese")
-        self.tabella.aggiungi_pulsante("Dall'archivio...", self._impresa_dall_archivio)
+        self.tabella.aggiungi_pulsante("Prendi dall'archivio...", self._impresa_dall_archivio)
         self.tabella.aggiungi_pulsante("Salva in archivio", lambda: archivio_anagrafiche.salva_impresa(
             self, self.repo, self.tabella.id_selezionato()))
 
@@ -457,11 +458,11 @@ class PaginaImprese(Pagina):
         # Datore di lavoro e figure della sicurezza (Allegato XV 3.2.1 lett. a e b).
         self.figure = ModuloRecord(repo, "imprese", [
             ("datore_lavoro", "Datore di lavoro"),
-            ("rspp_datore", "Il datore di lavoro svolge direttamente i compiti di RSPP (art. 34)", "spunta"),
+            ("rspp_datore", "Il datore di lavoro svolge direttamente i compiti di RSPP (art. 34 del D.Lgs. 81/2008)", "spunta"),
             ("ruoli_datore", "Il datore di lavoro svolge anche il ruolo di", "spunte", anagrafiche.RUOLI_DATORE),
             ("figure_non_presenti", "Figure non presenti in questa impresa", "spunte",
              list(anagrafiche.FIGURE_FACOLTATIVE)),
-            ("figure_motivazione", "Motivazione (se vuota si usa una frase standard)", "testo_lungo"),
+            ("figure_motivazione", "Motivazione (se vuota, si usa una formula predefinita)", "testo_lungo"),
         ])
         self.elenco_figure = TabellaCrud(repo, "figure", [
             Colonna("ruolo", "Figura", "scelta", scelte=lambda: [(r, r) for r in anagrafiche.FIGURE_IMPRESA],
@@ -475,17 +476,18 @@ class PaginaImprese(Pagina):
             Colonna("formazione_scadenza", "Aggiornamento entro", "data"),
         ], valori_nuovo=lambda: {"ruolo": "Preposto"})
         self.elenco_figure.imposta_filtro(impresa_id=-1)
-        self.elenco_figure.aggiungi_pulsante("Dall'archivio...", self._figura_dall_archivio)
+        self.elenco_figure.aggiungi_pulsante("Prendi dall'archivio...", self._figura_dall_archivio)
         self.elenco_figure.aggiungi_pulsante("Salva in archivio", lambda: archivio_anagrafiche.salva_persona(
             self, self.repo, "figure", self.elenco_figure.id_selezionato()))
         self.figure.campi["figure_motivazione"].setFixedHeight(46)
         contenuto_figure = QWidget()
         lf = QVBoxLayout(contenuto_figure)
         lf.addWidget(self.figure)
-        aiuto = QLabel("Una riga per persona e per ruolo: RSPP, medico competente, RLS o RLST, preposti, "
-                       "direttore tecnico, capocantiere, addetti al primo soccorso e antincendio. Se una persona "
-                       "ha più ruoli (per esempio capocantiere e addetto al primo soccorso) basta una riga per "
-                       "ciascun ruolo con lo stesso nome; i ruoli svolti dal datore di lavoro si spuntano sopra.")
+        aiuto = QLabel("Inserisci una riga per ogni persona e per ogni ruolo: RSPP, medico competente, RLS o RLST, "
+                       "preposti, direttore tecnico, capocantiere, addetti al primo soccorso e antincendio. Se una "
+                       "persona ricopre più ruoli (per esempio capocantiere e addetto al primo soccorso), inserisci "
+                       "una riga per ciascun ruolo con lo stesso nominativo; i ruoli svolti dal datore di lavoro "
+                       "si spuntano qui sopra.")
         aiuto.setObjectName("pageSubtitle")
         aiuto.setWordWrap(True)
         lf.addWidget(aiuto)
@@ -611,7 +613,7 @@ class DialogoArchivio(QDialog):
         self.albero.setColumnWidth(0, 380)
         self._spuntate: set[str] = set()
         self.albero.itemChanged.connect(self._ricorda)
-        elimina = QPushButton("Elimina dalle lavorazioni utente")
+        elimina = QPushButton("Elimina dalle lavorazioni personalizzate")
         elimina.clicked.connect(self._elimina_utente)
         pulsanti = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -627,7 +629,7 @@ class DialogoArchivio(QDialog):
         basso.addWidget(pulsanti)
         layout = QVBoxLayout(self)
         layout.addLayout(riga)
-        layout.addWidget(QLabel("Selezionare le lavorazioni da aggiungere al cantiere:"))
+        layout.addWidget(QLabel("Seleziona le lavorazioni da aggiungere al cantiere:"))
         layout.addWidget(self.filtro)
         layout.addWidget(self.albero)
         layout.addLayout(basso)
@@ -656,12 +658,12 @@ class DialogoArchivio(QDialog):
             utente = archivio.elenco(LAVORAZIONE)
         finally:
             archivio.chiudi()
-        nodo = QTreeWidgetItem(self.albero, ["UTENTE - lavorazioni personalizzate"])
+        nodo = QTreeWidgetItem(self.albero, ["Lavorazioni personalizzate"])
         font = nodo.font(0)
         font.setBold(True)
         nodo.setFont(0, font)
         if not utente:
-            vuoto = QTreeWidgetItem(nodo, ["(nessuna: in «Lavorazioni» usare «Salva nell'archivio utente»)"])
+            vuoto = QTreeWidgetItem(nodo, ["(nessuna: per aggiungerne, usa «Salva nell'archivio utente» nella tabella delle fasi)"])
             vuoto.setDisabled(True)
         for voce in utente:
             self._foglia(nodo, voce["nome"], ", ".join(a["nome"] for a in voce["dati"].get("attrezzature", [])), voce)
@@ -714,9 +716,9 @@ class DialogoArchivio(QDialog):
         item = self.albero.currentItem()
         dati = item.data(0, Qt.ItemDataRole.UserRole) if item else None
         if not dati or "dati" not in dati:
-            QMessageBox.information(self, "Archivio", "Selezionare una lavorazione del nodo UTENTE.")
+            QMessageBox.information(self, "Archivio", "Seleziona una delle lavorazioni personalizzate.")
             return
-        if QMessageBox.question(self, "Archivio", f"Eliminare «{dati['nome']}» dalle lavorazioni utente?") \
+        if QMessageBox.question(self, "Archivio", f"Vuoi eliminare «{dati['nome']}» dalle lavorazioni personalizzate?") \
                 == QMessageBox.StandardButton.Yes:
             archivio = ArchivioAnagrafiche()
             try:
@@ -747,7 +749,7 @@ class PaginaFasi(Pagina):
                                                              if f["lavorazione"]})],
                     suggerimento="La lavorazione più ampia di cui la fase fa parte, per esempio «Strutture in "
                                  "elevazione in c.a.»: raggruppa più fasi sotto un unico titolo nel POS. "
-                                 "Facoltativa: per una fase isolata si può lasciare vuota."),
+                                 "Facoltativa: per una fase isolata puoi lasciarla vuota."),
             Colonna("descrizione", "Fase di lavoro (attività svolta)", larghezza=280,
                     suggerimento="L'attività concreta, con i suoi rischi, macchine e lavoratori, per esempio "
                                  "«Getto del calcestruzzo di pilastri e travi con autopompa»."),
@@ -766,12 +768,12 @@ class PaginaFasi(Pagina):
         # il codice delle fasi lo assegna il programma: si aggiorna quando si indica la lavorazione
         self.fasi.modificata.connect(self._aggiorna_codici)
         self.fasi.imposta_titolo("Fasi di lavoro")
-        archivio = primario(QPushButton("Importa da archivio..."))
+        archivio = primario(QPushButton("Importa dall'archivio..."))
         archivio.clicked.connect(self._importa)
         self.fasi.pulsanti.insertWidget(2, archivio)
         if self.cronoprogramma:
-            calcola = QPushButton("Calcola durata")
-            calcola.setToolTip("Data di fine da importo, incidenza della manodopera, squadra e costo uomo-giorno.")
+            calcola = QPushButton("Calcola la durata")
+            calcola.setToolTip("Calcola la data di fine in base a importo, incidenza della manodopera, squadra e costo uomo-giorno.")
             calcola.clicked.connect(self._calcola_durata)
             self.fasi.pulsanti.insertWidget(3, calcola)
         self.fasi.aggiungi_pulsante("Salva nell'archivio utente", self._salva_in_archivio)
@@ -788,13 +790,13 @@ class PaginaFasi(Pagina):
             Colonna("dpi", "DPI", "testo_lungo", larghezza=200),
             Colonna("valutazione_id", "Valutazione specifica", "scelta", scelte=self._valutazioni, larghezza=200),
             Colonna("non_presente", "Non presente", "spunta", larghezza=95, suggerimento=(
-                "Spuntare se il rischio, valutato, non è presente nella fase (per esempio macchina "
-                "silenziata o lavorazione che non lo comporta): resta fuori da valutazioni specifiche, "
-                "segnaletica e DPI, e nel POS compare con la motivazione.")),
+                "Spunta se il rischio, pur valutato, non è presente nella fase (per esempio macchina "
+                "silenziata o lavorazione che non lo comporta): resta escluso da valutazioni specifiche, "
+                "segnaletica e DPI e nel POS compare con la motivazione.")),
             Colonna("motivazione", "Motivazione (se non presente)", "testo_lungo", larghezza=180),
         ])
         self.rischi.modificata.connect(self._aggiorna_gantt)
-        suggerisci = pulsante_ai("Suggerisci rischi con l'AI")
+        suggerisci = pulsante_ai("Suggerisci i rischi con l'AI")
         suggerisci.clicked.connect(self._suggerisci_rischi)
         self.rischi.pulsanti.insertWidget(2, suggerisci)
 
@@ -807,8 +809,8 @@ class PaginaFasi(Pagina):
             Colonna("misure", "Misure prima, durante e dopo l'uso", "testo_lungo"),
             Colonna("dpi", "DPI dell'operatore", "testo_lungo"),
             Colonna("potenza_sonora", "Potenza sonora dB(A)", "decimale", larghezza=130, massimo=200,
-                    suggerimento="Livello di potenza sonora LWA dichiarato dal fabbricante (art. 190): compare nella "
-                                 "tabella del rumore del PSC"),
+                    suggerimento="Livello di potenza sonora LWA dichiarato dal fabbricante (art. 190 del D.Lgs. 81/2008): "
+                                 "compare nella tabella del rumore del PSC"),
         ])
         self.scelta_archivio = QComboBox()
         self.scelta_archivio.addItems(sorted(ATTREZZATURE))
@@ -819,11 +821,11 @@ class PaginaFasi(Pagina):
         self.attrezzature.pulsanti.insertWidget(4, aggiungi_archivio)
         self.attrezzature.modificata.connect(self._rischi_delle_attrezzature)
         suggerisci_attrezzature = pulsante_ai("Suggerisci con l'AI")
-        suggerisci_attrezzature.setToolTip("Macchine, attrezzi e opere provvisionali per la fase, con scheda d'uso "
+        suggerisci_attrezzature.setToolTip("Proponi macchine, attrezzi e opere provvisionali per la fase, con scheda d'uso "
                                            "e rischi, compresi rumore, vibrazioni e movimentazione dei carichi.")
         suggerisci_attrezzature.clicked.connect(self._suggerisci_attrezzature)
-        completa_attrezzatura = pulsante_ai("Completa rischi e scheda con l'AI")
-        completa_attrezzatura.setToolTip("Per l'attrezzatura selezionata: descrizione, misure prima, durante e "
+        completa_attrezzatura = pulsante_ai("Completa la scheda e i rischi con l'AI")
+        completa_attrezzatura.setToolTip("Per l'attrezzatura selezionata, proponi descrizione, misure prima, durante e "
                                          "dopo l'uso, DPI e rischi mancanti.")
         completa_attrezzatura.clicked.connect(self._completa_attrezzatura)
         for b in (suggerisci_attrezzature, completa_attrezzatura):
@@ -859,10 +861,10 @@ class PaginaFasi(Pagina):
         self.zoom.setCurrentText(ZOOM_PREDEFINITO)
         self.zoom.currentTextChanged.connect(self.gantt.imposta_zoom)
         barra_gantt = QHBoxLayout()
-        barra_gantt.addWidget(QLabel("Cronoprogramma - scala:"))
+        barra_gantt.addWidget(QLabel("Scala del cronoprogramma:"))
         barra_gantt.addWidget(self.zoom)
         barra_gantt.addStretch()
-        aiuto = QLabel("Trascina una barra per spostare la fase, dal bordo destro per cambiarne la durata.")
+        aiuto = QLabel("Trascina una barra per spostare la fase; trascinane il bordo destro per modificarne la durata.")
         aiuto.setObjectName("pageSubtitle")
         barra_gantt.addWidget(aiuto)
         riquadro_gantt = QWidget()
@@ -963,7 +965,7 @@ class PaginaFasi(Pagina):
     def _salva_in_archivio(self) -> None:
         fase = self.fasi.id_selezionato()
         if fase is None:
-            QMessageBox.information(self, "Archivio", "Selezionare prima la lavorazione da salvare.")
+            QMessageBox.information(self, "Archivio", "Seleziona prima la fase da salvare.")
             return
         archivio = ArchivioAnagrafiche()
         try:
@@ -973,8 +975,9 @@ class PaginaFasi(Pagina):
             return
         finally:
             archivio.chiudi()
-        QMessageBox.information(self, "Archivio", "Lavorazione salvata nel nodo UTENTE dell'archivio, con "
-                                                  "macchine, attrezzi e rischi: si ritrova in «Importa da archivio».")
+        QMessageBox.information(self, "Archivio", "Lavorazione salvata tra le lavorazioni personalizzate "
+                                                  "dell'archivio, con macchine, attrezzi e rischi: la trovi in "
+                                                  "«Importa dall'archivio...».")
 
     def _aggiungi_attrezzatura(self) -> None:
         fase = self.fasi.id_selezionato()
@@ -999,7 +1002,7 @@ class PaginaFasi(Pagina):
         fase = self.repo.leggi("fasi", fase_id)
         lavorazione = f"{fase['codice']} {fase['descrizione']}".strip()
         if not lavorazione:
-            QMessageBox.information(self, "Assistente AI", "Indicare prima la descrizione della lavorazione.")
+            QMessageBox.information(self, "Assistente AI", "Indica prima la descrizione della fase.")
             return
         attrezzature = [a["nome"] for a in self.repo.elenco("attrezzature", fase_id=fase_id)]
         esistenti = [f"{r['descrizione']} ({r['fonte']})" if r["fonte"] else r["descrizione"]
@@ -1012,7 +1015,7 @@ class PaginaFasi(Pagina):
     def _testo_rischio(r: dict) -> str:
         livello = analisi.livello_rischio(r["probabilita"], r["danno"])
         origine = f" ({r['fonte']})" if r.get("fonte") else ""
-        return (f"{r['descrizione']}{origine}  -  P{r['probabilita']} x D{r['danno']} = {livello} "
+        return (f"{r['descrizione']}{origine}  -  P{r['probabilita']} × D{r['danno']} = {livello} "
                 f"{analisi.classe_rischio(livello)}\n    Misure: {r['misure']}")
 
     def _scegli_proposte(self, titolo: str, nota: str, testi: list[str]) -> list[int] | None:
@@ -1051,7 +1054,7 @@ class PaginaFasi(Pagina):
             return
         scelti = self._scegli_proposte(
             "Rischi suggeriti dall'assistente AI",
-            "Selezionare i rischi da aggiungere alla fase. Valori e misure restano modificabili.",
+            "Seleziona i rischi da aggiungere alla fase. Valori e misure restano modificabili.",
             [self._testo_rischio(r) for r in proposte])
         if scelti is None or not self.repo.leggi("fasi", fase_id):
             return
@@ -1062,13 +1065,13 @@ class PaginaFasi(Pagina):
     def _suggerisci_attrezzature(self) -> None:
         fase_id = self.fasi.id_selezionato()
         if fase_id is None:
-            QMessageBox.information(self, "Assistente AI", "Selezionare una fase.")
+            QMessageBox.information(self, "Assistente AI", "Seleziona una fase.")
             return
         fase = self.repo.leggi("fasi", fase_id)
         lavorazione = " - ".join(x for x in (fase["lavorazione"], f"{fase['codice']} {fase['descrizione']}".strip())
                                  if x)
         if not fase["descrizione"].strip():
-            QMessageBox.information(self, "Assistente AI", "Indicare prima la descrizione della fase.")
+            QMessageBox.information(self, "Assistente AI", "Indica prima la descrizione della fase.")
             return
         esistenti = [a["nome"] for a in self.repo.elenco("attrezzature", fase_id=fase_id)]
         esegui_ai(self, "L'assistente sta individuando macchine e attrezzature...",
@@ -1091,8 +1094,8 @@ class PaginaFasi(Pagina):
             testi.append(f"{a['nome']} ({a['tipo'].lower()}, {origine})\n    Rischi: {', '.join(rischi) or '-'}")
         scelti = self._scegli_proposte(
             "Macchine e attrezzature suggerite dall'assistente AI",
-            "Selezionare le attrezzature da aggiungere alla fase con la loro scheda d'uso e i loro rischi. "
-            "Per quelle presenti nell'archivio si usa la scheda dell'archivio.", testi)
+            "Seleziona le attrezzature da aggiungere alla fase, con la relativa scheda d'uso e i relativi rischi. "
+            "Per quelle presenti nell'archivio viene usata la scheda dell'archivio.", testi)
         if scelti is None or not self.repo.leggi("fasi", fase_id):
             return
         for i in scelti:
@@ -1102,11 +1105,11 @@ class PaginaFasi(Pagina):
     def _completa_attrezzatura(self) -> None:
         id_ = self.attrezzature.id_selezionato()
         if id_ is None:
-            QMessageBox.information(self, "Assistente AI", "Selezionare una macchina o un attrezzo.")
+            QMessageBox.information(self, "Assistente AI", "Seleziona una macchina o un attrezzo.")
             return
         a = self.repo.leggi("attrezzature", id_)
         if not a["nome"].strip():
-            QMessageBox.information(self, "Assistente AI", "Indicare prima il nome dell'attrezzatura.")
+            QMessageBox.information(self, "Assistente AI", "Indica prima il nome dell'attrezzatura.")
             return
         fase = self.repo.leggi("fasi", a["fase_id"])
         esistenti = [r["descrizione"] for r in self.repo.elenco("rischi", fase_id=a["fase_id"])
@@ -1136,7 +1139,7 @@ class PaginaFasi(Pagina):
             return
         scelti = self._scegli_proposte(
             f"{a['nome']}: proposte dell'assistente AI",
-            "Selezionare cosa aggiungere. I campi della scheda già compilati non vengono toccati.", testi)
+            "Seleziona cosa aggiungere. I campi della scheda già compilati non vengono modificati.", testi)
         if scelti is None or not self.repo.leggi("attrezzature", id_):
             return
         if scheda and 0 in scelti:
@@ -1157,7 +1160,7 @@ class PaginaFasi(Pagina):
     def _calcola_durata(self) -> None:
         id_ = self.fasi.id_selezionato()
         if id_ is None:
-            QMessageBox.information(self, "Calcola durata", "Selezionare una fase.")
+            QMessageBox.information(self, "Calcola la durata", "Seleziona una fase.")
             return
         f = self.repo.leggi("fasi", id_)
         costo = self.repo.cantiere()["costo_uomo_giorno"]
@@ -1165,9 +1168,9 @@ class PaginaFasi(Pagina):
         inizio = analisi.data(f["data_inizio"])
         if giorni is None or inizio is None:
             QMessageBox.information(
-                self, "Calcola durata",
-                "Indicare data di inizio, importo, incidenza della manodopera e squadra della fase, "
-                "e il costo medio uomo-giorno nei dati generali.")
+                self, "Calcola la durata",
+                "Indica data di inizio, importo, incidenza della manodopera e squadra della fase, "
+                "e il costo medio uomo-giorno nella pagina «Dati generali».")
             return
         fine = analisi.fine_dopo_giorni_lavorativi(inizio, giorni)
         self.repo.aggiorna("fasi", id_, data_fine=fine.isoformat())
@@ -1191,7 +1194,7 @@ class PaginaInterferenze(Pagina):
         super().__init__(repo)
         nota = QLabel(
             "Sono elencate le fasi contemporanee di imprese diverse nella stessa zona (o con zona non "
-            "indicata), dalla più grave. Scrivere le prescrizioni solo dove servono: alle altre il PSC "
+            "indicata), a partire dalla più grave. Scrivi le prescrizioni solo dove servono: per le altre il PSC "
             "applica la prescrizione generica di sfasamento."
         )
         nota.setWordWrap(True)
@@ -1304,8 +1307,8 @@ class PaginaRelazione(Pagina):
     icona = "relazione"
     sezioni_controlli = ("Relazione", "Rischi particolari", "Tavole")
 
-    sottotitolo = ("I contenuti del PSC scritti dal coordinatore, divisi come nell'Allegato XV. In ogni riquadro "
-                   "una guida dice cosa scrivere; l'assistente AI può preparare una bozza.")
+    sottotitolo = ("I contenuti del PSC redatti dal coordinatore, ordinati secondo l'Allegato XV. Ogni riquadro "
+                   "indica che cosa scrivere; l'assistente AI può preparare una bozza.")
 
     def __init__(self, repo: Repository):
         from sicurcantiere.relazione import GRUPPI
@@ -1401,10 +1404,10 @@ class PaginaDocumenti(Pagina):
     # documenti principali: si compongono e restano salvati nel cantiere (bozza, emessa, consegnata)
     COMPONIBILI = {"pos": "POS", "psc": "PSC"}
     NOMI = {
-        "psc": "Piano di Sicurezza e Coordinamento (PSC)",
+        "psc": "Piano di sicurezza e coordinamento (PSC)",
         "fascicolo": "Fascicolo dell'opera",
         "notifica": "Notifica preliminare",
-        "pos": "Piano Operativo di Sicurezza (POS)",
+        "pos": "Piano operativo di sicurezza (POS)",
         "dpi": "Verbali di consegna dei DPI",
         "sostanze": "Elenco delle sostanze pericolose",
         "tesserini": "Tesserini di riconoscimento dei lavoratori",
@@ -1414,7 +1417,7 @@ class PaginaDocumenti(Pagina):
 
     def __init__(self, repo: Repository):
         super().__init__(repo)
-        griglia = QGroupBox("Genera documento (.docx)")
+        griglia = QGroupBox("Genera i documenti in Word")
         layout = QVBoxLayout(griglia)
         self.impresa = QComboBox()
         per_impresa = [d for d in self.documenti if d in self.PER_IMPRESA]
@@ -1428,8 +1431,8 @@ class PaginaDocumenti(Pagina):
             b = QPushButton(self.NOMI[chiave])
             if chiave in self.COMPONIBILI:
                 b.setText(f"{self.NOMI[chiave]}: componi la bozza")
-                b.setToolTip("Il documento viene composto e salvato nel cantiere, a destra: da lì si apre, si "
-                             "ricompone, si emette e si consegna.")
+                b.setToolTip("Il documento viene composto e salvato nel cantiere, nel riquadro a destra: da lì "
+                             "puoi aprirlo, ricomporlo, emetterlo e consegnarlo.")
             if chiave == self.principale:
                 primario(b)
             b.clicked.connect(lambda _=False, k=chiave: self.genera(k))
@@ -1503,7 +1506,7 @@ class PaginaDocumenti(Pagina):
                                    f"{s.livello} · {s.sezione}\n{s.messaggio}")
             item.setForeground(QBrush(QColor(c["err"] if errore else c["tx"])))
             item.setData(Qt.ItemDataRole.UserRole, s.sezione)
-            item.setToolTip("Doppio clic per andare alla pagina da correggere")
+            item.setToolTip("Fai doppio clic per aprire la pagina da correggere")
             self.controlli.addItem(item)
         return elenco
 
@@ -1516,22 +1519,26 @@ class PaginaDocumenti(Pagina):
         errori = [s for s in self._controlla() if s.livello == controlli.ERRORE]
         if errori:
             risposta = QMessageBox.question(
-                self, "Controlli", f"Ci sono {len(errori)} errori nei dati (vedi elenco).\nGenerare comunque?")
+                self, "Controlli",
+                ("I controlli segnalano 1 errore" if len(errori) == 1 else
+                 f"I controlli segnalano {len(errori)} errori") + " nei dati (vedi l'elenco).\n"
+                "Vuoi generare comunque il documento?")
             if risposta != QMessageBox.StandardButton.Yes:
                 return
         predefinito = self.repo.progetto.percorso.with_name(f"{nome}.docx".replace("/", "-"))
-        percorso, _ = QFileDialog.getSaveFileName(self, "Salva documento", str(predefinito),
+        percorso, _ = QFileDialog.getSaveFileName(self, "Salva il documento", str(predefinito),
                                                   "Documento Word (*.docx)")
         if not percorso:
             return
         try:
             file = funzione(percorso)
         except PermissionError:
-            QMessageBox.warning(self, "Errore", "Impossibile scrivere il file: è aperto in Word?")
+            QMessageBox.warning(self, "Salvataggio non riuscito",
+                                "Impossibile scrivere il file. Se è aperto in Word, chiudilo e riprova.")
             return
         risposta = QMessageBox.question(
             self, "Documento generato",
-            f"Creato {Path(file).name}.\n\n{AVVISO_RESPONSABILITA}\n\nAprirlo ora?")
+            f"Il documento «{Path(file).name}» è stato creato.\n\n{AVVISO_RESPONSABILITA}\n\nVuoi aprirlo ora?")
         if risposta == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 
@@ -1546,12 +1553,12 @@ class PaginaDocumenti(Pagina):
         if chiave in self.PER_IMPRESA:
             impresa = self.impresa.currentData()
             if impresa is None:
-                QMessageBox.information(self, "Documenti", "Inserire prima l'impresa.")
+                QMessageBox.information(self, "Documenti", "Inserisci prima l'impresa.")
                 return
             nome = self.impresa.currentText()
             dati_impresa = self.repo.leggi("imprese", impresa) or {}
             if anagrafiche.autonomo(dati_impresa) and chiave != "idoneita":
-                QMessageBox.information(self, "Documenti", "Per i lavoratori autonomi si genera la verifica "
+                QMessageBox.information(self, "Documenti", "Per i lavoratori autonomi si genera solo la verifica "
                                                            "dell'idoneità tecnico-professionale; gli altri documenti "
                                                            "riguardano le imprese con lavoratori.")
                 return

@@ -63,7 +63,8 @@ FIGURE_IMPRESA: dict[str, str] = {
     "Dirigente": "Attua le direttive del datore di lavoro organizzando l'attività e vigilando su di essa, "
                  "secondo i poteri conferiti (artt. 2 e 18).",
     "Direttore tecnico di cantiere": "Dirige tecnicamente i lavori dell'impresa, garantisce l'attuazione del POS e "
-                                     "mantiene i rapporti con il coordinatore per l'esecuzione (Allegato XV 3.2.1).",
+                                     "mantiene i rapporti con il coordinatore per l'esecuzione (Allegato XV "
+                                     "punto 3.2.1).",
     "Assistente di cantiere": "Coadiuva il direttore tecnico e il capocantiere nel controllo delle lavorazioni e "
                               "nella verifica dell'applicazione delle misure di sicurezza.",
     "Capocantiere": "Organizza le squadre in cantiere, fa applicare le misure del PSC e del POS e segnala al "
@@ -82,13 +83,14 @@ FIGURE_IMPRESA: dict[str, str] = {
     "RLST": "Rappresentante territoriale dei lavoratori per la sicurezza, con le attribuzioni dell'art. 50 "
             "(art. 48).",
     "Addetto al primo soccorso": "Presta il primo soccorso all'infortunato, conosce i presidi sanitari del cantiere "
-                                 "e attiva il soccorso esterno (artt. 18 c. 1 lett. b e 45, D.M. 388/2003).",
+                                 "e attiva il soccorso esterno (art. 18, comma 1, lettera b; art. 45; D.M. 388/2003).",
     "Addetto antincendio": "Interviene sui principi d'incendio con i mezzi disponibili e chiama i Vigili del "
-                           "fuoco (artt. 18 c. 1 lett. b e 46, D.M. 2 settembre 2021).",
+                           "fuoco (art. 18, comma 1, lettera b; art. 46; D.M. 2 settembre 2021).",
     "Addetto antincendio ed evacuazione": "Interviene sui principi d'incendio con i mezzi disponibili, guida "
-                                          "l'evacuazione e chiama i Vigili del fuoco (artt. 18 c. 1 lett. b e 46).",
+                                          "l'evacuazione e chiama i Vigili del fuoco (art. 18, comma 1, lettera b; "
+                                          "art. 46).",
     "Addetto all'evacuazione": "Guida i lavoratori verso il punto di raccolta, verifica che nessuno resti nelle "
-                               "aree evacuate e ne riferisce al responsabile dell'emergenza (art. 43).",
+                               "aree evacuate e ne riferisce al responsabile delle emergenze (art. 43).",
     "Addetto alla gestione delle emergenze": "Coordina le procedure di emergenza del cantiere e i rapporti con i "
                                              "soccorsi esterni (art. 43).",
 }
@@ -108,17 +110,18 @@ MEDICO = "Medico competente"
 # Figure che l'Allegato XV punto 3.2.1 lett. a) chiede di indicare nel POS.
 FIGURE_OBBLIGATORIE: list[tuple[tuple[str, ...], str, bool]] = [
     # (ruoli che soddisfano il requisito, descrizione, errore se manca)
-    ((RSPP,), "il responsabile del servizio di prevenzione e protezione (o la spunta «il datore di lavoro "
-              "svolge direttamente i compiti di RSPP»)", True),
+    ((RSPP,), "il responsabile del servizio di prevenzione e protezione (oppure selezionare la casella «Il "
+              "datore di lavoro svolge direttamente i compiti di RSPP»)", True),
     (("RLS", "RLST"), "il rappresentante dei lavoratori per la sicurezza: aziendale (RLS) o, se non eletto, "
                       "territoriale (RLST)", True),
-    ((PRIMO_SOCCORSO,), "gli addetti al primo soccorso (o il datore di lavoro, che può svolgerne i compiti "
-                        "fino a cinque lavoratori)", True),
+    ((PRIMO_SOCCORSO,), "gli addetti al primo soccorso (oppure il datore di lavoro, che può svolgerne i "
+                        "compiti nelle imprese fino a cinque lavoratori)", True),
     ((ANTINCENDIO, "Addetto antincendio", "Addetto alla gestione delle emergenze"),
-     "gli addetti antincendio ed evacuazione (o il datore di lavoro, che può svolgerne i compiti fino a "
-     "cinque lavoratori)", True),
-    ((PREPOSTO,), "il preposto (obbligatorio dal D.L. 146/2021, art. 18 c. 1 lett. b-bis): un lavoratore "
-                  "designato oppure il datore di lavoro, spuntandolo sopra", True),
+     "gli addetti antincendio ed evacuazione (oppure il datore di lavoro, che può svolgerne i compiti nelle "
+     "imprese fino a cinque lavoratori)", True),
+    ((PREPOSTO,), "il preposto (art. 18, comma 1, lettera b-bis, introdotta dal D.L. 146/2021): un "
+                  "lavoratore designato oppure il datore di lavoro, selezionando «Preposto» tra i ruoli che "
+                  "svolge", True),
     ((MEDICO,), "il medico competente, oppure dichiararlo non presente se la sorveglianza sanitaria non è "
                 "prevista", False),
     ((DIRETTORE_TECNICO,), "il direttore tecnico di cantiere, oppure dichiararlo non presente", False),
@@ -128,9 +131,10 @@ FIGURE_OBBLIGATORIE: list[tuple[tuple[str, ...], str, bool]] = [
 # Ruoli che il datore di lavoro può svolgere di persona (oltre a quello di RSPP, art. 34).
 RUOLI_DATORE = [PRIMO_SOCCORSO, ANTINCENDIO, DIRETTORE_TECNICO, CAPOCANTIERE, PREPOSTO]
 NOTE_RUOLI_DATORE = {
-    PRIMO_SOCCORSO: "I compiti di primo soccorso sono svolti direttamente dal datore di lavoro (art. 34 c. 1-bis).",
+    PRIMO_SOCCORSO: "I compiti di primo soccorso sono svolti direttamente dal datore di lavoro (art. 34, "
+                    "comma 1-bis).",
     ANTINCENDIO: "I compiti di prevenzione incendi ed evacuazione sono svolti direttamente dal datore di lavoro "
-                 "(art. 34 c. 1-bis).",
+                 "(art. 34, comma 1-bis).",
 }
 LIMITE_ART_34 = 5  # lavoratori oltre i quali il datore non può fare da addetto al primo soccorso e antincendio
 
@@ -269,7 +273,7 @@ FORMAZIONE = [
     ("form_base", "Formazione generale e informazione di base (artt. 36 e 37)"),
     ("form_specifica", "Rischi specifici della mansione"),
     ("form_cantiere", "Rischi del cantiere contenuti in PSC e POS"),
-    ("form_dpi3", "Uso dei DPI di terza categoria, con addestramento (art. 77 c. 5)"),
+    ("form_dpi3", "Uso dei DPI di terza categoria, con addestramento (art. 77, comma 5)"),
 ]
 
 
@@ -321,7 +325,7 @@ IDONEITA_IMPRESE: list[tuple[str, str]] = [
                "competente"),
     ("rls", "Nominativo del rappresentante dei lavoratori per la sicurezza (RLS o RLST)"),
     ("formazione", "Attestati di formazione del RSPP, degli addetti alle emergenze, dei preposti e dei lavoratori"),
-    ("lavoratori", "Elenco dei lavoratori dal libro unico del lavoro con l'idoneità sanitaria"),
+    ("lavoratori", "Elenco dei lavoratori risultanti dal libro unico del lavoro, con l'idoneità sanitaria"),
     ("sospensione", "Dichiarazione di non essere oggetto di provvedimenti di sospensione o interdittivi (art. 14)"),
     ("durc", "Documento unico di regolarità contributiva (DURC)"),
     ("organico", "Dichiarazione dell'organico medio annuo e del contratto collettivo applicato"),

@@ -117,10 +117,10 @@ def avvia(finestra) -> None:
     if not lavoro_ai.ai_attiva():
         QMessageBox.information(
             finestra, TITOLO,
-            "Per leggere un PSC fatto con un altro programma serve l'assistente AI. "
+            "Per leggere un PSC redatto con un altro programma è necessario l'assistente AI. "
             + lavoro_ai.perche_non_disponibile()
-            + "\n\nSe il PSC è stato fatto con SicurCantiere PSC l'assistente non serve: basta aprirlo in "
-            "SicurCantiere PSC e usare «Prepara il POS dell'impresa...» nella pagina Imprese.")
+            + "\n\nSe il PSC è stato redatto con SicurCantiere PSC l'assistente non serve: aprilo in "
+            "SicurCantiere PSC e usa «Prepara il POS dell'impresa...» nella pagina «Imprese».")
         return
     percorso, _ = QFileDialog.getOpenFileName(finestra, "Scegli il PSC del coordinatore", "",
                                               "PSC (*.pdf *.docx)")
@@ -149,7 +149,7 @@ def _conferma_e_analizza(finestra, percorso: str, testo: str) -> None:
             .replace(",", ".") + (" (motore Avanzato: 8 crediti per token)" if ai.modello == "avanzato" else "")
             + ". La lettura si fa una volta sola e serve per i POS di tutte le imprese del PSC.\n\n"
             "Il PSC contiene nomi e recapiti dei soggetti e delle imprese: verranno inviati al fornitore insieme "
-            "al resto del testo.\n\nContinuare?") != QMessageBox.StandardButton.Yes:
+            "al resto del testo.\n\nVuoi continuare?") != QMessageBox.StandardButton.Yes:
         return
 
     def analizza(avanzamento):
@@ -165,7 +165,7 @@ def _conferma_e_analizza(finestra, percorso: str, testo: str) -> None:
 def _scegli_e_crea(finestra, analisi: importa_psc.Analisi) -> None:
     if not analisi.imprese and not analisi.fasi:
         QMessageBox.warning(finestra, TITOLO, "Nel documento non sono state trovate imprese né "
-                                                              "lavorazioni: è davvero un PSC?")
+                                                              "lavorazioni: verifica che il file scelto sia un PSC.")
         return
     dialogo = DialogoImpresePSC(analisi, finestra)
     if not dialogo.exec():
@@ -196,7 +196,7 @@ def _scegli_e_crea(finestra, analisi: importa_psc.Analisi) -> None:
         try:
             creati.append(importa_psc.crea_spo(analisi, impresa, destinazione, fasi))
         except Exception as e:  # noqa: BLE001 - un file non creato non deve fermare gli altri
-            QMessageBox.warning(finestra, "Nuovo POS da un PSC", f"{destinazione.name}: non creato ({e}).")
+            QMessageBox.warning(finestra, "Nuovo POS da un PSC", f"Impossibile creare {destinazione.name}: {e}")
     if not creati:
         return
     elenco = "\n".join(f"• {p.name}" for p in creati)
@@ -205,7 +205,7 @@ def _scegli_e_crea(finestra, analisi: importa_psc.Analisi) -> None:
             f"Creati {len(creati)} file:\n{elenco}\n\nContengono cantiere, soggetti, impresa, lavorazioni con rischi "
             "e attrezzature, prescrizioni e interferenze del PSC. Completa i dati mancanti (figure, lavoratori, "
             "testi del POS) e controlla i rischi segnati «verificare» prima di generare il POS.\n\n"
-            f"Aprire ora {creati[0].name}?") == QMessageBox.StandardButton.Yes:
+            f"Vuoi aprire ora {creati[0].name}?") == QMessageBox.StandardButton.Yes:
         finestra.apri_file(creati[0])
 
 
@@ -220,7 +220,7 @@ class DialogoImpresePSC(QDialog):
         c = analisi.cantiere
         intestazione = QLabel(
             f"<b>{c.get('nome') or 'Cantiere'}</b> {('· ' + c['comune']) if c.get('comune') else ''}<br>"
-            f"Trovati: {len(analisi.imprese)} imprese, {len(analisi.fasi)} fasi di lavoro, "
+            f"Elementi trovati: {len(analisi.imprese)} imprese, {len(analisi.fasi)} fasi di lavoro, "
             f"{len(analisi.interferenze)} interferenze, {len(analisi.richieste_pos)} richieste ai POS.")
         intestazione.setWordWrap(True)
         if analisi.saltati:
@@ -247,6 +247,7 @@ class DialogoImpresePSC(QDialog):
 
         pulsanti = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         pulsanti.button(QDialogButtonBox.StandardButton.Ok).setText("Crea i file dei POS")
+        pulsanti.button(QDialogButtonBox.StandardButton.Cancel).setText("Annulla")
         pulsanti.accepted.connect(self.accept)
         pulsanti.rejected.connect(self.reject)
         layout = QVBoxLayout(self)

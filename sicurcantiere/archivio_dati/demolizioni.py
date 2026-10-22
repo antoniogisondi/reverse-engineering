@@ -60,7 +60,7 @@ _CADUTA_MAT = r("Caduta di materiale dall'alto o a livello", 3, 3,
                 "dall'alto ma calato o convogliato in canali chiusi (art. 153); elementi pesanti calati con "
                 "mezzi di sollevamento; accesso allo sbocco del canale solo a scarico sospeso.")
 _POLVERI = r("Polveri e fibre", 3, 2,
-             "Bagnatura continua delle murature e delle macerie (art. 153 c. 5); utensili con aspirazione "
+             "Bagnatura continua delle murature e delle macerie (art. 153, comma 5); utensili con aspirazione "
              "alla fonte dove possibile; locali chiusi ventilati e separati dalle zone abitate con teli; "
              "polveri di silice cristallina trattate come agente cancerogeno (Titolo IX Capo II).",
              _DPI_POLVERI)
@@ -72,7 +72,7 @@ _AMIANTO_IMPREVISTO = r("Esposizione ad amianto (ritrovamento imprevisto)", 1, 4
                         DPI_BASE + ", facciale filtrante FFP3")
 _MMC = r("Movimentazione manuale dei carichi", 3, 2,
          "Uso di carriole, carrelli e mezzi di sollevamento; carichi frazionati e sollevati in due oltre i "
-         "limiti della valutazione (Titolo VI, ISO 11228-1); formazione sulle corrette posture.")
+         "limiti della valutazione (Titolo VI, UNI ISO 11228-1); formazione sulle corrette posture.")
 _PUNTURE = r("Punture, tagli e abrasioni", 3, 2,
              "Rimuovere o ribattere chiodi e spigoli taglienti appena scoperti; non afferrare a mani nude "
              "frammenti di vetro, lamiera o ferro; guanti adatti al materiale trattato.",
@@ -200,7 +200,7 @@ _DEMOLIZIONI = [
          "Abbattimento di tramezzi in laterizio, cartongesso o blocchi leggeri non portanti, dopo aver "
          "verificato che non sostengano solai o carichi e che non contengano impianti ancora attivi. Si "
          "procede dall'alto verso il basso con mazza, scalpello o martello leggero e si allontanano le "
-         "macerie ad ogni avanzamento.",
+         "macerie a ogni avanzamento.",
          "Addetto alla demolizione di tramezzi", 65, EDILIZIA,
          ["Martello demolitore", "Ponte su cavalletti", "Trabattello", "Canale di scarico delle macerie",
           "Utensili manuali"], [
@@ -305,7 +305,7 @@ _DEMOLIZIONI = [
     fase("DM.11", DEM, _G_FIN, "Rimozione di intonaci e rivestimenti",
          "Spicconatura di intonaci interni ed esterni fino al vivo della muratura e rimozione di "
          "rivestimenti in piastrelle, lastre o pannelli, lavorando da ponteggio, trabattello o ponte su "
-         "cavalletti. Le superfici vengono bagnate prima del distacco e i detriti raccolti ad ogni "
+         "cavalletti. Le superfici vengono bagnate prima del distacco e i detriti raccolti a ogni "
          "avanzamento.",
          "Addetto alla rimozione di intonaci e rivestimenti", 70, EDILIZIA,
          ["Martello perforatore (tassellatore)", "Martello demolitore", "Ponteggio metallico fisso",
@@ -370,7 +370,7 @@ _DEMOLIZIONI = [
     fase("DM.14", DEM, _G_FIN, "Rimozione di impianti elettrici, idrici, termici e sanitari",
          "Smontaggio di sanitari, radiatori, caldaie, tubazioni, canalizzazioni, quadri e linee elettriche, "
          "previa messa fuori servizio e svuotamento degli impianti. I gas refrigeranti dei condizionatori sono "
-         "recuperati da tecnico certificato (Reg. UE 2024/573, D.P.R. 146/2018) e le coibentazioni sospette "
+         "recuperati da tecnico certificato (Reg. (UE) 2024/573, D.P.R. 146/2018) e le coibentazioni sospette "
          "sono analizzate prima di toccarle.",
          "Addetto alla rimozione di impianti tecnologici", 70, EDILIZIA,
          ["Smerigliatrice angolare", "Cannello ossiacetilenico", "Trapano elettrico", "Trabattello",
@@ -398,7 +398,7 @@ _DEMOLIZIONI = [
           "Montacarichi a cremagliera", "Canale di scarico delle macerie", "Utensili manuali"], [
              _INVESTIMENTO,
              r("Caduta di materiale dall'alto o a livello", 3, 3,
-               "Sosta vietata allo sbocco del canale durante lo scarico (art. 154 c. 2); canale chiuso con "
+               "Sosta vietata allo sbocco del canale durante lo scarico (art. 154, comma 2); canale chiuso con "
                "sbocco a non più di 2 m dal cassone (art. 153); nessuno vicino al cassone durante il carico "
                "con la benna."),
              r("Polveri e fibre", 3, 2,
@@ -658,9 +658,9 @@ _BONIFICHE = [
     fase("BO.10", BON, _G_BOB, "Bonifica superficiale da ordigni bellici",
          "Ricerca di ordigni residuati bellici nello strato superficiale del terreno con rilevatore di masse "
          "metalliche, per strisce parallele delimitate da picchetti, dopo il taglio della vegetazione. È "
-         "eseguita solo da impresa specializzata iscritta all'albo del Ministero della Difesa (art. 104 "
-         "c. 4-bis, D.M. 82/2015) con personale brevettato, secondo le prescrizioni dell'autorità militare "
-         "competente, quando il coordinatore ne valuta la necessità (art. 91 c. 2-bis).",
+         "eseguita solo da impresa specializzata iscritta all'albo del Ministero della Difesa (art. 104, "
+         "comma 4-bis, e D.M. 82/2015) con personale brevettato, secondo le prescrizioni dell'autorità militare "
+         "competente, quando il coordinatore ne valuta la necessità (art. 91, comma 2-bis).",
          "Addetto alla bonifica superficiale da ordigni bellici", 45, ("Nuove costruzioni", "Opere infrastrutturali"),
          ["Rilevatore di masse metalliche (magnetometro)", "Decespugliatore a motore", "Miniescavatore",
           "Utensili manuali"], [
@@ -724,7 +724,7 @@ _BONIFICHE = [
                "Bagnatura dei fronti e dei cumuli; teli di copertura sui depositi e sui cassoni; sospensione "
                "con vento forte.", DPI_BASE + ", facciale filtrante FFP3"),
              r("Seppellimento e sprofondamento", 2, 4,
-               "Pareti dello scavo profilate con pendenza stabile o armate (art. 118-119); accesso al fondo "
+               "Pareti dello scavo profilate con pendenza stabile o armate (artt. 118-119); accesso al fondo "
                "scavo solo per i campionamenti, con scala e a mezzo fermo."),
              r("Ambienti confinati o sospetti di inquinamento", 2, 4,
                "Scavi profondi e pozzetti possono accumulare gas e vapori: misura con rilevatore multigas "

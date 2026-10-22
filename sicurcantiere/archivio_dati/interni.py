@@ -55,7 +55,7 @@ MANCANTI: dict[str, tuple[str, str]] = {
         "pressione; ha rischi propri (getto, rumore elevato, tubazioni) da trattare nella sua scheda."),
     "Macchina insufflatrice per isolanti sfusi": (
         "Macchina", "Macchina che sfibra e insuffla nelle intercapedini fiocchi di cellulosa, lana minerale "
-        "o granuli isolanti; serve per gli isolamenti interni ad insufflaggio."),
+        "o granuli isolanti; serve per gli isolamenti interni a insufflaggio."),
 }
 
 C_OI = "Opere edili interne"
@@ -91,13 +91,13 @@ _CADUTA_PONTEGGIO = r(
 _MMC_SACCHI = r(
     "Movimentazione manuale dei carichi", 3, 2,
     "Sacchi di premiscelato da 25 kg al massimo, sollevati dal piano con montacarichi o carrello e depositati "
-    "su bancali vicino al punto d'impiego; carichi oltre i limiti dell'Allegato XXXIII (ISO 11228-1) "
+    "su bancali vicino al punto d'impiego; carichi oltre i limiti dell'Allegato XXXIII (UNI ISO 11228-1) "
     "movimentati in due o con ausili; formazione sulle corrette posture (art. 169).",
     DPI_INT)
 _MMC_ELEMENTI = r(
     "Movimentazione manuale dei carichi", 3, 3,
     "Elementi pesanti o ingombranti trasportati in due o con carrelli e sollevatori; percorsi interni sgombri; "
-    "pesi indicati sugli imballi; valutazione secondo l'Allegato XXXIII e ISO 11228-1 per le operazioni "
+    "pesi indicati sugli imballi; valutazione secondo l'Allegato XXXIII e la UNI ISO 11228-1 per le operazioni "
     "ripetute; formazione dei lavoratori (art. 169).",
     DPI_INT)
 _CEMENTO = r(
@@ -113,14 +113,14 @@ _SCHIZZI_MALTA = r(
     DPI_INT + ", occhiali a maschera")
 _SILICE_TAGLIO = r(
     "Polveri e fibre: silice cristallina respirabile", 3, 3,
-    "Valutare l'esposizione come agente cancerogeno (Allegato XLII; valore limite 0,1 mg/m3 dell'Allegato "
-    "XLIII); tagli e levigature ad umido o con utensili ad aspirazione collegati ad aspiratore di classe H; "
+    "Valutare l'esposizione come agente cancerogeno (Allegato XLII; valore limite 0,1 mg/m³ dell'Allegato "
+    "XLIII); tagli e levigature a umido o con utensili ad aspirazione collegati ad aspiratore di classe H; "
     "pulizia dei locali con aspiratore o a umido, mai con scopa o aria compressa; registro degli esposti "
     "dove previsto.",
     DPI_INT + ", facciale filtrante FFP3, occhiali protettivi")
 _POSTURE_GINOCCHIO = r(
     "Posture incongrue", 4, 2,
-    "Lavoro prolungato in ginocchio o chinati: alternare i compiti e fare pause; attrezzi con manici lunghi "
+    "Lavoro prolungato in ginocchio o in posizione chinata: alternare i compiti e fare pause; attrezzi con manici lunghi "
     "dove possibile; materiali posizionati all'altezza della vita e non a terra.",
     DPI_INT + ", ginocchiere")
 _POSTURE_SOFFITTO = r(
@@ -313,7 +313,7 @@ _OPERE_INTERNE = [
          "Tracciatura e fissaggio al solaio di pendini e orditura metallica, quindi posa di lastre di cartongesso "
          "avvitate (con stuccatura dei giunti) oppure di pannelli in fibra minerale, metallo o gesso appoggiati "
          "su profili a vista, secondo UNI 11424 e le istruzioni del sistema. Si coordinano i passaggi degli "
-         "impianti e i botole d'ispezione.",
+         "impianti e le botole d'ispezione.",
          "Addetto alla posa di controsoffitti", 50, ED,
          ["Sollevatore per lastre (alzapannelli)", "Martello perforatore (tassellatore)", "Avvitatore elettrico",
           "Pistola sparachiodi", "Trabattello", "Ponte su cavalletti", "Utensili manuali"],
@@ -368,7 +368,7 @@ _OPERE_INTERNE = [
          [_POSTURE_GINOCCHIO,
           r("Polveri e fibre: polveri di legno duro", 3, 3,
             "Le polveri di legno duro (rovere, faggio, essenze tropicali) sono cancerogene (Allegato XLII; valore "
-            "limite 2 mg/m3 dell'Allegato XLIII): levigatrici con sacco e aspirazione efficienti, aspiratore di "
+            "limite 2 mg/m³ dell'Allegato XLIII): levigatrici con sacco e aspirazione efficienti, aspiratore di "
             "classe H per la pulizia, nessun uso di scope o aria compressa; registro degli esposti dove previsto.",
             DPI_INT + ", facciale filtrante FFP3"),
           r("Rischio chimico", 3, 2,
@@ -396,7 +396,7 @@ _OPERE_INTERNE = [
          [_RESINE_EPOSSIDICHE,
           r("Rischio chimico: diisocianati nelle resine poliuretaniche", 2, 3,
             "Gli utilizzatori di prodotti con diisocianati devono avere la formazione prevista dal REACH "
-            "(Allegato XVII voce 74, Reg. UE 2020/1149) prima dell'uso; applicazione a rullo o racla, non a "
+            "(Allegato XVII voce 74, Reg. (UE) 2020/1149) prima dell'uso; applicazione a rullo o racla, non a "
             "spruzzo, salvo protezione respiratoria adeguata; ventilazione forzata dei locali.",
             DPI_INT + ", guanti in lattice o nitrile, maschera con filtro specifico, tuta monouso"),
           _SILICE_TAGLIO, _INCENDIO_SOLVENTI,

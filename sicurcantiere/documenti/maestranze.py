@@ -40,7 +40,8 @@ def _immagine(run, percorso: str, larghezza: Cm) -> bool:
 
 
 def genera_tesserini(repo: Repository, impresa_id: int, destinazione: str | Path) -> Path:
-    """Tessere di riconoscimento (artt. 18 c. 1 lett. u, 21 c. 1 lett. c e 26 c. 8; L. 136/2010 art. 5)."""
+    """Tessere di riconoscimento (art. 18, comma 1, lettera u), art. 21, comma 1, lettera c), e art. 26, comma 8,
+    del D.Lgs. 81/2008; art. 5 della L. 136/2010)."""
     impresa = repo.leggi("imprese", impresa_id)
     if impresa is None:
         raise ValueError("Impresa inesistente")
@@ -49,7 +50,8 @@ def genera_tesserini(repo: Repository, impresa_id: int, destinazione: str | Path
     for sezione in doc.sections:
         sezione.top_margin = sezione.bottom_margin = Cm(1.5)
     doc.add_paragraph().add_run(f"Tessere di riconoscimento - {impresa['ragione_sociale']}").bold = True
-    doc.add_paragraph("Ritagliare lungo i bordi e inserire nel porta badge; la tessera va esposta in cantiere.")
+    doc.add_paragraph("Ritagliare lungo i bordi e inserire nell'apposita custodia. Il lavoratore espone la tessera in "
+                      "modo visibile per tutta la permanenza in cantiere.")
 
     griglia = doc.add_table(rows=0, cols=2)
     griglia.style = "Table Grid"
@@ -90,7 +92,7 @@ def genera_tesserini(repo: Repository, impresa_id: int, destinazione: str | Path
             r = p.add_run(valore or "-")
             r.font.size = Pt(9 if i == 0 else 7.5)
             r.bold = i == 0
-        nota = cella.add_paragraph("Tessera di riconoscimento - artt. 18, 21 e 26 D.Lgs. 81/2008")
+        nota = cella.add_paragraph("Tessera di riconoscimento ai sensi degli artt. 18, 21 e 26 del D.Lgs. 81/2008")
         nota.runs[0].font.size = Pt(6)
     return salva(doc, destinazione)
 
@@ -127,11 +129,11 @@ def genera_schede_lavoratori(repo: Repository, impresa_id: int, destinazione: st
     doc = nuovo_documento()
     lavoratori = lavoratori_impresa(repo, impresa_id)
     if not lavoratori:
-        doc.add_paragraph("Nessun lavoratore inserito per l'impresa.")
+        doc.add_paragraph("Nessun lavoratore indicato per l'impresa.")
     for n, l in enumerate(lavoratori):
         if n:
             doc.add_page_break()
-        doc.add_heading(f"SCHEDA DEL LAVORATORE - {anagrafiche.nominativo(l) or 'senza nome'}", 1)
+        doc.add_heading(f"SCHEDA DEL LAVORATORE - {anagrafiche.nominativo(l) or 'nominativo da indicare'}", 1)
         doc.add_paragraph(f"Cantiere: {c['nome']} - {indirizzo_cantiere(c)}".strip(" -"))
         voci = [
             ("Impresa", impresa["ragione_sociale"]),
@@ -160,7 +162,7 @@ def genera_schede_lavoratori(repo: Repository, impresa_id: int, destinazione: st
             doc.add_paragraph().add_run("Mansioni non ancora assegnate.").italic = True
 
         rischi = [r for m in mansioni for r in m["rischi"]]
-        doc.add_heading("Rischi a cui è esposto e misure di prevenzione", 2)
+        doc.add_heading("Rischi cui è esposto il lavoratore e misure di prevenzione", 2)
         if rischi:
             visti: dict[str, dict] = {}
             for r in rischi:
@@ -196,6 +198,6 @@ def genera_schede_lavoratori(repo: Repository, impresa_id: int, destinazione: st
         doc.add_paragraph()
         doc.add_paragraph("Il lavoratore dichiara di aver ricevuto copia della presente scheda e le informazioni "
                           "sui rischi e sulle misure relative alle proprie mansioni.")
-        doc.add_paragraph("Il Datore di lavoro                                         Il Lavoratore")
+        doc.add_paragraph("Il datore di lavoro                                         Il lavoratore")
         doc.add_paragraph("_____________________________            _____________________________")
     return salva(doc, destinazione)

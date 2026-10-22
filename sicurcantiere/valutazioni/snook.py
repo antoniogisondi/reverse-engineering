@@ -116,7 +116,7 @@ def _colonna(colonne: tuple[tuple[float, tuple[int, ...]], ...], distanza: float
             # Tolleranza del 10%: «una volta per turno» non deve cadere nella colonna dei 30 minuti.
             validi = [i for i, t in enumerate(intervalli) if t <= reale * 1.1]
             if not validi:
-                raise FuoriTabella(f"frequenza superiore a una azione ogni {intervalli[0]} s, "
+                raise FuoriTabella(f"frequenza superiore a un'azione ogni {intervalli[0]} s, "
                                    f"la più alta studiata per {str(dist).replace('.', ',')} m")
             j = validi[-1]
             return inizio + j, dist, intervalli[j], oltre

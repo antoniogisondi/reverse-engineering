@@ -118,7 +118,7 @@ MISURE_GENERALI = {
 def calcola(dati: dict[str, Any]) -> Esito:
     compiti = [c for c in dati["compiti"] if c["durata"] > 0]
     if not compiti:
-        return Esito(None, "-", "Dati insufficienti", GIALLO, note=["Inserire almeno un compito con durata."])
+        return Esito(None, "-", "Dati insufficienti", GIALLO, note=["Inserire almeno un compito con la durata."])
     durata_totale = sum(c["durata"] for c in compiti)
     rcm = fattore_recupero(dati["ore_senza_recupero"])
     dum = fattore_durata(durata_totale)

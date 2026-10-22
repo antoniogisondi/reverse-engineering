@@ -19,7 +19,7 @@ from sicurcantiere.valutazioni.niosh import classe
 
 SCELTE_GENERE = (
     ("M", "Solo maschile"),
-    ("F", "Femminile o mista (limiti per le femmine)"),
+    ("F", "Femminile o mista (limiti per le donne)"),
 )
 SCELTE_AZIONE = (("spinta", "Spinta"), ("traino", "Traino"))
 SCELTE_CONDIZIONI = (
@@ -43,7 +43,7 @@ MISURE_COMUNI = {
     GIALLO: ["Informare e formare i lavoratori sulla corretta tecnica di traino e spinta (art. 169).",
              "Programmare la manutenzione di ruote e carrelli e la pulizia dei percorsi."],
     ROSSO: ["Riprogettare il compito o adottare ausili meccanici; in attesa, ridurre i carichi (art. 168).",
-            "Sorveglianza sanitaria dei lavoratori addetti (art. 168 c. 2 lett. d).",
+            "Sorveglianza sanitaria dei lavoratori addetti (art. 168, comma 2, lettera d).",
             "Informazione, formazione e addestramento specifici (art. 169)."],
 }
 MISURE_COMUNI[VIOLA] = ["Intervento immediato: il compito non può essere svolto manualmente nelle condizioni "
@@ -92,7 +92,7 @@ def calcola(dati: dict[str, Any]) -> Esito:
         info = v["info"]
         if info["oltre"]:
             note.append(f"«{nome}»: distanza oltre i {numero_it(info['distanza'], 1)} m delle tavole, "
-                        "usati i valori della distanza massima.")
+                        "si usano i valori della distanza massima.")
         righe.append([nome, dict(SCELTE_AZIONE)[a["tipo"]],
                       f"{numero_it(fi[0], 0)} / {numero_it(fi[1], 0)}", numero_it(fi[2]),
                       f"{numero_it(fm[0], 0)} / {numero_it(fm[1], 0)}", numero_it(fm[2]),

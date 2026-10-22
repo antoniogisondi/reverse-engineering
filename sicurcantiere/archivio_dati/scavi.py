@@ -95,7 +95,7 @@ _FANGO = r(
     DPI_BASE + ", stivali di sicurezza")
 _ORDIGNI = r(
     "Esplosione di ordigni bellici inesplosi", 1, 4,
-    "Valutazione del rischio bellico residuo nel PSC (artt. 28 e 91 c. 2-bis); se prevista, bonifica "
+    "Valutazione del rischio bellico residuo nel PSC (artt. 28 e 91, comma 2-bis); se prevista, bonifica "
     "preventiva da impresa specializzata; al ritrovamento di un oggetto sospetto fermare i lavori, "
     "allontanare tutti e avvisare le autorità senza toccarlo.")
 _CARICHI_SOSPESI = r(
@@ -134,7 +134,7 @@ _SILICE = r(
 _FABBRICATI = r(
     "Crollo o ribaltamento di strutture", 2, 4,
     "Verifica preventiva delle fondazioni dei fabbricati e dei manufatti vicini; scavo per campioni o "
-    "con opere di sostegno come da progetto (art. 119 c. 4); monitoraggio di fessure e cedimenti con "
+    "con opere di sostegno come da progetto (art. 119, comma 4); monitoraggio di fessure e cedimenti con "
     "fessurimetri e capisaldi; sospensione dei lavori ai primi segni di dissesto.")
 _TRAFFICO = r(
     "Investimento da veicoli lungo la strada", 2, 4,
@@ -256,7 +256,7 @@ LAVORAZIONI = [
                DPI_BASE + ", guanti dielettrici"),
              r("Incendio ed esplosione", 1, 4,
                "Condotte del gas individuate e segnalate; divieto di fiamme libere; in caso di fuga "
-               "allontanare tutti, spegnere i motori e chiamare il gestore e i vigili del fuoco; "
+               "allontanare tutti, spegnere i motori e chiamare il gestore e i Vigili del fuoco; "
                "rilevatore multigas nello scavo vicino alle reti."),
              _FABBRICATI, _SEPPELLIMENTO, _MMC,
          ]),
@@ -282,7 +282,7 @@ LAVORAZIONI = [
          "Armatura delle pareti dello scavo con tavole e puntelli (sbadacchiatura)",
          "Rivestimento delle pareti con tavole verticali o orizzontali, correnti e puntelli regolabili, "
          "posati man mano che lo scavo procede, per scavi brevi, irregolari o dove il blindaggio non entra. "
-         "Le tavole sporgono almeno 30 cm sopra il ciglio (art. 119 c. 2) e i puntelli sono bloccati contro "
+         "Le tavole sporgono almeno 30 cm sopra il ciglio (art. 119, comma 2) e i puntelli sono bloccati contro "
          "lo scorrimento. Lo smontaggio procede dal basso verso l'alto con il rinterro.",
          "Addetto alla sbadacchiatura delle pareti dello scavo", 70, NC_RI_IN + ("Restauri",),
          ["Armatura delle pareti di scavo (blindaggio)", "Puntelli metallici", "Sega circolare",
@@ -307,7 +307,7 @@ LAVORAZIONI = [
                "Palancola sollevata con grillo o morsa di presa adeguata; innesto guidato con fune e asta "
                "a distanza; nessuno tra la palancola sospesa e quelle già infisse."),
              r("Crollo o ribaltamento di strutture", 2, 4,
-               "Valutazione preventiva delle vibrazioni sugli edifici e sulle reti vicine (art. 119 c. 5, "
+               "Valutazione preventiva delle vibrazioni sugli edifici e sulle reti vicine (art. 119, comma 5; "
                "UNI 9916); preferire la vibroinfissione ad alta frequenza o l'infissione a pressione "
                "vicino ai fabbricati; monitoraggio durante l'infissione."),
              r("Caduta dall'alto", 2, 4,
@@ -389,9 +389,9 @@ LAVORAZIONI = [
                "Nessuno vicino al cassone durante il carico; autista in cabina o in posizione protetta; "
                "carico non oltre le sponde e coperto prima della partenza."),
              r("Caduta dall'alto", 2, 3,
-               "Telone steso da terra con sistema a manovella o da pedana; niente salite sul carico; "
+               "Telone steso da terra con sistema a manovella o da pedana; nessuna salita sul carico; "
                "scalette del cassone integre.",
-               DPI_BASE + ", calzature di sicurezza"),
+               DPI_BASE),
              _TRAFFICO,
          ]),
     fase("MT.16", MT, "Gestione delle terre e rocce da scavo",
@@ -533,7 +533,7 @@ LAVORAZIONI = [
          ["Battipalo (infissione di pali e barriere)", "Autogru", "Saldatrice", "Smerigliatrice angolare"], [
              _CARICHI_SOSPESI,
              r("Crollo o ribaltamento di strutture", 2, 4,
-               "Valutazione preventiva delle vibrazioni trasmesse a edifici e reti (art. 119 c. 5, UNI 9916) "
+               "Valutazione preventiva delle vibrazioni trasmesse a edifici e reti (art. 119, comma 5; UNI 9916) "
                "con monitoraggio; piano di posa del battipalo portante e livellato."),
              r("Proiezione di schegge e frammenti", 2, 3,
                "Zona di battuta interdetta; cuscino della cuffia efficiente per limitare le rotture della "
@@ -684,7 +684,7 @@ LAVORAZIONI = [
          "Approfondimento o allargamento delle fondazioni di un edificio esistente scavando sotto la "
          "muratura per tratti brevi e alternati, secondo la sequenza di progetto, con puntellatura delle "
          "strutture sovrastanti e getto dei nuovi conci prima di aprire i tratti adiacenti "
-         "(art. 119 c. 4). Lo scavo sotto la fondazione è eseguito a mano.",
+         "(art. 119, comma 4). Lo scavo sotto la fondazione è eseguito a mano.",
          "Addetto alla sottomurazione delle fondazioni", 65, ("Ristrutturazioni", "Restauri"),
          ["Miniescavatore", "Utensili manuali", "Martello demolitore", "Puntelli metallici",
           "Casseforme", "Betoniera a bicchiere"], [

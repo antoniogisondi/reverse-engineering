@@ -44,7 +44,7 @@ RISCHI: dict[str, dict[str, Any]] = {
         "Calzature di sicurezza"),
     CARICHI: r(
         "Movimentazione manuale dei carichi", 3, 2,
-        "Valutazione secondo l'Allegato XXXIII e le norme ISO 11228; elementi pesanti movimentati con "
+        "Valutazione secondo l'Allegato XXXIII e le norme UNI ISO 11228; elementi pesanti movimentati con "
         "mezzi meccanici o da due persone; carico tenuto vicino al corpo, schiena dritta e senza "
         "torsioni; percorsi sgombri; formazione e informazione (art. 169).",
         "Guanti, calzature di sicurezza"),

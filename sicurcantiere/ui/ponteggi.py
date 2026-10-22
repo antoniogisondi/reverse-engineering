@@ -40,13 +40,13 @@ class PaginaPonteggi(Pagina):
             Colonna("impresa_id", "Impresa che monta", "scelta", larghezza=190, scelte=self._imprese),
             Colonna("tipo", "Tipologia", "scelta", larghezza=200,
                     scelte=lambda: [(t, t) for t in pimus.TIPI_PONTEGGIO]),
-            Colonna("altezza", "Altezza m", "decimale", larghezza=90, massimo=200),
-            Colonna("lunghezza", "Sviluppo m", "decimale", larghezza=95, massimo=2000),
+            Colonna("altezza", "Altezza (m)", "decimale", larghezza=90, massimo=200),
+            Colonna("lunghezza", "Sviluppo (m)", "decimale", larghezza=95, massimo=2000),
             Colonna("conforme_schemi", "Secondo schemi tipo", "scelta",
-                    scelte=lambda: [(1, "Sì"), (0, "No: serve il progetto")]),
+                    scelte=lambda: [(1, "Sì"), (0, "No (serve il progetto)")]),
         ], valori_nuovo=lambda: {"nome": "Ponteggio di facciata"})
         self.tabella.imposta_titolo("Ponteggi")
-        genera = primario(QPushButton("Genera PiMUS (.docx)..."))
+        genera = primario(QPushButton("Genera il PiMUS in Word..."))
         genera.clicked.connect(self._genera)
         self.tabella.pulsanti.insertWidget(2, genera)
         self.tabella.selezione_cambiata.connect(self._seleziona)
@@ -63,7 +63,7 @@ class PaginaPonteggi(Pagina):
             ("classe_carico", "Classe / sovraccarico ammesso"),
             ("ancoraggi", "Ancoraggi (tipo e maglia)"),
             ("piano_appoggio", "Piano di appoggio"),
-            ("progettista", "Progettista (se serve il progetto)"),
+            ("progettista", "Progettista (se è richiesto il progetto)"),
             ("preposto", "Preposto al montaggio"),
             ("squadra", "Addetti al montaggio"),
             ("sollevamento", "Attrezzature di sollevamento"),
@@ -157,20 +157,20 @@ class PaginaPonteggi(Pagina):
 
     def _genera(self) -> None:
         if self.id_ is None:
-            QMessageBox.information(self, "PiMUS", "Selezionare un ponteggio.")
+            QMessageBox.information(self, "PiMUS", "Seleziona prima un ponteggio.")
             return
         self.salva_in_sospeso()
         p = self.repo.leggi("ponteggi", self.id_)
         predefinito = self.repo.progetto.percorso.with_name(f"PiMUS - {p['nome'] or 'ponteggio'}.docx")
-        percorso, _ = QFileDialog.getSaveFileName(self, "Salva PiMUS", str(predefinito), "Documento Word (*.docx)")
+        percorso, _ = QFileDialog.getSaveFileName(self, "Salva il PiMUS", str(predefinito), "Documento Word (*.docx)")
         if not percorso:
             return
         try:
             file = genera_pimus(self.repo, self.id_, percorso)
         except PermissionError:
-            QMessageBox.warning(self, "Errore", "Impossibile scrivere il file: è aperto in Word?")
+            QMessageBox.warning(self, "Errore", "Impossibile salvare il file: verifica che non sia aperto in Word.")
             return
-        if QMessageBox.question(self, "PiMUS generato", f"Creato {Path(file).name}.\nAprirlo ora?") \
+        if QMessageBox.question(self, "PiMUS generato", f"PiMUS creato: {Path(file).name}.\n\nVuoi aprirlo ora?") \
                 == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 

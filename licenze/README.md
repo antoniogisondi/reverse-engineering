@@ -1,22 +1,22 @@
 # Gestionale delle licenze SicurCantiere
 
-Pagina web per gestire **clienti, licenze, rinnovi, pagamenti e scadenze**:
+Applicazione web per gestire **clienti, licenze, rinnovi, pagamenti e scadenze**:
 - gira su un server dell'ufficio, per esempio una macchina virtuale Ubuntu sul NAS;
-- si apre dal browser, anche da fuori ufficio, senza installare niente sui PC.
+- si apre dal browser, anche da fuori ufficio, senza installare nulla sui PC.
 
 Qui si **firmano le licenze**: la chiave privata resta solo sul server. I programmi dei clienti
-contengono la chiave pubblica e verificano il codice da soli, senza collegarsi al server. Se il
-gestionale non è raggiungibile, i programmi continuano quindi a funzionare.
+contengono la chiave pubblica e verificano il codice da soli, senza collegarsi al server. Anche se il
+gestionale non è raggiungibile, quindi, i programmi continuano a funzionare.
 
 ## 1. Preparare la macchina virtuale
 
-Va bene una VM **Ubuntu Server 22.04 o 24.04** (sul NAS dell'ufficio) oppure un container
+È sufficiente una VM **Ubuntu Server 22.04 o 24.04** (sul NAS dell'ufficio) oppure un container
 Debian 12 su Proxmox. Bastano 1 CPU, 1 GB di RAM e 10 GB di disco.
 
 - **Indirizzo fisso nella rete dell'ufficio** (per esempio `192.168.1.50`): si imposta nel router
   (DHCP statico/prenotazione per la VM) oppure in Ubuntu con netplan.
 - **Avvio automatico** della VM quando si accende il NAS (opzione nelle impostazioni della VM).
-- In installazione di Ubuntu spuntare **OpenSSH server**, per collegarsi dal PC con
+- Durante l'installazione di Ubuntu selezionare **OpenSSH server**, per collegarsi dal PC con
   `ssh utente@192.168.1.50`.
 
 ## 2. Accesso da internet: dominio e router
@@ -24,7 +24,7 @@ Debian 12 su Proxmox. Bastano 1 CPU, 1 GB di RAM e 10 GB di disco.
 Per aprire il gestionale da fuori ufficio servono tre cose.
 
 1. **Un nome a dominio**, per esempio `licenze.tuodominio.it`:
-   - se c'è già un dominio, si aggiunge un record DNS di tipo **A** con l'IP pubblico
+   - se si dispone già di un dominio, si aggiunge un record DNS di tipo **A** con l'IP pubblico
      dell'ufficio;
    - se l'IP pubblico cambia (linee di casa e piccoli uffici), serve un DNS dinamico. Lo
      gestiscono molti router (Impostazioni > DDNS) oppure il NAS stesso: per esempio Synology
@@ -44,7 +44,7 @@ Per aprire il gestionale da fuori ufficio servono tre cose.
 
 ## 3. Installare il gestionale
 
-Collegati alla VM (console o `ssh`):
+Collegarsi alla VM (console o `ssh`):
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y && sudo apt install -y git
@@ -61,7 +61,7 @@ Lo script:
   rinnova;
 - avvia il gestionale, che ascolta solo dietro Caddy e non è raggiungibile direttamente;
 - attiva il firewall (`ufw`), che lascia passare solo SSH e le porte 80/443;
-- chiede nome e password del primo utente (almeno 10 caratteri: meglio una frase lunga).
+- chiede nome e password del primo utente (almeno 10 caratteri; è consigliata una frase lunga).
 
 Alla fine il gestionale è su `https://licenze.tuodominio.it`, da qualsiasi PC o telefono.
 
@@ -72,15 +72,15 @@ browser chiede di accettare una volta.
 Se il repository è privato, `git clone` chiede l'accesso a GitHub. In alternativa si copia la
 cartella del repository sulla VM, per esempio con `scp -r sicurcantiere utente@192.168.1.50:`.
 
-## 4. Tre cose da fare subito
+## 4. Operazioni da eseguire subito
 
 1. **Attivare la verifica in due passaggi.** Va fatto per ogni utente, in *Impostazioni >
    Verifica in due passaggi*:
    - si inquadra il QR code con un'app di autenticazione (Google Authenticator, Microsoft
-     Authenticator, Aegis…);
+     Authenticator, Aegis...);
    - si conferma con il primo codice.
 
-   Da quel momento per entrare servono la password **e** il codice del telefono. Finché non è
+   Da quel momento per accedere servono la password **e** il codice del telefono. Finché non è
    attiva, il gestionale lo ricorda in ogni pagina. Se il telefono va perso, dalla VM si
    disattiva con `togli-2fa` (vedi la sezione 6).
 2. **Copiare la chiave privata in un posto sicuro.**
@@ -88,7 +88,7 @@ cartella del repository sulla VM, per esempio con `scp -r sicurcantiere utente@1
      `scp`. Va messo su una chiavetta in cassaforte o in un gestore di password, mai per email.
    - Se va persa, le licenze già vendute continuano a funzionare, ma non se ne possono più
      emettere di nuove senza distribuire una nuova versione del programma.
-3. **Mandare la chiave pubblica per il programma.**
+3. **Inserire la chiave pubblica nel programma.**
    - Si trova nella pagina *Impostazioni*.
    - Va inserita in `sicurcantiere/licenza.py` (`CHIAVE_PUBBLICA`). Da quella versione in poi i
      programmi chiedono la licenza.
@@ -98,7 +98,7 @@ cartella del repository sulla VM, per esempio con `scp -r sicurcantiere utente@1
 
 - **Dal NAS**: copia (snapshot/backup) della VM ogni giorno, conservandone almeno 14. Sui NAS
   Synology si usa *Virtual Machine Manager > Protezione*, sui QNAP *Virtualization Station >
-  Snapshot/Backup*. Meglio se una copia va anche fuori dal NAS (disco USB o cloud).
+  Snapshot/Backup*. È consigliabile conservare una copia anche fuori dal NAS (disco USB o cloud).
 - **Solo i dati**: sono tutti in `/var/lib/sicurcantiere-licenze` (database `licenze.db` e
   chiave). Per esempio:
   ```bash
@@ -112,26 +112,26 @@ Dato che il gestionale è raggiungibile da internet:
 
 - **Protezioni del gestionale:**
   - accesso con password e codice del telefono;
-  - dopo 5 tentativi sbagliati su un nome utente (o 20 dallo stesso indirizzo) l'accesso si
+  - dopo 5 tentativi errati su un nome utente (o 20 dallo stesso indirizzo) l'accesso si
     blocca per 15 minuti;
   - la sessione dura al massimo 8 ore;
   - il traffico è sempre cifrato (HTTPS).
-- **Utenti.** Si aggiungono o si cambia loro la password dalla VM:
+- **Utenti.** Gli utenti si aggiungono, e la loro password si cambia, dalla VM:
   ```bash
   sudo runuser -u sclicenze -- env SICURCANTIERE_LICENZE_DATI=/var/lib/sicurcantiere-licenze \
       PYTHONPATH=/opt/sicurcantiere-licenze/codice /opt/sicurcantiere-licenze/venv/bin/python -m licenze crea-utente NOME
   ```
   Con `togli-2fa NOME` al posto di `crea-utente NOME` si disattiva la verifica in due passaggi.
   Serve quando un telefono va perso.
-- **Ubuntu** installa da solo gli aggiornamenti di sicurezza. Ogni tanto conviene un
-  `sudo apt full-upgrade` e un riavvio.
+- **Ubuntu** installa da solo gli aggiornamenti di sicurezza. Periodicamente è opportuno
+  eseguire `sudo apt full-upgrade` e riavviare.
 - **Controlli in caso di problemi:**
   - `systemctl status sicurcantiere-licenze caddy`;
   - `journalctl -u caddy`, per gli errori del certificato (di solito DNS o porte non inoltrate).
 
 ## 7. In alternativa: senza aprire porte (Cloudflare Tunnel)
 
-Serve se il router non permette l'inoltro delle porte (CGNAT) o se non si vogliono aprire.
+È utile se il router non consente l'inoltro delle porte (CGNAT) o se non si vogliono aprire porte.
 
 1. Il dominio va gestito da Cloudflare (piano gratuito).
 2. Si installa il gestionale **senza dominio** (`sudo bash licenze/installa.sh`).
@@ -161,7 +161,7 @@ dell'assistente AI.
 - **Cosa è pubblico**: il ponte è l'unica parte raggiungibile da internet. Il gestionale resta
   privato.
 
-### Accenderlo
+### Attivazione
 
 1. **Chiavi dei fornitori**:
    ```bash
@@ -176,7 +176,7 @@ dell'assistente AI.
    sudo systemctl restart sicurcantiere-licenze-ai
    ```
    Il file è leggibile solo da root e le chiavi non lasciano mai il server.
-2. **Pubblicarlo su internet con Tailscale Funnel**: niente dominio da comprare e nessuna porta da
+2. **Pubblicarlo su internet con Tailscale Funnel**: nessun dominio da acquistare e nessuna porta da
    aprire sul router.
    ```bash
    sudo tailscale funnel --bg 8100
@@ -203,26 +203,26 @@ dell'assistente AI.
 
 - **Crediti**: un credito corrisponde a un token con il motore Standard; con l'Avanzato (Claude)
   ogni token vale 8 crediti.
-- **Rinnovo della quota**: si rinnova il primo di ogni mese ed è conteggiata per cliente.
-- **Tetto giornaliero**: in un giorno si usa al massimo il 30% della quota mensile, contro gli
-  abusi.
+- **Rinnovo della quota**: la quota si rinnova il primo giorno di ogni mese ed è calcolata per cliente.
+- **Tetto giornaliero**: per prevenire gli abusi, in un giorno si può usare al massimo il 30%
+  della quota mensile.
 - **Ricariche**: si aggiungono dalla scheda del cliente (*Aggiungi la ricarica*), non scadono e si
   usano dopo la quota del mese.
 - **Consumi**: per mese e per motore, nella scheda del cliente. Il totale del mese è nel
   cruscotto.
-- **Credito finito o licenza scaduta**: l'assistente si ferma, ma il resto del programma continua a
+- **Credito esaurito o licenza scaduta**: l'assistente si ferma, ma il resto del programma continua a
   funzionare.
 
 ## Come funziona una licenza
 
 - **Emissione.** Nella scheda del cliente si sceglie *Emetti una licenza*: piano (POS, PSC,
   PiMUS, Completo, Studio), scadenza, postazioni e prezzo. Il gestionale crea e firma il codice
-  `SC1-...` e prepara il testo dell'email da mandare al cliente.
-- **Attivazione.** Il cliente incolla il codice in *Aiuto > Licenza*.
-- **Rinnovo.** *Rinnova per un anno* emette un nuovo codice: la nuova scadenza parte dalla
-  vecchia, oppure da oggi se è già passata.
+  `SC1-...` e prepara il testo dell'email da inviare al cliente.
+- **Attivazione.** Il cliente incolla il codice in *Aiuto > Licenza...*.
+- **Rinnovo.** *Rinnova per un anno* emette un nuovo codice: la nuova scadenza decorre dalla
+  precedente, oppure da oggi se è già passata.
 - **Scadenza.** Il programma continua a funzionare, ma non propone gli aggiornamenti pubblicati
   dopo la scadenza e segnala il rinnovo.
-- **Senza licenza.** C'è la prova di 30 giorni con un solo cantiere.
+- **Senza licenza.** Il programma funziona in prova per 30 giorni, con un solo cantiere.
 - **Annullamento.** Una licenza segnata come annullata resta tale solo nel registro: un codice
   già consegnato non si può revocare a distanza, perché il programma non si collega al server.

@@ -1,4 +1,4 @@
-"""Fascicolo con le caratteristiche dell'opera (art. 91 c. 1 lett. b e Allegato XVI del D.Lgs. 81/2008).
+"""Fascicolo con le caratteristiche dell'opera (art. 91, comma 1, lettera b), e Allegato XVI del D.Lgs. 81/2008).
 
 Stessa impaginazione del PSC: copertina, capitoli I-III dell'Allegato XVI con le loro schede.
 """
@@ -47,7 +47,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
         doc,
         comune=comune,
         titolo="Fascicolo dell'opera",
-        riferimento="D.Lgs. 9 aprile 2008, n. 81 · art. 91 c. 1 lett. b) e Allegato XVI",
+        riferimento="D.Lgs. 9 aprile 2008, n. 81 · art. 91, comma 1, lettera b), e Allegato XVI",
         voci=[("Cantiere", indirizzo_cantiere(c) or Manca("indirizzo del cantiere", CANTIERE)),
               ("Natura dell'opera", c["natura_opera"]),
               ("Committente", committente["nome"] if committente else Manca("committente", SOGGETTI))],
@@ -61,8 +61,8 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
         stile.tabella_colorata(doc, ["Rev.", "Data", "Descrizione"], [
             [str(r["numero"]), data_it(r["data"]), r["descrizione"]] for r in revisioni], larghezze=[1.2, 2.6, 13.6])
     else:
-        doc.add_paragraph(f"Prima emissione del {data_documento}. Il fascicolo si aggiorna durante i lavori e a "
-                          "ogni modifica dell'opera, ed è consegnato al committente alla fine dei lavori.")
+        doc.add_paragraph(f"Prima emissione del {data_documento}. Il fascicolo è aggiornato in corso d'opera e a "
+                          "ogni modifica dell'opera ed è consegnato al committente al termine dei lavori.")
 
     stile.capitolo(doc, "Descrizione sintetica dell'opera e soggetti coinvolti",
                    "Allegato XVI, capitolo I - scheda I", nuova_pagina=True)
@@ -103,10 +103,10 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     if dotazioni:
         stile.tabella_colorata(doc, ["Misura in dotazione", "Verifiche e controlli da effettuare", "Periodicità"],
                                [[m, " ", " "] for m in dotazioni], larghezze=[6.4, 7.4, 3.6])
-        stile.nota(doc, "Verifiche, controlli e periodicità si completano con le indicazioni dei fabbricanti e degli "
-                        "installatori delle misure in dotazione.")
+        stile.nota(doc, "Le verifiche, i controlli e le relative periodicità sono completati sulla base delle "
+                        "indicazioni dei fabbricanti e degli installatori delle misure in dotazione.")
     else:
-        stile.testo(doc, "", "misure preventive e protettive in dotazione dell'opera (per esempio ancoraggi e "
+        stile.testo(doc, "", "misure preventive e protettive in dotazione dell'opera (ad esempio ancoraggi e "
                              "linee vita)", FASCICOLO, CONSIGLIATO)
 
     stile.capitolo(doc, "Riferimenti alla documentazione di supporto", "Allegato XVI, capitolo III")

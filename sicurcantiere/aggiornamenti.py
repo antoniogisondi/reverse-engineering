@@ -91,7 +91,7 @@ def scarica(url: str, destinazione: str | Path, avanzamento: Callable[[int, int]
                 if avanzamento and avanzamento(letti, totale) is False:
                     raise ErroreAggiornamento("Scaricamento annullato.")
         if totale and letti != totale:
-            raise ErroreAggiornamento("Scaricamento incompleto: riprovare.")
+            raise ErroreAggiornamento("Scaricamento incompleto: riprova.")
         parziale.replace(destinazione)
     except OSError as e:
         raise ErroreAggiornamento(f"Scaricamento non riuscito: {e}") from e

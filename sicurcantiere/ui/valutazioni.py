@@ -46,7 +46,7 @@ ESEMPI = {
     "niosh_composto": "«Il magazziniere scarica sacchi da 25 kg dal camion (1 al minuto) e sposta casse "
                       "da 12 kg sugli scaffali (3 al minuto), per 4 ore».",
     "traino_spinta": "«Il manovale spinge la carriola carica di calcestruzzo per circa 15 m, 20 volte all'ora; "
-                     "col dinamometro forza iniziale 22 kg e di mantenimento 12 kg».",
+                     "con il dinamometro forza iniziale 22 kg e di mantenimento 12 kg».",
     "trasporto": "«Il manovale porta a mano i blocchi da 12 kg dal bancale al piano di lavoro, a 5 m, "
                  "3 al minuto per 2 ore».",
     "ocra": "«Il ferraiolo lega i ferri con la tenaglia per circa 5 ore, con movimenti rapidi del polso "
@@ -255,8 +255,8 @@ class PannelloEsito(QFrame):
 class PaginaValutazioni(Pagina):
     titolo = "Valutazioni dei rischi specifici"
     voce = "Valutazioni specifiche"
-    sottotitolo = ("Le valutazioni necessarie vengono create in automatico dai rischi delle lavorazioni: "
-                   "a te resta da inserire i parametri.")
+    sottotitolo = ("Le valutazioni necessarie vengono create automaticamente dai rischi delle lavorazioni: "
+                   "restano da inserire i parametri.")
     icona = "valutazioni"
     sezioni_controlli = ("Valutazioni",)
 
@@ -265,17 +265,17 @@ class PaginaValutazioni(Pagina):
         self.id_: int | None = None
         self.tabella = TabellaCrud(repo, "valutazioni", [
             Colonna("titolo", "Valutazione", larghezza=220, suggerimento=(
-                "Nome che date alla valutazione, per riconoscerla nell'elenco e come titolo "
-                "nella relazione e nel POS (es. «Carico sacchi di cemento in betoniera»).")),
+                "Nome della valutazione: la identifica nell'elenco ed è il titolo usato nella "
+                "relazione e nel POS (per esempio «Carico sacchi di cemento in betoniera»).")),
             Colonna("metodo", "Metodo", "scelta", larghezza=290,
                     scelte=lambda: [(k, m.nome) for k, m in METODI.items()]),
             Colonna("mansione", "Mansione / gruppo omogeneo", larghezza=180, suggerimento=(
                 "Lavoratori esposti allo stesso rischio, a cui si riferisce l'esito "
-                "(es. «Manovali», «Carpentieri»); per il rumore e le vibrazioni è il gruppo "
+                "(per esempio «Manovali», «Carpentieri»); per il rumore e le vibrazioni è il gruppo "
                 "omogeneo di esposizione.")),
             Colonna("lavorazioni", "Lavorazioni", "calcolata", larghezza=240,
                     calcola=lambda r: lavorazioni_valutazione(self.repo, r) or "(nessuna)",
-                    suggerimento="Lavorazioni in cui si presenta il rischio: pulsante «Lavorazioni...»."),
+                    suggerimento="Lavorazioni in cui si presenta il rischio: si scelgono con il pulsante «Lavorazioni...»."),
             Colonna("esito", "Risultato", "calcolata", calcola=self._esito_riga, disegno=tema.DelegatoRisultato),
         ], valori_nuovo=lambda: {"metodo": "niosh"})
         self.tabella.imposta_titolo("Valutazioni")
@@ -292,7 +292,7 @@ class PaginaValutazioni(Pagina):
         self.descrizione = QPlainTextEdit()
         self.descrizione.setPlaceholderText(
             "Descrivi l'attività come la vedresti in cantiere: cosa si solleva o si ripete, pesi, "
-            "altezze, quante volte, per quanto tempo, pause, posture... Es.: «Il manovale carica in "
+            "altezze, quante volte, per quanto tempo, pause, posture... Per esempio: «Il manovale carica in "
             "betoniera sacchi di cemento da 25 kg presi da un bancale a terra, circa 2 sacchi al "
             "minuto per 3 ore al giorno, ruotando il busto»."
         )
@@ -330,7 +330,7 @@ class PaginaValutazioni(Pagina):
         scorrimento.setWidget(sinistra)
 
         self.esito = PannelloEsito()
-        relazione = QPushButton("Genera relazione (.docx)...")
+        relazione = QPushButton("Genera la relazione in Word...")
         relazione.clicked.connect(self._genera)
         destra = QWidget()
         ld = QVBoxLayout(destra)
@@ -362,12 +362,12 @@ class PaginaValutazioni(Pagina):
 
     def _scegli_lavorazioni(self) -> None:
         if self.id_ is None:
-            QMessageBox.information(self, "Lavorazioni", "Selezionare prima la valutazione.")
+            QMessageBox.information(self, "Lavorazioni", "Seleziona prima una valutazione.")
             return
         riga = self.repo.leggi("valutazioni", self.id_)
         dialogo = DialogoFasi(self.repo, set(self.repo.fasi_valutazione(self.id_)),
                               "Lavorazioni della valutazione",
-                              f"<b>{riga['titolo'] or 'Valutazione'}</b>: spuntare tutte le lavorazioni "
+                              f"<b>{riga['titolo'] or 'Valutazione'}</b>: spunta tutte le lavorazioni "
                               "in cui si presenta il rischio valutato.", self)
         if dialogo.exec():
             self.repo.salva_fasi_valutazione(self.id_, dialogo.scelte())
@@ -470,7 +470,7 @@ class PaginaValutazioni(Pagina):
             return
         testo = self.descrizione.toPlainText().strip()
         if len(testo) < 15:
-            QMessageBox.information(self, "Assistente AI", "Descrivere prima l'attività da valutare.")
+            QMessageBox.information(self, "Assistente AI", "Descrivi prima l'attività da valutare.")
             return
         metodo = self.editor.metodo
         id_ = self.id_
@@ -504,16 +504,16 @@ class PaginaValutazioni(Pagina):
         riga = self.repo.leggi("valutazioni", self.id_)
         predefinito = self.repo.progetto.percorso.with_name(
             f"Valutazione - {riga['titolo'] or METODI[riga['metodo']].nome}.docx".replace("/", "-"))
-        percorso, _ = QFileDialog.getSaveFileName(self, "Salva relazione", str(predefinito),
+        percorso, _ = QFileDialog.getSaveFileName(self, "Salva la relazione", str(predefinito),
                                                   "Documento Word (*.docx)")
         if not percorso:
             return
         try:
             file = genera_valutazione(self.repo, self.id_, percorso)
         except PermissionError:
-            QMessageBox.warning(self, "Errore", "Impossibile scrivere il file: è aperto in Word?")
+            QMessageBox.warning(self, "Errore", "Impossibile salvare il file: verifica che non sia aperto in Word.")
             return
-        if QMessageBox.question(self, "Relazione generata", f"Creato {Path(file).name}.\nAprirlo ora?") \
+        if QMessageBox.question(self, "Relazione generata", f"Relazione creata: {Path(file).name}.\n\nVuoi aprirla ora?") \
                 == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 

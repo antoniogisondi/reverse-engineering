@@ -381,7 +381,7 @@ LAVORAZIONI = [
          "Addetto alla posa di pannelli radianti a pavimento", 40, EDILIZIA,
          ["Utensili manuali", "Avvitatore elettrico"], [
              r("Posture incongrue", 4, 2,
-               "Lavoro quasi interamente in ginocchio o chinati: ginocchiere, rotazione dei compiti tra "
+               "Lavoro quasi interamente in ginocchio o in posizione chinata: ginocchiere, rotazione dei compiti tra "
                "gli addetti e pause per alzarsi e cambiare posizione; svolgitore per il tubo, per non "
                "srotolarlo a mano piegati.", DPI_INT + ", ginocchiere"),
              r("Scivolamenti e cadute a livello", 3, 2,
@@ -426,7 +426,7 @@ LAVORAZIONI = [
          "con autogru o autocarro con gru, posa su basamenti antivibranti, posa e brasatura delle linee "
          "frigorifere in rame, vuoto, carica del refrigerante e collegamento delle unità interne. Le "
          "operazioni sui circuiti con gas fluorurati sono riservate a personale certificato "
-         "(Reg. UE 2024/573, D.P.R. 146/2018).",
+         "(Reg. (UE) 2024/573, D.P.R. 146/2018).",
          "Addetto all'installazione di impianti di climatizzazione", 35, EDILIZIA,
          ["Autogru", "Autocarro con gru", "Carotatrice", "Cannello a gas", "Linea vita provvisoria",
           "Utensili manuali"], [

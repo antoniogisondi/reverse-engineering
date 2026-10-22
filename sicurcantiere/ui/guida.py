@@ -7,33 +7,36 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QTextBrowser, QVBoxLayo
 GUIDA = """
 <h2>Come si compila un {documento}</h2>
 <ol>
-<li><b>Nuovo cantiere</b> (Ctrl+N): scegli dove salvare il file. I dati si salvano da soli a ogni
-modifica; <i>Salva</i> (Ctrl+S) conferma anche il campo in cui stai scrivendo.</li>
+<li><b>Nuovo cantiere</b> (Ctrl+N): scegli dove salvare il file. I dati vengono salvati automaticamente
+a ogni modifica; <i>Salva</i> (Ctrl+S) registra anche il campo in cui stai scrivendo.</li>
 <li><b>Compila le pagine dall'alto in basso</b>, seguendo i numeri nella barra a sinistra. Il numero
-rosso o arancio accanto a una pagina dice quanti problemi restano; la spunta verde che è completa.</li>
-<li>Nelle lavorazioni usa <b>Importa da archivio...</b>: ogni fase porta con sé macchine, attrezzi,
-rischi, misure e DPI, che puoi modificare. Un rischio che non c'è si spunta «Non presente» con la
-motivazione.</li>
-<li>Le <b>valutazioni dei rischi specifici</b> (carichi, rumore, vibrazioni, movimenti ripetitivi) si
-creano da sole in base ai rischi: restano «Da eseguire» finché non inserisci i parametri.</li>
-<li>Nell'ultima pagina correggi i <b>controlli</b>: un doppio clic su una riga porta alla pagina da
-correggere. Poi premi <b>Genera</b> (Ctrl+P) e rileggi il documento in Word prima di firmarlo.</li>
+rosso o arancione accanto a una pagina indica quanti problemi restano da risolvere; la spunta verde indica
+che la pagina è completa.</li>
+<li>Nelle lavorazioni usa <b>Importa dall'archivio...</b>: ogni fase porta con sé macchine, attrezzi,
+rischi, misure e DPI, che puoi modificare. Se un rischio non è presente, spunta «Non presente» e indica
+la motivazione.</li>
+<li>Le <b>valutazioni dei rischi specifici</b> (carichi, rumore, vibrazioni, movimenti ripetitivi) vengono
+create automaticamente in base ai rischi: restano «Da eseguire» finché non ne inserisci i parametri.</li>
+<li>Nell'ultima pagina risolvi le segnalazioni dei <b>controlli</b>: con un doppio clic su una riga apri
+la pagina da correggere. Poi premi <b>Genera</b> (Ctrl+P) e rileggi il documento in Word prima di
+firmarlo.</li>
 </ol>
 <h3>Dove sono i dati</h3>
 <ul>
-<li>I cantieri sono nei file che hai salvato (anche su una cartella di rete).</li>
-<li>Copie di sicurezza automatiche, fatte a ogni apertura (le ultime 5 per cantiere):
+<li>I cantieri si trovano nei file che hai salvato (anche in una cartella di rete).</li>
+<li>Copie di sicurezza automatiche, create a ogni apertura (le ultime 5 per ciascun cantiere):
 <code>%APPDATA%\\SicurCantiere\\copie di sicurezza</code>.</li>
 <li>Archivio personale di anagrafiche e lavorazioni: <code>%APPDATA%\\SicurCantiere\\archivio.db</code>.</li>
 </ul>
 <h3>Assistente AI</h3>
-<p>È incluso nella licenza, senza chiavi né account, con un credito mensile secondo il piano. È spento
-di serie: si accende da <i>Strumenti &gt; Impostazioni assistente AI</i>, dove è spiegato quali dati
-vengono inviati e dove si verifica il credito. Durante la prova gratuita non è disponibile. Le sue
-proposte vanno sempre verificate.</p>
+<p>È incluso nella licenza, senza chiavi né account, con un credito mensile che dipende dal piano.
+È disattivato per impostazione predefinita: puoi attivarlo da <i>Strumenti &gt; Impostazioni assistente
+AI</i>, dove trovi quali dati vengono inviati e il credito disponibile. Non è disponibile durante la prova
+gratuita. Verifica sempre le sue proposte.</p>
 <h3>Aggiornamenti</h3>
-<p>Il programma controlla da solo le nuove versioni e le segnala in basso a destra; si può controllare
-anche da <i>Aiuto &gt; Controlla aggiornamenti</i>. Cantieri e archivio restano dopo l'aggiornamento.</p>
+<p>Il programma verifica automaticamente la disponibilità di nuove versioni e le segnala in basso a
+destra; puoi verificarla anche da <i>Aiuto &gt; Controlla aggiornamenti</i>. Cantieri e archivio vengono
+conservati con l'aggiornamento.</p>
 """
 
 

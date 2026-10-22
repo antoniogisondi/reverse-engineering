@@ -124,16 +124,16 @@ class PannelloComposizioni(QWidget):
                                   "una bozza, la ricompone con i dati aggiornati.")
         self.p_apri.setToolTip("Apre il documento in Word. Le bozze si possono modificare e poi riprendere qui; "
                                "le revisioni emesse si aprono in sola lettura.")
-        self.p_capitoli.setToolTip("Togli capitoli, aggiungi o sostituisci testo: le modifiche restano anche "
-                                   "quando si ricompone.")
-        self.p_emetti.setToolTip("Versione definitiva: senza filigrana BOZZA, con i dati mancanti come righe da "
-                                 "compilare a mano. Una revisione emessa non si modifica più.")
+        self.p_capitoli.setToolTip("Togli capitoli, aggiungi o sostituisci testo: le modifiche restano valide "
+                                   "anche nelle composizioni successive.")
+        self.p_emetti.setToolTip("Emette la versione definitiva: senza filigrana BOZZA, con i dati mancanti come righe "
+                                 "da compilare a mano. Una revisione emessa non è più modificabile.")
         menu.setToolTipsVisible(True)
-        self.p_riprendi.setToolTip("Salva nel cantiere la bozza modificata e salvata in Word.")
-        self.p_confronta.setToolTip("Cosa è cambiato, capitolo per capitolo, rispetto alla revisione precedente "
-                                    "(o tra le due revisioni selezionate).")
-        self.p_annulla.setToolTip("Bozza: la elimina. Revisione emessa: la segna come annullata, resta nello "
-                                  "storico.")
+        self.p_riprendi.setToolTip("Salva nel cantiere la bozza modificata in Word (dopo averla salvata in Word).")
+        self.p_confronta.setToolTip("Mostra le differenze, capitolo per capitolo, rispetto alla revisione "
+                                    "precedente (o tra le due revisioni selezionate).")
+        self.p_annulla.setToolTip("Bozza: la elimina. Revisione emessa: la segna come annullata e la conserva "
+                                  "nello storico.")
         for pulsante, slot in ((self.p_componi, self.componi), (self.p_apri, self.apri_in_word),
                                (self.p_capitoli, self.modifica_capitoli), (self.p_emetti, self.emetti)):
             pulsante.clicked.connect(lambda _=False, s=slot: s())
@@ -233,12 +233,13 @@ class PannelloComposizioni(QWidget):
             self.avviso.setText(f"Inserisci l'impresa per comporre il {self.nome}.")
         elif not self._righe:
             self.avviso.setText(f"Nessun documento composto. «Componi la bozza» crea il {self.nome} dai dati del "
-                                "cantiere e lo conserva qui: si apre, si ricompone, si emette e si consegna.")
+                                "cantiere e lo conserva qui: da questo elenco puoi aprirlo, ricomporlo, emetterlo e "
+                                "segnarlo come consegnato.")
         else:
             modificate = [v for v in self._righe if self._modificata_in_word(v)]
-            self.avviso.setText("La bozza è stata modificata in Word: premi «Riprendi le modifiche da Word» per "
-                                "salvarla nel cantiere." if modificate else
-                                "Doppio clic su un documento per aprirlo in Word.")
+            self.avviso.setText("La bozza è stata modificata in Word: scegli «Altro» > «Riprendi le modifiche fatte "
+                                "in Word» per salvarla nel cantiere." if modificate else
+                                "Fai doppio clic su un documento per aprirlo in Word.")
 
     def selezionata(self) -> dict[str, Any] | None:
         righe = sorted({i.row() for i in self.tabella.selectedIndexes()}) if self.tabella.rowCount() else []
@@ -293,7 +294,7 @@ class PannelloComposizioni(QWidget):
                                        + f"\n{m['dato'][:1].upper()}{m['dato'][1:]}")
                 item.setForeground(QBrush(QColor(colori["err"] if obbligatorio else colori["tx"])))
                 item.setData(Qt.ItemDataRole.UserRole, m["sezione"])
-                item.setToolTip("Doppio clic per andare alla pagina in cui si compila")
+                item.setToolTip("Fai doppio clic per aprire la pagina in cui si compila il dato")
                 self.mancanti.addItem(item)
 
     def _vai_al_dato(self, item: QListWidgetItem) -> None:
@@ -354,7 +355,7 @@ class PannelloComposizioni(QWidget):
             dati = percorso.read_bytes()
         except OSError as e:
             QMessageBox.warning(self, "Riprendi da Word", f"Impossibile leggere il file:\n{e}\n\n"
-                                                          "Salvalo e chiudilo in Word, poi riprova.")
+                                                          "Salva e chiudi il documento in Word, poi riprova.")
             return
         comp.acquisisci_da_word(self.repo, c["id"], dati)
         self._copie[c["id"]] = (percorso, percorso.stat().st_mtime)
@@ -373,8 +374,8 @@ class PannelloComposizioni(QWidget):
             if QMessageBox.question(
                     self, "Ricomponi la bozza",
                     "La bozza è stata modificata in Word: ricomponendola dai dati del cantiere quelle modifiche si "
-                    "perdono.\n\nPer conservare un testo anche nelle prossime composizioni usa «Modifica i "
-                    "capitoli».\n\nRicomporre comunque?") != QMessageBox.StandardButton.Yes:
+                    "perdono.\n\nPer conservare un testo anche nelle prossime composizioni usa «Capitoli...»."
+                    "\n\nVuoi ricomporla comunque?") != QMessageBox.StandardButton.Yes:
                 return False
         if attuale is None:
             dialogo = DialogoComponi(comp.numero_proposto(self.repo, documento), self.nome, self)
@@ -387,7 +388,8 @@ class PannelloComposizioni(QWidget):
         try:
             nuova = comp.componi(self.repo, documento, descrizione, numero)
         except PermissionError:
-            QMessageBox.warning(self, "Componi", "Impossibile scrivere il documento: è aperto in Word?")
+            QMessageBox.warning(self, "Componi", "Impossibile salvare il documento: verifica che non sia aperto in "
+                                                "Word.")
             return False
         finally:
             QApplication.restoreOverrideCursor()
@@ -400,7 +402,7 @@ class PannelloComposizioni(QWidget):
                         if obbligatori else
                         f"Dati non obbligatori da completare: {len(nuova['mancanti'])}." if nuova["mancanti"]
                         else "Nessun dato mancante.")
-                     + "\n\nAprirla in Word?")
+                     + "\n\nVuoi aprirla in Word?")
         if QMessageBox.question(self, "Bozza composta", messaggio) == QMessageBox.StandardButton.Yes:
             self.apri_in_word()
         return True
@@ -413,7 +415,7 @@ class PannelloComposizioni(QWidget):
         dialogo = DialogoCapitoli(self.repo, documento, righe[0]["capitoli"], self)
         if dialogo.exec() == QDialog.DialogCode.Accepted and dialogo.cambiato:
             if comp.bozza(self.repo, documento) and QMessageBox.question(
-                    self, "Capitoli", "Modifiche salvate. Ricomporre ora la bozza per applicarle?") \
+                    self, "Capitoli", "Modifiche salvate. Vuoi ricomporre ora la bozza per applicarle?") \
                     == QMessageBox.StandardButton.Yes:
                 self.componi()
 
@@ -423,8 +425,8 @@ class PannelloComposizioni(QWidget):
             return
         if self._modificata_in_word(c):
             risposta = QMessageBox.question(
-                self, "Emetti", "La bozza aperta in Word ha modifiche non ancora riprese. Riprenderle prima di "
-                                "emettere?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                self, "Emetti", "La bozza aperta in Word contiene modifiche non ancora riprese. Vuoi riprenderle "
+                                "prima dell'emissione?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 | QMessageBox.StandardButton.Cancel)
             if risposta == QMessageBox.StandardButton.Cancel:
                 return
@@ -466,9 +468,9 @@ class PannelloComposizioni(QWidget):
         try:
             Path(percorso).write_bytes(comp.contenuto(self.repo, c["id"]))
         except PermissionError:
-            QMessageBox.warning(self, "Esporta", "Impossibile scrivere il file: è aperto in Word?")
+            QMessageBox.warning(self, "Esporta", "Impossibile salvare il file: verifica che non sia aperto in Word.")
             return
-        if QMessageBox.question(self, "Esporta", f"Salvato {Path(percorso).name}. Aprirlo ora?") \
+        if QMessageBox.question(self, "Esporta", f"Documento salvato: {Path(percorso).name}. Vuoi aprirlo ora?") \
                 == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(percorso))
 
@@ -483,7 +485,7 @@ class PannelloComposizioni(QWidget):
             precedenti = [v for v in self._righe if (v["numero"], v["id"]) < (nuova["numero"], nuova["id"])
                           and v["stato"] != comp.ANNULLATA]
             if not precedenti:
-                QMessageBox.information(self, "Confronta", "Non c'è una revisione precedente da confrontare.")
+                QMessageBox.information(self, "Confronta", "Non esiste una revisione precedente da confrontare.")
                 return
             vecchia = precedenti[0]
         DialogoConfronto(vecchia, nuova, self).exec()
@@ -493,10 +495,11 @@ class PannelloComposizioni(QWidget):
         if c is None:
             return
         if c["stato"] == comp.BOZZA:
-            domanda = f"Eliminare la bozza della Rev. {c['numero']}? Si toglie anche la sua riga dalle revisioni."
+            domanda = (f"Vuoi eliminare la bozza della Rev. {c['numero']}? Viene eliminata anche la relativa riga "
+                       "della tabella delle revisioni.")
         else:
-            domanda = (f"Annullare la Rev. {c['numero']}? Resta nello storico come annullata e non vale più; "
-                       "l'operazione non si può disfare.")
+            domanda = (f"Vuoi annullare la Rev. {c['numero']}? Resta nello storico come annullata e non è più "
+                       "valida; l'operazione non è reversibile.")
         if QMessageBox.question(self, "Annulla", domanda) != QMessageBox.StandardButton.Yes:
             return
         comp.annulla(self.repo, c["id"])
@@ -516,8 +519,8 @@ class DialogoComponi(QDialog):
         self.descrizione.setPlaceholderText("Motivo della revisione, per esempio «Ingresso nuova lavorazione»")
         layout.addRow("Revisione n.", self.numero)
         layout.addRow("Descrizione delle modifiche", self.descrizione)
-        nota = QLabel("La revisione entra nella tabella delle revisioni del documento. La bozza si può ricomporre "
-                      "quante volte serve finché non viene emessa.", self)
+        nota = QLabel("La revisione viene riportata nella tabella delle revisioni del documento. La bozza si può "
+                      "ricomporre tutte le volte necessarie, fino all'emissione.", self)
         nota.setObjectName("hint")
         nota.setWordWrap(True)
         layout.addRow(nota)
@@ -545,7 +548,7 @@ class DialogoEmetti(QDialog):
         testo = QLabel(
             "Il documento emesso è la versione definitiva: senza filigrana BOZZA, senza il riepilogo dei dati "
             "mancanti e senza i commenti di SicurCantiere; i dati rimasti vuoti diventano righe da compilare a "
-            "mano. Dopo l'emissione non si modifica più: per cambiarlo si compone la revisione successiva.", self)
+            "mano. Dopo l'emissione non è più modificabile: per cambiarlo si compone la revisione successiva.", self)
         testo.setWordWrap(True)
         layout.addWidget(testo)
         self.spunta = None
@@ -776,7 +779,7 @@ def html_confronto(vecchia: dict[str, Any], nuova: dict[str, Any]) -> str:
              f"({_data_ora(nuova['composta_il'])})</p>"]
     if not cambiamenti:
         parti.append("<p><b>Nessuna differenza nel testo dei capitoli.</b></p>")
-    etichette = {"aggiunto": "capitolo aggiunto", "tolto": "capitolo tolto", "cambiato": "modificato"}
+    etichette = {"aggiunto": "capitolo aggiunto", "tolto": "capitolo tolto", "cambiato": "capitolo modificato"}
     for voce in cambiamenti:
         parti.append(f"<h3>{html.escape(voce['titolo'])} <span style='font-weight:normal;color:{c['tx2']}'>— "
                      f"{etichette[voce['stato']]}</span></h3>")

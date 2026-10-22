@@ -65,7 +65,7 @@ class ArchivioAnagrafiche:
         """Inserisce la voce o aggiorna quella con lo stesso tipo, ruolo e nome."""
         nome = nome.strip()
         if not nome:
-            raise ValueError("Indicare il nominativo prima di salvarlo in archivio.")
+            raise ValueError("Indica il nominativo prima di salvarlo nell'archivio.")
         testo = json.dumps(dati, ensure_ascii=False)
         adesso = datetime.now().isoformat(timespec="seconds")
         riga = self.conn.execute(
@@ -112,7 +112,7 @@ class ArchivioAnagrafiche:
     def salva_impresa(self, repo: Repository, impresa_id: int) -> int:
         impresa = repo.leggi("imprese", impresa_id)
         if impresa is None:
-            raise ValueError("Impresa inesistente")
+            raise ValueError("Impresa non trovata.")
         dati = _pulisci(impresa)
         dati["figure"] = [_pulisci(f) for f in repo.elenco("figure", impresa_id=impresa_id)]
         dati["lavoratori"] = [_pulisci(l) for l in repo.elenco("lavoratori", impresa_id=impresa_id)]
@@ -144,7 +144,7 @@ class ArchivioAnagrafiche:
         """Salva la fase del cantiere come lavorazione dell'utente, con attrezzature e rischi."""
         fase = repo.leggi("fasi", fase_id)
         if fase is None:
-            raise ValueError("Lavorazione inesistente")
+            raise ValueError("Lavorazione non trovata.")
         dati = {
             "codice": fase["codice"],
             "descrizione": fase["descrizione"],

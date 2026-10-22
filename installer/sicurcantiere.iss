@@ -26,17 +26,17 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Name: "italiano"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [Types]
-Name: "completa"; Description: "Tutti i programmi"
-Name: "personalizzata"; Description: "Scelta dei programmi"; Flags: iscustom
+Name: "completa"; Description: "Installazione completa (tutti i programmi)"
+Name: "personalizzata"; Description: "Installazione personalizzata"; Flags: iscustom
 
 [Components]
-Name: "pos"; Description: "SicurCantiere POS - piano operativo di sicurezza"; Types: completa personalizzata
-Name: "psc"; Description: "SicurCantiere PSC - piano di sicurezza e coordinamento"; Types: completa
-Name: "pimus"; Description: "SicurCantiere PiMUS - ponteggi"; Types: completa
+Name: "pos"; Description: "SicurCantiere POS - Piano operativo di sicurezza"; Types: completa personalizzata
+Name: "psc"; Description: "SicurCantiere PSC - Piano di sicurezza e coordinamento"; Types: completa
+Name: "pimus"; Description: "SicurCantiere PiMUS - Piano di montaggio, uso e smontaggio dei ponteggi"; Types: completa
 
 [Tasks]
 Name: "desktopicon"; Description: "Crea le icone sul desktop"; GroupDescription: "Icone aggiuntive:"
-Name: "associa"; Description: "Apri i file dei cantieri con doppio clic"; GroupDescription: "Associazione file:"
+Name: "associa"; Description: "Apri i file dei cantieri con un doppio clic"; GroupDescription: "Associazione dei file:"
 
 [Files]
 Source: "..\dist\SicurCantiere PSC\*"; DestDir: "{app}\PSC"; Components: psc; Flags: ignoreversion recursesubdirs createallsubdirs

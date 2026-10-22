@@ -2,21 +2,21 @@
 lavorazione del ferro d'armatura, saldatura del polietilene e cannello ossiacetilenico.
 
 Testi scritti da zero per questo progetto. Fonti consultate (solo come riferimento):
-- D.Lgs. 81/2008: Titolo III (artt. 70-73, Allegato V), Titolo VIII capi II (rumore, artt.
-  187-198) e III (vibrazioni, artt. 199-205), Titolo IX capi I e II (agenti chimici e
+- D.Lgs. 81/2008: Titolo III (artt. 70-73, Allegato V), Titolo VIII, Capi II (rumore, artt.
+  187-198) e III (vibrazioni, artt. 199-205), Titolo IX, Capi I e II (agenti chimici e
   cancerogeni; silice cristallina respirabile in Allegato XLII dal D.Lgs. 44/2020).
 - INAIL e Portale Agenti Fisici (banche dati rumore e vibrazioni, consultate per gli ordini di
   grandezza, senza riportarne i valori); opuscolo AUSL Bologna «Silice libera cristallina»
   (2022); schede NIS (Network Italiano Silice) sulla perforazione e sul taglio.
 - Indicazioni generali sull'uso dell'acetilene (procedura Università di Parma; articoli
-  PuntoSicuro sull'acetilene) e circolare MLPS n. 17/1984 sui dispositivi contro il ritorno
+  PuntoSicuro sull'acetilene) e circolare del Ministero del lavoro n. 17/1984 sui dispositivi contro il ritorno
   di fiamma.
-- Norme di prodotto: EN 62841 (utensili elettrici portatili), EN ISO 11148 (utensili
-  pneumatici), EN 15895 (utensili a cartuccia), EN ISO 19432-1 (troncatrici a motore),
-  EN 13862 (seghe da pavimento), EN 15027 (seghe da parete e a filo), EN 12348 (carotatrici
-  su supporto), EN 500-4 (macchine per la compattazione), EN 12649 (vibratori e lisciatrici
-  per calcestruzzo), UNI 10520/10521 e UNI 9737 (saldatura del polietilene), EN ISO 5172 e
-  EN ISO 5175 (cannelli e dispositivi di sicurezza per gas).
+- Norme di prodotto: CEI EN 62841 (utensili elettrici portatili), UNI EN ISO 11148 (utensili
+  pneumatici), UNI EN 15895 (utensili a cartuccia), UNI EN ISO 19432-1 (troncatrici a motore),
+  UNI EN 13862 (seghe da pavimento), UNI EN 15027 (seghe da parete e a filo), UNI EN 12348 (carotatrici
+  su supporto), UNI EN 500-4 (macchine per la compattazione), UNI EN 12649 (vibratori e lisciatrici
+  per calcestruzzo), UNI 10520/10521 e UNI 9737 (saldatura del polietilene), UNI EN ISO 5172 e
+  UNI EN ISO 5175 (cannelli e dispositivi di sicurezza per gas).
 Le misure vanno sempre adattate alle istruzioni del fabbricante dell'attrezzo usato.
 NOTA: le ricerche in rete sono state interrotte dal limite di utilizzo durante la redazione; non
 tutte le fonti elencate sono state rilette per intero e diversi riferimenti sono citati da
@@ -32,14 +32,14 @@ from sicurcantiere.archivio_dati.base import ATTREZZO, DPI_BASE, attrezzatura, r
 _ELETTROCUZIONE = r(
     "Elettrocuzione", 1, 4,
     "Utensile marcato CE a doppio isolamento (classe II) o collegato a terra; alimentazione da quadro "
-    "di cantiere conforme (EN 61439-4) con interruttore differenziale da 30 mA; cavi per posa mobile "
+    "di cantiere conforme (CEI EN 61439-4) con interruttore differenziale da 30 mA; cavi per posa mobile "
     "(H07RN-F o equivalenti) integri, sollevati da terra e lontani da acqua e spigoli; controllo "
-    "visivo di cavo e spina prima dell'uso (art. 80 e art. 71 c. 4 D.Lgs. 81/2008).")
+    "visivo di cavo e spina prima dell'uso (art. 80 e art. 71, comma 4, D.Lgs. 81/2008).")
 
 
 def _rumore(p: int, d: int, nota: str) -> dict:
     return r("Rumore", p, d,
-             f"{nota} Valutazione del rumore secondo il Titolo VIII capo II D.Lgs. 81/2008 con "
+             f"{nota} Valutazione del rumore secondo il Titolo VIII, Capo II, D.Lgs. 81/2008 con "
              "riferimento ai dati del fabbricante; sopra 80 dB(A) informazione e DPI a disposizione, "
              "sopra 85 dB(A) uso obbligatorio degli otoprotettori, segnaletica e sorveglianza sanitaria; "
              "turnazione degli addetti e distanza dagli altri posti di lavoro.",
@@ -57,7 +57,7 @@ def _vibrazioni_mb(p: int, d: int, nota: str) -> dict:
 
 def _silice(p: int, d: int, nota: str) -> dict:
     return r("Polveri e fibre: silice cristallina respirabile", p, d,
-             f"{nota} Il lavoro rientra tra quelli dell'Allegato XLII (Titolo IX capo II D.Lgs. "
+             f"{nota} Il lavoro rientra tra quelli dell'Allegato XLII (Titolo IX, Capo II, D.Lgs. "
              "81/2008, valore limite 0,1 mg/m³): abbattimento alla fonte con acqua o aspirazione "
              "collegata all'utensile (aspiratore di classe M o H); niente pulizia a secco o con aria "
              "compressa; area delimitata e altri lavoratori lontani; registro degli esposti e "
@@ -90,7 +90,7 @@ ATTREZZATURE = {
               "foratura in corrispondenza di tracce verticali e orizzontali di impianti; impianti "
               "sezionati quando non se ne conosce il percorso.", DPI_BASE),
             r("Urti, colpi, impatti e compressioni: contraccolpo per bloccaggio della punta", 2, 3,
-              "Utensile con frizione di sicurezza o arresto elettronico al bloccaggio (EN 62841-2-6); "
+              "Utensile con frizione di sicurezza o arresto elettronico al bloccaggio (CEI EN 62841-2-6); "
               "impugnatura laterale sempre montata e presa salda con due mani; posizione stabile, mai "
               "su scale a mano in equilibrio precario; punte affilate e adatte al materiale.", DPI_BASE),
             _vibrazioni_mb(3, 2, "Uso della sola rotazione quando la percussione non serve; non "
@@ -126,7 +126,7 @@ ATTREZZATURE = {
         ATTREZZO,
         rischi=[
             _vibrazioni_mb(4, 3, "Utensile pneumatico con impugnature sospese o sistema antivibrante "
-                           "(EN ISO 11148-4); pressione d'esercizio quella indicata dal fabbricante; "
+                           "(UNI EN ISO 11148-4); pressione d'esercizio quella indicata dal fabbricante; "
                            "turni brevi con pause programmate."),
             _rumore(4, 3, "Silenziatore sullo scarico dell'aria e cappottatura del martello; "
                     "compressore silenziato e posto lontano dagli addetti."),
@@ -176,7 +176,7 @@ ATTREZZATURE = {
         rischi=[
             r("Urti, colpi, impatti e compressioni: contraccolpo e torsione del polso", 2, 2,
               "Regolare la coppia (frizione) in base alla vite; impugnatura salda e polso allineato; "
-              "impugnatura ausiliaria per gli avvitatori a impulsi di potenza elevata (EN 62841-2-2).",
+              "impugnatura ausiliaria per gli avvitatori a impulsi di potenza elevata (CEI EN 62841-2-2).",
               DPI_BASE),
             r("Punture, tagli e abrasioni", 2, 1,
               "Inserti integri e ben bloccati nel mandrino; non tenere il pezzo con la mano nella "
@@ -221,8 +221,8 @@ ATTREZZATURE = {
         rischi=[
             r("Urti, colpi, impatti e compressioni: lancio del chiodo e colpo accidentale", 2, 4,
               "Utensile con dispositivo che impedisce lo sparo se la canna non è premuta sul pezzo "
-              "(EN 15895 per quelli a cartuccia, EN ISO 11148-13 per quelli pneumatici); sparare "
-              "sempre perpendicolari al supporto; non su materiali troppo duri, fragili o sottili, né "
+              "(UNI EN 15895 per quelli a cartuccia, UNI EN ISO 11148-13 per quelli pneumatici); sparare "
+              "sempre perpendicolarmente al supporto; non su materiali troppo duri, fragili o sottili, né "
               "vicino ai bordi; nessuno dietro la parete o il pannello; mai puntare verso persone; uso "
               "riservato a lavoratori formati e addestrati (art. 73).", DPI_BASE + ", occhiali protettivi"),
             _proiezione(3, 3, "Cuffia paraschegge montata; verificare che il supporto non sia "
@@ -269,7 +269,7 @@ ATTREZZATURE = {
             r("Punture, tagli e abrasioni: contatto con i dischi", 2, 3,
               "Cuffia di protezione dei dischi integra; dischi diamantati adatti al materiale e alla "
               "velocità dell'utensile, ben serrati; avviamento con i dischi staccati dal muro; attesa "
-              "dell'arresto prima di appoggiare l'utensile (EN 62841).", DPI_BASE + ", guanti antitaglio"),
+              "dell'arresto prima di appoggiare l'utensile (CEI EN 62841).", DPI_BASE + ", guanti antitaglio"),
             r("Urti, colpi, impatti e compressioni: contraccolpo", 2, 3,
               "Impugnatura con due mani; avanzamento regolare senza inclinare la macchina nella "
               "traccia; utensile con limitatore di coppia o frizione; non tagliare a soffitto senza "
@@ -303,7 +303,7 @@ ATTREZZATURE = {
         ATTREZZO,
         rischi=[
             r("Urti, colpi, impatti e compressioni: contraccolpo del disco", 2, 4,
-              "Troncatrice conforme (EN ISO 19432-1 se a motore, EN 62841 se elettrica) con cuffia "
+              "Troncatrice conforme (UNI EN ISO 19432-1 se a motore, CEI EN 62841 se elettrica) con cuffia "
               "regolabile; tagliare con la parte inferiore del disco, mai con il settore superiore; "
               "pezzo fermo e sostenuto in modo che il taglio non si chiuda sul disco; due mani e "
               "corpo fuori dal piano del disco.", DPI_BASE),
@@ -349,7 +349,7 @@ ATTREZZATURE = {
         ATTREZZO,
         rischi=[
             r("Punture, tagli e abrasioni: contatto con il disco", 2, 4,
-              "Macchina conforme a EN 13862 con carter del disco sempre montato e chiuso; disco "
+              "Macchina conforme a UNI EN 13862 con carter del disco sempre montato e chiuso; disco "
               "abbassato solo con la macchina in posizione di taglio; non sostare davanti o di lato "
               "al disco; arresto prima di ogni spostamento.", DPI_BASE),
             _silice(3, 3, "Taglio a umido con serbatoio o alimentazione d'acqua efficiente; per "
@@ -363,7 +363,7 @@ ATTREZZATURE = {
               "Uso all'aperto o in ambienti ben ventilati; operatore sopravvento; motore spento nelle "
               "pause; rifornimento a motore freddo, lontano da fiamme.", DPI_BASE),
             r("Investimento da mezzi in manovra", 2, 4,
-              "Area di taglio delimitata e segnalata secondo il D.M. 10/07/2002 quando si lavora su "
+              "Area di taglio delimitata e segnalata secondo il D.M. 10 luglio 2002 quando si lavora su "
               "strade aperte al traffico; movieri; indumenti ad alta visibilità.", DPI_BASE),
             r("Contatto con sottoservizi", 1, 4,
               "Profondità di taglio regolata in base allo spessore della pavimentazione; verifica "
@@ -396,9 +396,9 @@ ATTREZZATURE = {
         ATTREZZO,
         rischi=[
             r("Elettrocuzione: lavoro a umido con utensile elettrico", 2, 4,
-              "Carotatrice conforme a EN 62841-3-6 (o EN 12348 se su supporto) alimentata tramite "
+              "Carotatrice conforme a CEI EN 62841-3-6 (o UNI EN 12348 se su supporto) alimentata tramite "
               "dispositivo differenziale portatile (PRCD) o trasformatore di isolamento come indica il "
-              "fabbricante; raccogli-acqua all'imbocco del foro; cavi e quadro lontani dall'acqua.",
+              "fabbricante; anello di raccolta dell'acqua all'imbocco del foro; cavi e quadro lontani dall'acqua.",
               DPI_BASE),
             r("Urti, colpi, impatti e compressioni: rotazione della macchina al bloccaggio della corona", 2, 3,
               "Fori sopra i diametri indicati dal fabbricante sempre con la macchina fissata al "
@@ -439,7 +439,7 @@ ATTREZZATURE = {
         ATTREZZO,
         rischi=[
             r("Urti, colpi, impatti e compressioni: rottura del filo e frustata", 2, 4,
-              "Macchina conforme a EN 15027 con protezioni sul percorso del filo e sulle pulegge; "
+              "Macchina conforme a UNI EN 15027 con protezioni sul percorso del filo e sulle pulegge; "
               "filo integro e giunti eseguiti con il morsetto prescritto; zona di pericolo nel piano "
               "del filo delimitata e interdetta durante il taglio; comando a distanza.", DPI_BASE),
             r("Crollo o ribaltamento di strutture: caduta del blocco tagliato", 2, 4,
@@ -483,7 +483,7 @@ ATTREZZATURE = {
     "Piastra vibrante": attrezzatura(
         ATTREZZO,
         rischi=[
-            _vibrazioni_mb(3, 2, "Piastra con timone su supporti antivibranti (EN 500-4); guida "
+            _vibrazioni_mb(3, 2, "Piastra con timone su supporti antivibranti (UNI EN 500-4); guida "
                            "senza premere sul timone."),
             _rumore(3, 2, "Motore con marmitta e cofani integri."),
             r("Inalazione di gas di scarico (motore a scoppio)", 2, 3,
@@ -525,7 +525,7 @@ ATTREZZATURE = {
     "Costipatore a percussione": attrezzatura(
         ATTREZZO,
         rischi=[
-            _vibrazioni_mb(4, 2, "Costipatore con impugnatura antivibrante (EN 500-4); usare la "
+            _vibrazioni_mb(4, 2, "Costipatore con impugnatura antivibrante (UNI EN 500-4); usare la "
                            "macchina il tempo strettamente necessario con pause frequenti."),
             r("Vibrazioni al corpo intero", 2, 2,
               "Non appoggiarsi con il corpo sulla macchina; turnazione degli addetti (artt. 199-205 "
@@ -568,7 +568,7 @@ ATTREZZATURE = {
             _ELETTROCUZIONE,
             r("Vibrazioni al sistema mano-braccio", 2, 2,
               "Tenere il tubo flessibile e non l'ago; non trattenere l'ago con le mani; motore o "
-              "convertitore appoggiato e non tenuto in mano; alternare gli addetti (EN 12649, artt. "
+              "convertitore appoggiato e non tenuto in mano; alternare gli addetti (UNI EN 12649, artt. "
               "199-205 D.Lgs. 81/2008).", DPI_BASE + ", guanti antivibrazioni"),
             r("Getti e schizzi di calcestruzzo", 3, 2,
               "Immergere e sfilare l'ago lentamente, senza farlo vibrare in aria; occhiali durante il "
@@ -604,7 +604,7 @@ ATTREZZATURE = {
         ATTREZZO,
         rischi=[
             r("Cesoiamenti e stritolamenti: contatto con le pale rotanti", 2, 3,
-              "Macchina conforme a EN 12649 con anello di protezione attorno alle pale e comando a "
+              "Macchina conforme a UNI EN 12649 con anello di protezione attorno alle pale e comando a "
               "uomo presente che arresta il motore al rilascio del manubrio; nessuno vicino durante la "
               "lisciatura; cambio delle pale a motore spento.", DPI_BASE),
             r("Urti, colpi, impatti e compressioni: rotazione del manubrio", 2, 3,
@@ -758,21 +758,21 @@ ATTREZZATURE = {
         rischi=[
             r("Incendio ed esplosione: bombole, tubi e ritorno di fiamma", 2, 4,
               "Riduttori di pressione con manometri e dispositivi contro il ritorno di fiamma su "
-              "entrambi i gas, all'uscita dei riduttori e al cannello (EN ISO 5175); cannello conforme "
-              "a EN ISO 5172; tubi colorati e integri (rosso acetilene, blu ossigeno) con fascette; "
+              "entrambi i gas, all'uscita dei riduttori e al cannello (UNI EN ISO 5175); cannello conforme "
+              "a UNI EN ISO 5172; tubi colorati e integri (rosso acetilene, blu ossigeno) con fascette; "
               "pressione dell'acetilene non oltre 1,5 bar; mai olio o grasso sui raccordi "
               "dell'ossigeno; ricerca delle perdite con acqua saponata.", DPI_BASE),
             r("Incendio dei materiali vicini", 3, 3,
               "Lavoro a caldo autorizzato dal preposto; allontanare o coprire con teli ignifughi i "
               "materiali combustibili; estintore a portata di mano; sorveglianza della zona per "
-              "almeno 30 minuti dopo la fine (Allegato IV punto 4 D.Lgs. 81/2008).", DPI_BASE),
+              "almeno 30 minuti dopo la fine (Allegato IV punto 4, D.Lgs. 81/2008).", DPI_BASE),
             r("Ustioni", 3, 2,
               "Indumenti in cotone o ignifughi senza tasche aperte, ghette e guanti per saldatura; "
               "pezzi caldi segnalati; non appoggiare il cannello acceso.",
               DPI_BASE + ", guanti per saldatura, ghette per saldatura"),
             r("Radiazioni ottiche", 3, 2,
-              "Occhiali o schermo con filtri di grado adatto alla fiamma e al lavoro (EN 169); "
-              "schermi per proteggere chi lavora vicino (Titolo VIII capo V D.Lgs. 81/2008).",
+              "Occhiali o schermo con filtri di grado adatto alla fiamma e al lavoro (UNI EN 169); "
+              "schermi per proteggere chi lavora vicino (Titolo VIII, Capo V, D.Lgs. 81/2008).",
               DPI_BASE + ", schermo per saldatura"),
             r("Rischio chimico: fumi di taglio e saldatura", 3, 3,
               "Aspirazione localizzata o lavoro all'aperto sopravvento; attenzione a vernici, zincature "

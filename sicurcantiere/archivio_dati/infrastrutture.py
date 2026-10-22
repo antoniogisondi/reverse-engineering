@@ -70,7 +70,7 @@ DPI_VERDE = DPI_BASE + ", copricapo, crema protettiva"
 INV_TRAFFICO = r(
     "Investimento da veicoli in transito", 3, 4,
     "Area di lavoro delimitata e presegnalata con gli schemi del D.M. 10/07/2002 e posata con le "
-    "procedure del D.M. 22/01/2019 (art. 161 c. 2-bis D.Lgs. 81/2008); squadra composta solo da "
+    "procedure del D.M. 22/01/2019 (art. 161, comma 2-bis, D.Lgs. 81/2008); squadra composta solo da "
     "addetti formati secondo l'Allegato II del decreto; non uscire mai dalla zona delimitata; "
     "spostamenti a piedi ridotti al minimo, rivolti verso il traffico; lavoro sospeso con nebbia, "
     "neve o visibilità ridotta; illuminazione e luci gialle lampeggianti nelle ore notturne.",
@@ -98,7 +98,7 @@ SOTTOSERVIZI = r(
     "Planimetrie degli enti gestori acquisite prima dello scavo e reti localizzate con "
     "cercaservizi e saggi a mano; tracciati segnati sul terreno; a meno di circa 50 cm dalle reti "
     "si scava solo a mano o per aspirazione; in caso di danno a una condotta gas si allontanano le "
-    "persone, si spengono i motori e si avvisano il gestore e i Vigili del Fuoco (art. 117 e "
+    "persone, si spengono i motori e si avvisano il gestore e i Vigili del fuoco (art. 117 e "
     "Allegato IX D.Lgs. 81/2008).")
 CARICO_SOSPESO = r(
     "Caduta di materiale dall'alto o a livello", 2, 4,
@@ -361,7 +361,7 @@ LAVORAZIONI = [
             "sospensione immediata a ogni anomalia di spinta o di fango."),
           r("Getti e schizzi", 2, 2,
             "Pozzetti di ingresso e uscita delimitati; fango in pressione e risalite in superficie "
-            "controllate dall'addetto alla localizzazione; nessuno vicino all'aste in rotazione o "
+            "controllate dall'addetto alla localizzazione; nessuno vicino alle aste in rotazione o "
             "all'alesatore in uscita.", DPI_BASE + ", occhiali protettivi, indumenti impermeabili"),
           INV_MEZZI, SCIVOLAMENTI]),
     fase("UR.13", UR, "Cavidotti per reti elettriche e di telecomunicazione", "Posa di infrastrutture in minitrincea",
@@ -387,7 +387,8 @@ LAVORAZIONI = [
          ["Rilevatore multigas", "Ventilatore estrattore", "Treppiede con dispositivo di recupero",
           "Pompa sommersa", "Scala a mano", "Utensili manuali"],
          [r("Ambienti confinati o sospetti di inquinamento", 3, 4,
-            "Rispetto di artt. 66 e 121 e Allegato IV p. 3 D.Lgs. 81/2008 e del D.P.R. 177/2011: almeno "
+            "Rispetto degli artt. 66 e 121 e dell'Allegato IV, punto 3, del D.Lgs. 81/2008 e del D.P.R. "
+            "177/2011: almeno "
             "il 30% della squadra, compreso il preposto, con esperienza triennale; formazione e "
             "addestramento specifici; informazione dal committente sui rischi dell'ambiente. Prima "
             "dell'accesso: isolamento delle immissioni, misura di ossigeno, gas tossici ed "
@@ -639,7 +640,7 @@ LAVORAZIONI = [
     fase("SR.13", SR, "Opere stradali complementari", "Installazione della segnaletica verticale",
          "Realizzazione dei plinti di fondazione o dei fori nella pavimentazione, posa di pali e sostegni, "
          "montaggio di cartelli, pannelli e delineatori conformi a UNI EN 12899-1 e al Regolamento del "
-         "Codice della Strada, con orientamento e altezze di progetto. Per portali e cartelli alti si "
+         "Codice della strada, con orientamento e altezze di progetto. Per portali e cartelli alti si "
          "lavora da piattaforma elevabile.",
          "Addetto all'installazione della segnaletica verticale", 55, ("Opere infrastrutturali", "Ristrutturazioni"),
          ["Autocarro con gru", "Motoperforatrice (trivella a motore)", "Martello perforatore (tassellatore)",
@@ -816,7 +817,7 @@ LAVORAZIONI = [
          "Addetto alla potatura in quota con PLE", 70, TUTTE,
          ["Piattaforma di lavoro elevabile", "Motosega", "Cippatrice", "Autocarro", "Utensili manuali"],
          [r("Caduta dall'alto", 2, 4,
-            "Operatore abilitato alla PLE (art. 73 c. 5 D.Lgs. 81/2008, Accordo Stato-Regioni "
+            "Operatore abilitato alla PLE (art. 73, comma 5, D.Lgs. 81/2008, Accordo Stato-Regioni "
             "22/02/2012); imbracatura con cordino di trattenuta corto agganciato al punto del "
             "cestello indicato dal fabbricante; mai uscire dal cestello per salire sulla pianta; "
             "stabilizzatori su base solida.", DPI_BASE + ", imbracatura, cordino con assorbitore, "

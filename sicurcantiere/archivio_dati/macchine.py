@@ -42,13 +42,13 @@ _LINEE = ("Prima dell'inizio individuare le linee elettriche aeree e mantenere d
           "dall'ente gestore o installare barriere e portali di limitazione (artt. 83 e 117)")
 _ROPS = ("cabina o telaio ROPS/FOPS integri e cintura di sicurezza sempre allacciata; in caso di "
          "ribaltamento restare al posto di guida")
-_MMT_ABILITAZIONE = ("operatore abilitato secondo l'Accordo Stato-Regioni 22/02/2012 (art. 73 c. 5 "
+_MMT_ABILITAZIONE = ("operatore abilitato secondo l'Accordo Stato-Regioni 22/02/2012 (art. 73, comma 5, "
                      "D.Lgs. 81/2008)")
 
 
 def _rumore(lex: str, misure_extra: str = "") -> dict:
     return r("Rumore", 3, 2,
-             f"Livello di esposizione indicativo {lex}: valutazione ai sensi del Titolo VIII capo II; cabina "
+             f"Livello di esposizione indicativo {lex}: valutazione ai sensi del Titolo VIII Capo II; cabina "
              "insonorizzata con porte e finestrini chiusi, silenziatori e carter fonoassorbenti integri; "
              "sorveglianza sanitaria oltre 85 dB(A); segnalazione delle aree oltre il valore superiore di "
              "azione" + (f"; {misure_extra}" if misure_extra else ""),
@@ -114,7 +114,7 @@ ATTREZZATURE = {
           "Lavorare su terreno portante e il più possibile in piano, a distanza dal ciglio degli scavi almeno "
           "pari alla loro profondità; con la lama abbassata a terra durante lo scavo; non traslare in "
           "trasversale sui pendii né con il braccio sollevato e carico; non superare le pendenze del "
-          "fabbricante; " + _ROPS + " (EN 474-1 e EN 474-5, EN ISO 12117-2); " + _MMT_ABILITAZIONE),
+          "fabbricante; " + _ROPS + " (UNI EN 474-1 e UNI EN 474-5, UNI EN ISO 12117-2); " + _MMT_ABILITAZIONE),
         _investimento("attenzione alla rotazione della torretta: delimitare il raggio di rotazione, compresa "
                       "la sporgenza posteriore nei modelli non a raggio ridotto"),
         r("Cesoiamenti e stritolamenti", 2, 4,
@@ -156,7 +156,7 @@ ATTREZZATURE = {
     "Escavatore con martello demolitore": attrezzatura(MACCHINA, rischi=[
         r("Proiezione di schegge e frammenti", 3, 3,
           "Cabina con protezione frontale (griglia o vetro antisfondamento, FGPS) e FOPS idonea alla "
-          "demolizione secondo EN 474-5; area interdetta a terra con raggio non inferiore a quello "
+          "demolizione secondo UNI EN 474-5; area interdetta a terra con raggio non inferiore a quello "
           "indicato dal fabbricante e comunque di almeno 10-15 m; nessun lavoratore a terra vicino al punto "
           "di battuta; schermi o reti sul lato verso strade e edifici",
           _DPI + ", occhiali protettivi o visiera protettiva"),
@@ -169,7 +169,7 @@ ATTREZZATURE = {
         r("Polveri e fibre", 4, 3,
           "Abbattimento con nebulizzatori o cannoni ad acqua sul punto di demolizione; cabina pressurizzata "
           "con filtri; verifica preliminare dell'assenza di amianto; valutazione della silice cristallina "
-          "respirabile (Titolo IX capo II)",
+          "respirabile (Titolo IX Capo II)",
           _DPI_POLVERI),
         r("Crollo o ribaltamento di strutture", 2, 4,
           "Demolizione secondo il programma dei lavori di demolizione (art. 151) dall'alto verso il basso; "
@@ -217,7 +217,7 @@ ATTREZZATURE = {
           + _ROPS + "; " + _MMT_ABILITAZIONE),
         r("Polveri e fibre", 4, 3,
           "Nebulizzazione continua con cannone ad acqua sul fronte di demolizione; cabina pressurizzata con "
-          "filtri; bonifica preventiva dei materiali contenenti amianto (Titolo IX capo III)",
+          "filtri; bonifica preventiva dei materiali contenenti amianto (Titolo IX Capo III)",
           _DPI_POLVERI),
         r("Proiezione di schegge e frammenti", 3, 3,
           "Protezione frontale della cabina; nessun lavoratore a terra nella zona di frantumazione; "
@@ -249,7 +249,7 @@ ATTREZZATURE = {
         r("Ribaltamento della macchina", 2, 4,
           "Scavare solo con gli stabilizzatori abbassati su terreno portante e la pala anteriore appoggiata "
           "a terra; trasportare il carico con la pala bassa; non lavorare trasversalmente sui pendii; "
-          "distanza dai cigli degli scavi; " + _ROPS + " (EN 474-4); " + _MMT_ABILITAZIONE),
+          "distanza dai cigli degli scavi; " + _ROPS + " (UNI EN 474-4); " + _MMT_ABILITAZIONE),
         _investimento("attenzione al cambio di posto di guida: prima di invertire il sedile fermare la "
                       "macchina e controllare l'area dalla parte verso cui ci si volta"),
         r("Cesoiamenti e stritolamenti", 2, 4,
@@ -287,7 +287,7 @@ ATTREZZATURE = {
         r("Ribaltamento della macchina", 2, 4,
           "Salire e scendere dai pendii con il lato più pesante a monte (in salita con la benna carica "
           "avanti, in discesa in retromarcia), benna bassa durante gli spostamenti; non superare il carico "
-          "operativo nominale; " + _ROPS + " (EN 474-3) e barra di sicurezza del sedile abbassata; "
+          "operativo nominale; " + _ROPS + " (UNI EN 474-3) e barra di sicurezza del sedile abbassata; "
           "operatore abilitato come per le pale caricatrici frontali (Accordo Stato-Regioni 22/02/2012)"),
         r("Cesoiamenti e stritolamenti", 2, 4,
           "Mai entrare o uscire dalla cabina con i bracci sollevati; puntello di sicurezza dei bracci "
@@ -323,8 +323,8 @@ ATTREZZATURE = {
         r("Ribaltamento della macchina", 2, 4,
           "Lavorare preferibilmente lungo la linea di massima pendenza; non avvicinarsi al ciglio di "
           "scarpate e rilevati non consolidati; spingere il materiale verso il bordo lasciandone uno "
-          "strato come arresto; " + _ROPS + " (EN 474-2, EN ISO 3471); formazione e addestramento "
-          "specifici dell'operatore (art. 73 c. 4), non essendo il bulldozer tra le macchine elencate "
+          "strato come arresto; " + _ROPS + " (UNI EN 474-2, UNI EN ISO 3471); formazione e addestramento "
+          "specifici dell'operatore (art. 73, comma 4), non essendo il bulldozer tra le macchine elencate "
           "dall'Accordo Stato-Regioni"),
         _investimento("ampia zona cieca davanti alla lama e dietro il ripper: nessuno a terra nel raggio "
                       "di lavoro, contatto visivo o radio con il preposto"),
@@ -364,8 +364,8 @@ ATTREZZATURE = {
         r("Ribaltamento della macchina", 2, 4,
           "Non lavorare in prossimità del bordo di scarpate e fossi con la lama inclinata verso valle; "
           "velocità ridotta nelle curve; ruote anteriori inclinate per contrastare la spinta laterale "
-          "secondo le istruzioni; " + _ROPS + " (EN 474-8); formazione e addestramento specifici "
-          "dell'operatore (art. 73 c. 4)"),
+          "secondo le istruzioni; " + _ROPS + " (UNI EN 474-8); formazione e addestramento specifici "
+          "dell'operatore (art. 73, comma 4)"),
         r("Cesoiamenti e stritolamenti", 2, 4,
           "Nessuno tra lama e telaio o vicino all'articolazione centrale durante la sterzatura; lama "
           "appoggiata a terra e articolazione bloccata prima di interventi"),
@@ -393,9 +393,9 @@ ATTREZZATURE = {
         r("Ribaltamento della macchina", 3, 4,
           "Percorsi con pendenze entro i limiti del fabbricante e senza bordi cedevoli; scarico a distanza "
           "dal ciglio dello scavo o con fermo di arresto delle ruote (cordolo, trave); cassone abbassato "
-          "durante la marcia; in discesa marcia con il cassone carico a monte; " + _ROPS + " (EN 474-6); "
+          "durante la marcia; in discesa marcia con il cassone carico a monte; " + _ROPS + " (UNI EN 474-6); "
           "per i dumper cingolati operatore abilitato (autoribaltabili a cingoli, Accordo Stato-Regioni "
-          "22/02/2012), per quelli gommati formazione e addestramento (art. 73 c. 4)"),
+          "22/02/2012), per quelli gommati formazione e addestramento (art. 73, comma 4)"),
         _investimento("con il cassone carico la visibilità anteriore è ridotta: preferire dumper con "
                       "posto di guida girevole o telecamera e procedere in retromarcia solo se assistiti"),
         r("Trasporto improprio di persone", 2, 4,
@@ -434,7 +434,7 @@ ATTREZZATURE = {
           "Stabilizzatori completamente estesi su piastre di ripartizione e terreno portante, con verifica "
           "della bolla di livello; rispetto di portata del cestello e area di lavoro; sospensione con vento "
           "oltre il limite di targa (di solito 12,5 m/s); verifiche periodiche annuali (Allegato VII) e "
-          "macchina conforme a EN 280"),
+          "macchina conforme a UNI EN 280"),
         r("Elettrocuzione", 2, 4,
           _LINEE + "; nei lavori su impianti elettrici usare cestelli isolati e procedure CEI EN 50110 / "
           "CEI 11-27",
@@ -472,7 +472,7 @@ ATTREZZATURE = {
         r("Ribaltamento della macchina", 3, 4,
           "Operatore abilitato per carrelli elevatori telescopici (o rotativi) secondo l'Accordo "
           "Stato-Regioni 22/02/2012; rispetto del diagramma di carico per altezza e sbraccio con "
-          "limitatore di momento attivo (EN 1459); stabilizzatori estesi dove previsti; spostamenti con "
+          "limitatore di momento attivo (UNI EN 1459); stabilizzatori estesi dove previsti; spostamenti con "
           "braccio rientrato e carico basso; livellamento del telaio prima di sollevare; verifiche "
           "periodiche annuali (Allegato VII); " + _ROPS),
         r("Caduta di materiale dall'alto o a livello", 3, 3,
@@ -511,7 +511,7 @@ ATTREZZATURE = {
           "Operatore abilitato per carrelli industriali semoventi (Accordo Stato-Regioni 22/02/2012); "
           "uso su superfici piane e compatte, o carrello fuoristrada per il cantiere; marcia con forche "
           "basse e montante inclinato all'indietro; nessuna curva con il carico sollevato; rispetto della "
-          "targa di portata (EN ISO 3691-1); cintura o cabina chiusa sempre utilizzate"),
+          "targa di portata (UNI EN ISO 3691-1); cintura o cabina chiusa sempre utilizzate"),
         _investimento("dispositivi luminosi di avvertimento a pavimento (blue spot) e segnalatore acustico; "
                       "percorsi separati da quelli pedonali; precedenza ai pedoni"),
         r("Caduta di materiale dall'alto o a livello", 3, 3,
@@ -545,12 +545,12 @@ ATTREZZATURE = {
         r("Caduta dall'alto", 2, 4,
           "Cancelli di piano con interblocco elettromeccanico che impedisce l'apertura con piattaforma "
           "assente; parapetti sui lati della piattaforma; ai piani impalcati di sbarco con parapetti; "
-          "trasporto di persone solo con apparecchio per persone e materiali (EN 12159), altrimenti "
-          "divieto segnalato a ogni piano (EN 12158-1)",
+          "trasporto di persone solo con apparecchio per persone e materiali (UNI EN 12159), altrimenti "
+          "divieto segnalato a ogni piano (UNI EN 12158-1)",
           "Casco, calzature di sicurezza, imbracatura (montaggio e smontaggio)"),
         r("Caduta di materiale dall'alto o a livello", 2, 4,
           "Recinzione alla base alta almeno 2 m con porta interbloccata; tettoia di protezione sopra i "
-          "posti di carico; carichi stabili, contenuti in cassoni o legati e entro la portata di targa"),
+          "posti di carico; carichi stabili, contenuti in cassoni o legati ed entro la portata di targa"),
         r("Crollo o ribaltamento di strutture", 1, 4,
           "Montaggio da personale formato secondo le istruzioni del fabbricante; base su fondazione "
           "dimensionata; ancoraggi alla struttura agli interassi prescritti; dispositivo di sicurezza "
@@ -591,7 +591,7 @@ ATTREZZATURE = {
         r("Scoppio di componenti in pressione", 1, 4,
           "Valvola di sicurezza e manometro integri e non manomessi; serbatoio separatore controllato e "
           "sottoposto alle verifiche previste dal D.M. 329/2004 quando ricorrono le soglie; macchina "
-          "conforme a EN 1012-1"),
+          "conforme a UNI EN 1012-1"),
         _rumore("oltre 85 dB(A) a 1 m nei modelli non silenziati",
                 "motocompressore silenziato con cofani chiusi, posizionato lontano dai posti di lavoro"),
         _gas_scarico("il motocompressore"),
@@ -616,8 +616,8 @@ ATTREZZATURE = {
 
     "Gruppo elettrogeno": attrezzatura(MACCHINA, rischi=[
         r("Elettrocuzione", 2, 4,
-          "Gruppo conforme a ISO 8528-13; collegamento a terra o sistema di protezione secondo le "
-          "istruzioni del fabbricante e la CEI 64-8 sezione 704; prese protette da interruttore "
+          "Gruppo conforme a UNI ISO 8528-13; collegamento a terra o sistema di protezione secondo le "
+          "istruzioni del fabbricante e la CEI 64-8 Sezione 704; prese protette da interruttore "
           "differenziale da 30 mA; cavi per posa mobile (H07RN-F o equivalenti) integri; quadro di "
           "cantiere a valle se si alimentano più utenze; collegamento a impianti fissi solo con "
           "commutatore che impedisca il ritorno in rete",
@@ -648,7 +648,7 @@ ATTREZZATURE = {
     "Scarificatrice (fresa stradale)": attrezzatura(MACCHINA, rischi=[
         r("Cesoiamenti e stritolamenti", 2, 4,
           "Carter del tamburo fresante chiuso durante il lavoro; tamburo fermo e chiave tolta per il cambio "
-          "dei denti; arresti di emergenza sui posti di comando e a terra (EN 500-1 e EN 500-2); nessuno "
+          "dei denti; arresti di emergenza sui posti di comando e a terra (UNI EN 500-1 e UNI EN 500-2); nessuno "
           "vicino al nastro caricatore in movimento"),
         r("Polveri e fibre", 4, 3,
           "Impianto di nebulizzazione sul tamburo sempre in funzione (o aspirazione); valutazione della "
@@ -690,7 +690,7 @@ ATTREZZATURE = {
           _DPI_POLVERI),
         r("Cesoiamenti e stritolamenti", 1, 4,
           "Spazzole e bocca di aspirazione ferme e motore spento per la rimozione di ostruzioni; "
-          "contenitore ribaltato bloccato con il puntello prima di operare sotto di esso (EN 13019)"),
+          "contenitore ribaltato bloccato con il puntello prima di operare sotto di esso (UNI EN 13019)"),
         r("Proiezione di schegge e frammenti", 2, 2,
           "Carter e bandelle paraspruzzi integri; nessuno vicino alle spazzole laterali in rotazione",
           _DPI + ", occhiali protettivi"),
@@ -754,7 +754,7 @@ ATTREZZATURE = {
         r("Cesoiamenti e stritolamenti", 3, 4,
           "Posizionare e guidare il palo solo con la massa battente ferma e a fine corsa; non tenere mai "
           "le mani tra palo e guida o sotto la massa; comandi ad azione mantenuta con arresto di emergenza; "
-          "conformità a EN 16228-1 e -4"),
+          "conformità a UNI EN 16228-1 e -4"),
         r("Caduta di materiale dall'alto o a livello", 2, 3,
           "Pali sollevati con dispositivi di presa previsti dal fabbricante; nessuno sotto il palo in "
           "sollevamento; verifica del cappello di battuta e della testa del palo per evitare il distacco "
@@ -788,7 +788,7 @@ ATTREZZATURE = {
         r("Ribaltamento della macchina", 2, 4,
           "Piano di lavoro progettato e verificato per le pressioni dei cingoli e degli stabilizzatori "
           "(piattaforma di lavoro); antenna entro i limiti di inclinazione; traslazioni con l'utensile "
-          "basso e l'antenna nella configurazione di trasferimento; conformità a EN 16228-1 e -2 o -4"),
+          "basso e l'antenna nella configurazione di trasferimento; conformità a UNI EN 16228-1 e -2 o -4"),
         r("Cesoiamenti e stritolamenti", 2, 4,
           "Zona di esclusione intorno all'asta e all'utensile in rotazione, delimitata e controllata "
           "dall'operatore; nessuno vicino alla tavola rotary e alle aste kelly; dispositivi di arresto "
@@ -827,9 +827,9 @@ ATTREZZATURE = {
     "Sonda di perforazione (micropali, tiranti, sondaggi)": attrezzatura(MACCHINA, rischi=[
         r("Cesoiamenti e stritolamenti", 3, 4,
           "Protezioni mobili interbloccate o dispositivi sensibili intorno alla testa di rotazione e alle "
-          "morse (EN 16228-1 e -2); arresti di emergenza raggiungibili; aggiunta e svitatura delle aste con "
+          "morse (UNI EN 16228-1 e -2); arresti di emergenza raggiungibili; aggiunta e svitatura delle aste con "
           "rotazione ferma o in modalità ridotta prevista dal fabbricante; nessun indumento svolazzante; "
-          "addestramento specifico degli addetti (art. 73 c. 4)"),
+          "addestramento specifico degli addetti (art. 73, comma 4)"),
         r("Proiezione di schegge e frammenti", 3, 2,
           "Deviatore o preventer sul boccaforo per lo spurgo con aria; nessuno davanti al foro durante la "
           "perforazione a rotopercussione; tubi dell'aria con cavetti anti-frusta",
@@ -853,7 +853,7 @@ ATTREZZATURE = {
     ], scheda_uso=scheda(
         "Perforatrice cingolata compatta a rotazione o rotopercussione, per micropali, tiranti, chiodi, "
         "drenaggi e sondaggi geognostici.",
-        ["verificare protezioni della testa di rotazione, morse ed arresti di emergenza",
+        ["verificare protezioni della testa di rotazione, morse e arresti di emergenza",
          "controllare tubi idraulici e dell'aria con cavetti anti-frusta",
          "stabilizzare la macchina e verificare il terreno o il supporto",
          "verificare sottoservizi e linee elettriche",
@@ -871,7 +871,7 @@ ATTREZZATURE = {
           "Getto ad altissima pressione (fino a 400-600 bar): tubi, raccordi e girevoli certificati e "
           "controllati a ogni turno, con cavetti anti-frusta; zona di esclusione intorno alle linee e "
           "alla testa; nessun intervento sulle linee senza scarico della pressione; in caso di ferita da "
-          "iniezione ricovero immediato anche se la lesione sembra lieve (conformità a EN 16228-6)",
+          "iniezione ricovero immediato anche se la lesione sembra lieve (conformità a UNI EN 16228-6)",
           "Occhiali a maschera o visiera protettiva, guanti in lattice o nitrile, indumenti impermeabili"),
         r("Rischio chimico", 3, 2,
           "Miscela cementizia alcalina: evitare il contatto con pelle e occhi, lavaocchi disponibile vicino "
@@ -913,7 +913,7 @@ ATTREZZATURE = {
           "punti di incrocio; macchina dotata di sistema di allarme per contatto con cavi elettrici "
           "(strike alert) e collegamento a picchetto di terra; operatori su tappetini equipotenziali "
           "collegati alla macchina; in caso di allarme restare sulla macchina o sul tappetino; conformità "
-          "a EN 16228-1 e -3",
+          "a UNI EN 16228-1 e -3",
           "Guanti dielettrici, calzature di sicurezza isolanti, casco"),
         r("Incendio ed esplosione", 1, 4,
           "Rischio di intercettare condotte del gas: tracciato progettato con distanze di rispetto, "
@@ -929,7 +929,7 @@ ATTREZZATURE = {
         _rumore("85-90 dB(A) vicino al motore"),
         r("Caduta dall'alto", 2, 3,
           "Buche di partenza e di arrivo protette con parapetti o recinzioni; scavi armati se profondi "
-          "oltre 1,5 m", _DPI),
+          "oltre 1,50 m", _DPI),
     ], scheda_uso=scheda(
         "Perforatrice cingolata che esegue fori orizzontali guidati sotto strade, corsi d'acqua o "
         "edifici, tirando poi in posa le tubazioni con alesatore e fanghi di perforazione.",
@@ -957,7 +957,7 @@ ATTREZZATURE = {
           "Rilevatore multigas, imbracatura, autorespiratore per l'emergenza"),
         r("Getti e schizzi", 3, 3,
           "Lancia e ugello ad alta pressione inseriti nella condotta prima della messa in pressione; "
-          "comando ad azione mantenuta; tubi e raccordi a norma EN 1829-1 e -2; mai estrarre l'ugello in "
+          "comando ad azione mantenuta; tubi e raccordi a norma UNI EN 1829-1 e -2; mai estrarre l'ugello in "
           "pressione",
           "Visiera protettiva, guanti in lattice o nitrile, indumenti impermeabili"),
         r("Rischio biologico", 3, 2,
@@ -1021,7 +1021,7 @@ ATTREZZATURE = {
 
     "Cippatrice": attrezzatura(MACCHINA, rischi=[
         r("Trascinamento negli organi di alimentazione e taglio", 2, 4,
-          "Macchina conforme a EN 13525 con barra di arresto/inversione dei rulli intorno alla bocca di "
+          "Macchina conforme a UNI EN 13525 con barra di arresto/inversione dei rulli intorno alla bocca di "
           "alimentazione funzionante e provata a ogni avviamento; alimentare stando di lato alla bocca, "
           "con rami ripuliti dai monconi; mai spingere il materiale con mani o piedi (usare un ramo); "
           "materiale corto inserito con altro materiale; nessun indumento svolazzante"),

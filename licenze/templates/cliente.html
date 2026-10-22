@@ -4,7 +4,7 @@
 <p class="sotto">{{ cliente.tipo }}{% if cliente.email %} · {{ cliente.email }}{% endif %}{% if cliente.partita_iva %} · P. IVA {{ cliente.partita_iva }}{% endif %}</p>
 
 <div class="card"><h2>Licenze</h2>
-{% if licenze %}<table><tr><th>Licenza</th><th>Piano</th><th>Emessa</th><th>Scadenza</th><th>PC</th><th>Prezzo</th><th>Stato</th></tr>
+{% if licenze %}<table><tr><th>Licenza</th><th>Piano</th><th>Emessa</th><th>Scadenza</th><th>Postazioni</th><th>Prezzo</th><th>Stato</th></tr>
 {% for l in licenze %}{% set s = stato(l) %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=l.id) }}">{{ l.codice_licenza }}</a></td>
 <td>{{ piani[l.piano][0] }}</td><td>{{ l.emessa|data }}</td><td>{{ l.scadenza|data }}</td><td>{{ l.postazioni }}</td><td>{{ l.prezzo|euro }}</td>
 <td><span class="badge b-{{ s|replace(' ', '-') }}">{{ s }}</span></td></tr>{% endfor %}</table>
@@ -17,7 +17,7 @@
 <div><label>Scadenza</label><input type="date" name="scadenza" value="{{ (oggi[:4]|int + 1)|string + oggi[4:] }}"></div>
 <div><label>Postazioni (PC)</label><input type="number" name="postazioni" value="1" min="1"></div>
 <div><label>Prezzo (€, IVA esclusa)</label><input name="prezzo" value="0"></div>
-<div class="largo"><label><input type="checkbox" name="senza_scadenza"> Senza scadenza (uso interno, omaggio)</label></div>
+<div class="largo"><label><input type="checkbox" name="senza_scadenza"> Senza scadenza (uso interno o omaggio)</label></div>
 <div class="largo"><label>Note</label><input name="note"></div>
 <div class="tutto"><button class="primario">Emetti e firma la licenza</button></div>
 </form></div>
@@ -28,9 +28,9 @@
   <div class="tessera"><div class="t">Quota del mese</div><div class="v">{{ credito.quota|milioni }}</div></div>
   <div class="tessera"><div class="t">Usati questo mese</div><div class="v">{{ credito.usati_mese|milioni }}</div></div>
   <div class="tessera"><div class="t">Ricariche disponibili</div><div class="v">{{ credito.extra|milioni }}</div></div>
-  <div class="tessera"><div class="t">Restanti</div><div class="v">{{ credito.residuo|milioni }}</div></div>
+  <div class="tessera"><div class="t">Residui</div><div class="v">{{ credito.residuo|milioni }}</div></div>
 </div>
-{% else %}<p class="sotto">Nessuna licenza valida: l'assistente incluso non è attivo.</p>{% endif %}
+{% else %}<p class="sotto">Nessuna licenza valida: l'assistente AI incluso non è attivo.</p>{% endif %}
 {% if consumi %}<table><tr><th>Mese</th><th>Motore</th><th>Richieste</th><th>Token</th><th>Crediti</th></tr>
 {% for c in consumi %}<tr><td>{{ c.mese }}</td><td>{{ c.motore }}</td><td>{{ c.richieste }}</td><td>{{ c.token|milioni }}</td><td>{{ c.crediti|milioni }}</td></tr>{% endfor %}</table>{% endif %}
 <form class="griglia" method="post" action="{{ url_for('nuova_ricarica', id_=cliente.id) }}" style="margin-top:12px">
@@ -39,7 +39,7 @@
 <div><label>Prezzo (€)</label><input name="prezzo" value="0"></div>
 <div><label>Note</label><input name="note"></div>
 <div><button class="primario">Aggiungi la ricarica</button></div>
-<div class="tutto sotto">Le ricariche non scadono e si usano dopo la quota del mese. Motore standard: 1 credito per token; motore avanzato (Claude, piano Studio): 8 crediti per token.</div>
+<div class="tutto sotto">Le ricariche non scadono e si utilizzano dopo aver esaurito la quota del mese. Motore standard: 1 credito per token; motore avanzato (Claude, piano Studio): 8 crediti per token.</div>
 </form>
 {% if ricariche %}<table style="margin-top:10px"><tr><th>Data</th><th>Crediti</th><th>Prezzo</th><th>Note</th></tr>
 {% for r in ricariche %}<tr><td>{{ r.data|data }}</td><td>{{ r.crediti|milioni }}</td><td>{{ r.prezzo|euro }}</td><td>{{ r.note }}</td></tr>{% endfor %}</table>{% endif %}

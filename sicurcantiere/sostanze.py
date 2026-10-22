@@ -28,7 +28,7 @@ FRASI_H: dict[str, str] = {
     "H225": "Liquido e vapori facilmente infiammabili",
     "H226": "Liquido e vapori infiammabili",
     "H228": "Solido infiammabile",
-    "H229": "Recipiente sotto pressione: può scoppiare se riscaldato",
+    "H229": "Contenitore pressurizzato: può scoppiare se riscaldato",
     "H240": "Rischio di esplosione per riscaldamento",
     "H241": "Rischio d'incendio o di esplosione per riscaldamento",
     "H242": "Rischio d'incendio per riscaldamento",
@@ -144,7 +144,8 @@ def base(codice: str) -> str:
 
 
 def descrizione(codice: str) -> str:
-    return FRASI_H.get(codice) or FRASI_H.get(base(codice), "Indicazione di pericolo da verificare sulla scheda")
+    return FRASI_H.get(codice) or FRASI_H.get(base(codice), "Indicazione di pericolo da verificare sulla scheda "
+                                                           "di dati di sicurezza")
 
 
 def pittogrammi(codici: list[str]) -> list[str]:
@@ -185,7 +186,7 @@ def categorie(codici: list[str]) -> list[Categoria]:
     risultato: list[Categoria] = []
     if _ha(codici, "H340", "H350", "H350i"):
         risultato.append(Categoria("Cancerogeno o mutageno", True, (
-            "Applicare il Titolo IX, Capo II del D.Lgs. 81/2008: sostituzione con prodotti meno pericolosi "
+            "Applicare il Titolo IX, Capo II, del D.Lgs. 81/2008: sostituzione con prodotti meno pericolosi "
             "se tecnicamente possibile, sistemi chiusi, riduzione al minimo degli esposti.",
             "Registro di esposizione e sorveglianza sanitaria dei lavoratori esposti.",
         )))

@@ -34,7 +34,7 @@ def _gestore_eccezioni(file_log: Path):
         QMessageBox.critical(
             None, "Errore imprevisto",
             f"Si è verificato un errore:\n{valore}\n\n"
-            f"I dati inseriti sono già salvati. Dettagli nel file:\n{file_log}",
+            f"I dati inseriti sono già stati salvati. I dettagli sono nel file:\n{file_log}",
         )
     return gestisci
 

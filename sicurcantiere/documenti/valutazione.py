@@ -54,7 +54,7 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
         from sicurcantiere.documenti import stile
 
         stile.nota(doc, "Valutazione da eseguire: la lavorazione presenta questo rischio, ma i parametri del "
-                        "metodo non sono ancora stati inseriti.", avviso=True)
+                        "metodo non sono ancora stati indicati.", avviso=True)
         return
     if str(grezzi.get("descrizione", "")).strip():
         doc.add_heading("Descrizione dell'attività", livello + 1)
@@ -129,5 +129,5 @@ def genera_valutazione(repo: Repository, valutazione_id: int, destinazione: str 
     doc.add_heading("VALUTAZIONE DEI RISCHI SPECIFICI", 0)
     doc.add_paragraph(f"Cantiere: {c['nome'] or '-'} - {c['comune'] or ''}".strip(" -"))
     aggiungi_valutazione(doc, repo, valutazione)
-    firma(doc, "Il Datore di lavoro, in collaborazione con RSPP e medico competente")
+    firma(doc, "Il datore di lavoro, in collaborazione con il RSPP e il medico competente")
     return salva(doc, destinazione)

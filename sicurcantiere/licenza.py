@@ -115,9 +115,9 @@ def leggi(codice: str, chiave: str | None = None) -> Licenza:
     """Verifica il codice e restituisce la licenza; ErroreLicenza se non è valido."""
     codice = "".join(codice.split())  # tollera spazi e a capo copiati dall'email
     if not codice.startswith(PREFISSO) or "." not in codice:
-        raise ErroreLicenza("Il codice di licenza non è nel formato giusto (deve iniziare con SC1-).")
+        raise ErroreLicenza("Il codice di licenza non è nel formato corretto (deve iniziare con SC1-).")
     dati_b64, firma_b64 = codice[len(PREFISSO):].split(".", 1)
-    errore = ErroreLicenza("Il codice di licenza non è valido: controllare di averlo copiato per intero.")
+    errore = ErroreLicenza("Il codice di licenza non è valido: verifica di averlo copiato per intero.")
     try:
         dati, firma_ = _da_b64(dati_b64), _da_b64(firma_b64)
         if not ed25519.verifica(base64.b64decode(chiave or chiave_pubblica()), dati, firma_):

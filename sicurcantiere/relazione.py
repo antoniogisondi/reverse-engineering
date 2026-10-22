@@ -43,7 +43,7 @@ GRUPPI: list[tuple[str, list[Sezione]]] = [
                 "Allegato XV punto 2.2.1, lettera c)"),
         Sezione("idrogeologia", "Caratteristiche idrogeologiche del terreno e profilo altimetrico",
                 "Natura del terreno, falda, pendenze; oppure il rinvio alla relazione geologica o geotecnica, se "
-                "già redatta. Se non ci sono scavi né opere nel terreno, scriverlo.",
+                "già redatta. Se non sono previsti scavi né opere nel terreno, indicalo.",
                 "Allegato XV punto 2.1.4", SE_PERTINENTE),
     ]),
     ("Organizzazione del cantiere", [
@@ -60,7 +60,7 @@ GRUPPI: list[tuple[str, list[Sezione]]] = [
                 "Percorsi dei mezzi e dei pedoni, larghezze, pendenze, separazione tra mezzi e persone, senso di "
                 "marcia.", "Allegato XV punto 2.2.2, lettera c)"),
         Sezione("org_impianti", "Impianti di alimentazione e reti principali",
-                "Elettricità (quadro di cantiere, allaccio), acqua, gas ed energia di qualsiasi tipo: chi li "
+                "Elettricità (quadro di cantiere, allacciamento), acqua, gas ed energia di qualsiasi tipo: chi li "
                 "realizza e le dichiarazioni di conformità.", "Allegato XV punto 2.2.2, lettera d)"),
         Sezione("org_terra", "Impianto di terra e protezione contro le scariche atmosferiche",
                 "Impianto di terra del cantiere, verifica della necessità di protezione dalle scariche "
@@ -86,8 +86,8 @@ GRUPPI: list[tuple[str, list[Sezione]]] = [
                 "Aree di deposito e stoccaggio, cassoni dei rifiuti e loro gestione.",
                 "Allegato XV punto 2.2.2, lettera m)"),
         Sezione("org_infiammabili", "Zone di deposito dei materiali con pericolo d'incendio o di esplosione",
-                "Bombole, carburanti, solventi: dove si tengono e con quali protezioni; se non ce ne sono, "
-                "scriverlo.", "Allegato XV punto 2.2.2, lettera n)", SE_PERTINENTE),
+                "Bombole, carburanti, solventi: dove sono depositati e con quali protezioni; se non sono "
+                "presenti, indicalo.", "Allegato XV punto 2.2.2, lettera n)", SE_PERTINENTE),
     ]),
     ("Scelte e coordinamento", [
         Sezione("scelte", "Scelte progettuali e organizzative, procedure e misure preventive generali",

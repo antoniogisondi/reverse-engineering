@@ -15,7 +15,7 @@ from sicurcantiere.archivio_dati import base as _base
 from sicurcantiere.archivio_attrezzature import NUOVE as NUOVE_ATTREZZATURE
 from sicurcantiere.archivio_attrezzature import SCHEDE
 
-DPI_BASE = "Casco, scarpe antinfortunistiche, guanti, indumenti ad alta visibilità"
+DPI_BASE = "Casco, calzature di sicurezza, guanti, indumenti ad alta visibilità"
 
 # Tipologie di intervento: filtrano l'archivio nella finestra di importazione.
 TIPOLOGIE = ["Nuove costruzioni", "Ristrutturazioni", "Opere infrastrutturali", "Restauri"]
@@ -64,7 +64,7 @@ _RUMORE = _r("Rumore", 3, 2, "Valutazione dell'esposizione; macchine silenziate;
              DPI_BASE + ", otoprotettori")
 _VIBRAZIONI_MB = _r("Vibrazioni al sistema mano-braccio", 3, 2,
                     "Utensili con impugnature antivibranti; pause e rotazione degli addetti.",
-                    DPI_BASE + ", guanti antivibrazione")
+                    DPI_BASE + ", guanti antivibrazioni")
 _INVESTIMENTO = _r("Investimento di persone a terra", 2, 4,
                    "Segnalatore acustico e luminoso di retromarcia; nessuno nel raggio d'azione; percorsi separati.")
 _RIBALTAMENTO = _r("Ribaltamento del mezzo", 2, 4,
@@ -80,7 +80,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     "Autobetoniera": {"tipo": "Macchina", "rischi": [
         _INVESTIMENTO,
         _r("Schizzi di calcestruzzo", 3, 1, "Mantenersi a distanza dalla canala durante lo scarico.",
-           DPI_BASE + ", occhiali"),
+           DPI_BASE + ", occhiali protettivi"),
     ]},
     "Autopompa per calcestruzzo": {"tipo": "Macchina", "rischi": [
         _INVESTIMENTO,
@@ -105,10 +105,10 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     "Vibrofinitrice": {"tipo": "Macchina", "rischi": [_INVESTIMENTO,
         _r("Esposizione a fumi di bitume e calore", 3, 2,
            "Lavorare sopravvento; idratazione e pause nelle ore calde.",
-           DPI_BASE + ", mascherina per vapori organici")]},
+           DPI_BASE + ", maschera con filtro per vapori organici")]},
     "Piattaforma di lavoro elevabile": {"tipo": "Macchina", "rischi": [
         _r("Caduta dall'alto dal cestello", 2, 4,
-           "Operatore formato (accordo Stato-Regioni); imbracatura agganciata al cestello; stabilizzatori.",
+           "Operatore formato (Accordo Stato-Regioni); imbracatura agganciata al cestello; stabilizzatori.",
            DPI_BASE + ", imbracatura con cordino corto"),
         _RIBALTAMENTO,
     ]},
@@ -118,23 +118,23 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     ]},
     "Sega circolare": {"tipo": "Attrezzo", "rischi": [
         _r("Tagli e amputazioni", 2, 4, "Cuffia di protezione registrabile; coltello divisore; spingitoio."),
-        _r("Proiezione di schegge", 3, 2, "Schermo di protezione.", DPI_BASE + ", occhiali"),
+        _r("Proiezione di schegge", 3, 2, "Schermo di protezione.", DPI_BASE + ", occhiali protettivi"),
         _RUMORE,
     ]},
     "Smerigliatrice angolare": {"tipo": "Attrezzo", "rischi": [
         _r("Proiezione di schegge e rottura del disco", 3, 3,
            "Disco idoneo al materiale e al numero di giri; carter di protezione.",
-           DPI_BASE + ", occhiali o visiera"),
+           DPI_BASE + ", occhiali protettivi o visiera protettiva"),
         _RUMORE, _VIBRAZIONI_MB,
     ]},
     "Martello demolitore": {"tipo": "Attrezzo", "rischi": [
         _VIBRAZIONI_MB, _RUMORE,
-        _r("Polveri", 3, 2, "Bagnatura delle superfici.", DPI_BASE + ", mascherina FFP2"),
+        _r("Polveri", 3, 2, "Bagnatura delle superfici.", DPI_BASE + ", facciale filtrante FFP2"),
     ]},
     "Trapano elettrico": {"tipo": "Attrezzo", "rischi": [
         _r("Elettrocuzione", 1, 3, "Utensile a doppio isolamento; cavi integri."),
         _r("Proiezione di frammenti", 2, 2, "Punte idonee al materiale; pezzo da forare bloccato.",
-           DPI_BASE + ", occhiali"),
+           DPI_BASE + ", occhiali protettivi"),
     ]},
     "Saldatrice": {"tipo": "Attrezzo", "rischi": [
         _r("Radiazioni ottiche e fumi di saldatura", 3, 2, "Aspirazione localizzata; schermi.",
@@ -193,7 +193,7 @@ _CADUTA_ALTO = _r("Caduta dall'alto", 3, 4,
 _CADUTA_MATERIALE = _r("Caduta di materiale dall'alto", 3, 3,
                        "Delimitare l'area sottostante; tavole fermapiede; sollevamento con mezzi idonei.")
 _POLVERI = _r("Polveri", 3, 2, "Bagnatura; aspirazione; taglio a umido.",
-              DPI_BASE + ", mascherina FFP2, occhiali")
+              DPI_BASE + ", facciale filtrante FFP2, occhiali protettivi")
 
 LAVORAZIONI: list[dict[str, Any]] = [
     # --- Allestimento e smobilizzo ---
@@ -220,7 +220,7 @@ LAVORAZIONI: list[dict[str, Any]] = [
         _r("Elettrocuzione", 2, 4,
            "Quadri ASC certificati; interruttori differenziali; impianto di terra verificato; "
            "impresa abilitata con dichiarazione di conformità.",
-           DPI_BASE + ", guanti isolanti"),
+           DPI_BASE + ", guanti dielettrici"),
     ]),
     _lav("SM.01", "Smobilizzo del cantiere", 50, ["Autocarro", "Utensili manuali"], [
         _r("Investimento da mezzi in manovra", 2, 4, "Moviere durante le manovre; area delimitata."),
@@ -283,7 +283,7 @@ LAVORAZIONI: list[dict[str, Any]] = [
          ["Betoniera a bicchiere", "Trabattello", "Ponteggio metallico fisso"], [
         _r("Caduta dall'alto da ponti su cavalletti o trabattelli", 2, 3, "Opere provvisionali conformi e verificate."),
         _r("Schizzi di malta negli occhi", 3, 2, "Non lavorare sopra la testa senza protezione degli occhi.",
-           DPI_BASE + ", occhiali"),
+           DPI_BASE + ", occhiali protettivi"),
     ]),
     _lav("NC.10", "Pavimenti e rivestimenti", 50, ["Smerigliatrice angolare", "Utensili manuali"], [
         _r("Posture incongrue (lavoro in ginocchio)", 4, 1, "Pause; alternanza delle attività.", DPI_BASE + ", ginocchiere"),
@@ -293,7 +293,7 @@ LAVORAZIONI: list[dict[str, Any]] = [
     _lav("NC.11", "Tinteggiature", 65, ["Trabattello", "Scala a mano"], [
         _r("Caduta dall'alto", 2, 3, "Trabattelli e scale conformi."),
         _r("Inalazione di vapori e contatto con prodotti chimici", 2, 2,
-           "Consultare le schede di sicurezza; ventilazione dei locali.", DPI_BASE + ", mascherina, occhiali"),
+           "Consultare le schede di sicurezza; ventilazione dei locali.", DPI_BASE + ", maschera con filtro specifico, occhiali protettivi"),
     ]),
     _lav("NC.12", "Serramenti e opere in ferro", 40,
          ["Saldatrice", "Smerigliatrice angolare", "Trapano elettrico"], [
@@ -304,7 +304,7 @@ LAVORAZIONI: list[dict[str, Any]] = [
          ["Martello demolitore", "Autocarro", "Utensili manuali"], [
         _r("Crollo di strutture", 2, 4,
            "Programma delle demolizioni (art. 151); puntellamenti; procedere dall'alto verso il basso."),
-        _r("Polveri", 4, 2, "Bagnare le macerie; canali di scarico chiusi.", DPI_BASE + ", mascherina FFP3, occhiali"),
+        _r("Polveri", 4, 2, "Bagnare le macerie; canali di scarico chiusi.", DPI_BASE + ", facciale filtrante FFP3, occhiali protettivi"),
         _r("Presenza di amianto", 1, 4,
            "Verifica preliminare dei materiali; se presente, rimozione da impresa iscritta all'albo con piano di lavoro."),
     ]),
@@ -332,7 +332,7 @@ LAVORAZIONI: list[dict[str, Any]] = [
         _r("Seppellimento", 2, 4, "Armatura delle pareti oltre 1,50 m di profondità (art. 119)."),
         _r("Contatto con sottoservizi", 2, 4, "Rilievo preventivo; scavo a mano in prossimità."),
         _r("Investimento da traffico veicolare", 2, 4,
-           "Segnaletica temporanea secondo il D.M. 10/07/2002; movieri; indumenti ad alta visibilità classe 3."),
+           "Segnaletica temporanea secondo il D.M. 10 luglio 2002; movieri; indumenti ad alta visibilità classe 3."),
     ]),
     _lav("IN.02", "Posa di condotte e pozzetti", 40, ["Escavatore", "Autogru"], [
         _r("Schiacciamento durante la posa", 2, 4, "Guidare i tubi con funi; nessuno nello scavo sotto il carico."),
@@ -351,20 +351,20 @@ LAVORAZIONI: list[dict[str, Any]] = [
     _lav("RS.01", "Pulitura di superfici lapidee e intonaci storici", 70,
          ["Ponteggio metallico fisso", "Utensili manuali"], [
         _r("Inalazione di prodotti chimici e polveri", 3, 2, "Schede di sicurezza; ventilazione.",
-           DPI_BASE + ", mascherina con filtri, occhiali"),
+           DPI_BASE + ", maschera con filtro specifico, occhiali protettivi"),
         _CADUTA_ALTO,
     ]),
     _lav("RS.02", "Consolidamento di murature con iniezioni", 55,
          ["Trapano elettrico", "Ponteggio metallico fisso"], [
         _r("Schizzi di miscela", 3, 2, "Verificare la tenuta di tubi e raccordi prima dell'iniezione.",
-           DPI_BASE + ", occhiali, guanti impermeabili"),
+           DPI_BASE + ", occhiali protettivi, guanti impermeabili"),
         _VIBRAZIONI_MB,
     ]),
     _lav("RS.03", "Restauro di elementi lignei di copertura", 60,
          ["Ponteggio metallico fisso", "Sega circolare", "Utensili manuali"], [
         _CADUTA_ALTO,
         _r("Esposizione a prodotti antitarlo", 2, 2, "Applicare in ambienti ventilati; schede di sicurezza.",
-           DPI_BASE + ", mascherina, guanti"),
+           DPI_BASE + ", maschera con filtro specifico, guanti"),
     ]),
 ]
 
@@ -427,7 +427,7 @@ LAVORAZIONI[:0] = [
          ["Autocarro", "Trapano elettrico", "Utensili manuali"], [
              _MMC, _PUNTURE, _SOTTOSERVIZI,
              _r("Investimento da veicoli lungo la strada", 2, 4, "Lavori sul lato strada protetti con "
-                "segnaletica temporanea (D.M. 22/01/2019); indumenti ad alta visibilità."),
+                "segnaletica temporanea (D.M. 22 gennaio 2019); indumenti ad alta visibilità."),
              _r("Urti e colpi durante l'infissione dei paletti", 2, 2, "Battipalo o mazza con impugnatura "
                 "integra; reggere i paletti con apposito attrezzo e non con le mani."),
          ], gruppo=_PREP, addetto="Addetto alla realizzazione della recinzione e degli accessi al cantiere",

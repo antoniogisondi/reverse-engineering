@@ -102,8 +102,8 @@ class PaginaImpresePSC(PaginaImprese):
         if not QApplication.platformName() == "offscreen" and QMessageBox.question(
                 self, "Prepara il POS",
                 f"Creato il file del POS di {impresa['ragione_sociale'] or 'questa impresa'}:\n{percorso}\n\n"
-                "Contiene i dati del cantiere, dell'impresa, le sue lavorazioni con rischi e attrezzature e le "
-                "prescrizioni sulle interferenze. Aprirlo ora con SicurCantiere POS per completarlo?",
+                "Contiene i dati del cantiere e dell'impresa, le lavorazioni assegnate con rischi e attrezzature e le "
+                "prescrizioni sulle interferenze. Vuoi aprirlo ora in SicurCantiere POS per completarlo?",
         ) == QMessageBox.StandardButton.Yes:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(percorso)))
         return percorso
@@ -145,7 +145,7 @@ class FotoCantiere(QFrame):
         self.elenco.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.elenco.setMovement(QListWidget.Movement.Static)
         self.elenco.setWordWrap(True)
-        self.elenco.setToolTip("Le foto restano nella loro cartella: il file del cantiere ne conserva il percorso.")
+        self.elenco.setToolTip("Le foto restano nella loro cartella: il cantiere ne memorizza solo il percorso.")
         aggiungi = QPushButton("Aggiungi foto...")
         aggiungi.clicked.connect(self._aggiungi)
         rimuovi = QPushButton("Rimuovi")
@@ -202,7 +202,7 @@ class PaginaSoggettiPOS(PaginaSoggetti):
 
 class PaginaImpresePOS(PaginaImprese):
     titolo = "Impresa e lavoratori"
-    sottotitolo = "Seleziona un'impresa: sotto compili i suoi dati, le figure della sicurezza e le maestranze."
+    sottotitolo = "Seleziona un'impresa e compila qui sotto i suoi dati, le figure della sicurezza e le maestranze."
     voce = "Impresa e lavoratori"
 
 
@@ -216,7 +216,7 @@ class PaginaFasiPOS(PaginaFasi):
 
 class PaginaDocumentiPOS(PaginaDocumenti):
     titolo = "POS e controlli"
-    sottotitolo = "Genera i documenti in Word. Prima risolvi gli errori segnalati nei controlli."
+    sottotitolo = "Genera i documenti in Word dopo aver risolto gli errori segnalati dai controlli."
     voce = "POS e controlli"
     documenti = ("pos", "sostanze", "dpi", "tesserini", "schede", "idoneita")
     principale = "pos"
@@ -241,10 +241,10 @@ def controlla_pimus(repo: Repository) -> list[controlli.Segnalazione]:
     segnalazioni = []
     c = repo.cantiere()
     if not (c["indirizzo"].strip() and c["comune"].strip()):
-        segnalazioni.append(controlli.Segnalazione(controlli.ERRORE, "Cantiere", "Manca l'indirizzo del cantiere."))
+        segnalazioni.append(controlli.Segnalazione(controlli.ERRORE, "Cantiere", "Indicare l'indirizzo del cantiere."))
     ponteggi = repo.elenco("ponteggi")
     if not ponteggi:
-        segnalazioni.append(controlli.Segnalazione(controlli.ERRORE, "Ponteggi", "Nessun ponteggio inserito."))
+        segnalazioni.append(controlli.Segnalazione(controlli.ERRORE, "Ponteggi", "Inserire almeno un ponteggio."))
     for p in ponteggi:
         for messaggio in pimus.avvisi(p):
             segnalazioni.append(controlli.Segnalazione(controlli.AVVISO, p["nome"] or "Ponteggio", messaggio))

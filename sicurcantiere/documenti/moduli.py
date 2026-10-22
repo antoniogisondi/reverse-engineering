@@ -16,7 +16,7 @@ def dpi_impresa(repo: Repository, impresa_id: int) -> list[str]:
 
 
 def genera_consegna_dpi(repo: Repository, impresa_id: int, destinazione: str | Path) -> Path:
-    """Verbale di consegna dei DPI (art. 77 e 18 c. 1 lett. d): una pagina per lavoratore."""
+    """Verbale di consegna dei DPI (art. 77 e art. 18, comma 1, lettera d): una pagina per lavoratore."""
     impresa = repo.leggi("imprese", impresa_id)
     if impresa is None:
         raise ValueError("Impresa inesistente")
@@ -30,7 +30,7 @@ def genera_consegna_dpi(repo: Repository, impresa_id: int, destinazione: str | P
         if n:
             doc.add_page_break()
         doc.add_heading("VERBALE DI CONSEGNA DEI DISPOSITIVI DI PROTEZIONE INDIVIDUALE", 1)
-        doc.add_paragraph("artt. 18 c. 1 lett. d) e 77 del D.Lgs. 81/2008")
+        doc.add_paragraph("Art. 18, comma 1, lettera d), e art. 77 del D.Lgs. 81/2008")
         p = doc.add_paragraph()
         p.add_run("Impresa: ").bold = True
         p.add_run(impresa["ragione_sociale"])
@@ -55,6 +55,6 @@ def genera_consegna_dpi(repo: Repository, impresa_id: int, destinazione: str | P
         )
         doc.add_paragraph()
         doc.add_paragraph("Data: ____/____/________")
-        doc.add_paragraph("Il Datore di lavoro (o suo delegato)            Il Lavoratore")
+        doc.add_paragraph("Il datore di lavoro (o suo delegato)            Il lavoratore")
         doc.add_paragraph("_____________________________            _____________________________")
     return salva(doc, destinazione)

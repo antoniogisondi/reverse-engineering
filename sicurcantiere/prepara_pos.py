@@ -53,7 +53,7 @@ def prepara_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> 
     """Crea il file .spo del POS dell'impresa a partire dal cantiere del PSC aperto in `repo`."""
     impresa = repo.leggi("imprese", impresa_id)
     if impresa is None:
-        raise ValueError("Impresa inesistente")
+        raise ValueError("Impresa non trovata.")
     destinazione = Path(destinazione)
     note = prescrizioni_impresa(repo, impresa_id)
     origine = repo.progetto.percorso.name

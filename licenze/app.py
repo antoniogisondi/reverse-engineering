@@ -1,8 +1,8 @@
 """Gestionale web delle licenze SicurCantiere: clienti, licenze, rinnovi, pagamenti e scadenze.
 
 Gira sul server dell'ufficio e si può aprire anche da internet: chi lo apre dal browser deve
-accedere con nome, password e (se attivata) il codice dell'app di autenticazione; dopo troppi
-tentativi sbagliati l'accesso si blocca per un po'. Qui si firmano le licenze con la chiave
+accedere con nome, password e (se attivato) il codice dell'app di autenticazione; dopo troppi
+tentativi errati l'accesso si blocca per 15 minuti. Qui si firmano le licenze con la chiave
 privata, che non lascia mai il server; i programmi dei clienti verificano il codice senza
 collegarsi a niente.
 """
@@ -66,7 +66,7 @@ def crea_app(https: bool = True) -> Flask:
     def controlli():
         atteso = session.get("token")
         if request.method == "POST" and (not atteso or not secrets.compare_digest(request.form.get("token", ""), atteso)):
-            abort(400, "Modulo scaduto: ricaricare la pagina.")
+            abort(400, "Modulo scaduto: ricarica la pagina.")
         if request.endpoint not in ("accesso", "static") and not session.get("utente"):
             return redirect(url_for("accesso", prossima=request.path))
         return None
@@ -110,11 +110,12 @@ def _stato_licenza(riga) -> str:
 def testo_consegna(l, nome_piano: str) -> str:
     validita = f", valida fino al {_data(l['scadenza'])}" if l["scadenza"] else ", senza scadenza"
     return (f"Gentile {l['cliente']},\n"
-            f"ecco il codice della sua licenza SicurCantiere n. {l['codice_licenza']} (piano {nome_piano}{validita}, "
+            f"le inviamo il codice della licenza SicurCantiere n. {l['codice_licenza']} (piano {nome_piano}{validita}, "
             f"per {l['postazioni']} {'postazione' if l['postazioni'] == 1 else 'postazioni'}):\n\n{l['codice']}\n\n"
-            "Per attivarla: aprire SicurCantiere, menu Aiuto > Licenza, incollare il codice e premere «Attiva la "
-            f"licenza».\nL'installatore aggiornato si scarica da:\n{DOWNLOAD}\n\n"
-            "La licenza è personale: il nome del titolare compare nel programma e nei documenti generati.")
+            "Per attivare la licenza apra SicurCantiere, scelga Aiuto > Licenza..., incolli il codice e prema "
+            f"«Attiva la licenza».\nL'installatore aggiornato è disponibile all'indirizzo:\n{DOWNLOAD}\n\n"
+            "La licenza è nominativa: il nome del titolare compare nel programma e nei documenti generati.\n\n"
+            "Cordiali saluti")
 
 
 def testo_promemoria(l, nome_piano: str) -> str:
@@ -123,8 +124,9 @@ def testo_promemoria(l, nome_piano: str) -> str:
             f"la sua licenza SicurCantiere n. {l['codice_licenza']} (piano {nome_piano}) "
             f"{'è scaduta' if scade else 'scade'} il {_data(l['scadenza'])}.\n\n"
             "Il programma continua a funzionare, ma senza rinnovo non riceve più gli aggiornamenti normativi e "
-            "l'assistenza. Rinnovando ora la nuova scadenza parte da quella attuale, senza perdere giorni.\n\n"
-            "Se desidera rinnovare risponda a questa email: le invieremo il nuovo codice.")
+            "l'assistenza. Rinnovando ora, la nuova scadenza decorre da quella attuale, senza perdere giorni.\n\n"
+            "Se desidera rinnovare, risponda a questa email: le invieremo il nuovo codice.\n\n"
+            "Cordiali saluti")
 
 
 def _data(valore) -> str:
@@ -192,7 +194,7 @@ def _rotte(app: Flask) -> None:
             nome, ip = request.form.get("nome", "").strip(), request.remote_addr or ""
             if _bloccato(conn, nome, ip):
                 conn.commit()
-                flash("Troppi tentativi sbagliati: riprovare tra 15 minuti.", "errore")
+                flash("Troppi tentativi non riusciti: riprova tra 15 minuti.", "errore")
                 return render_template("accesso.html"), 429
             utente = _controlla_accesso(conn, nome, request.form.get("password", ""), request.form.get("codice", ""))
             if utente is None:
@@ -271,7 +273,7 @@ def _rotte(app: Flask) -> None:
         if request.method == "POST":
             valori = {k: request.form.get(k, "").strip() for k in campi_cliente}
             if not valori["nome"]:
-                flash("Indicare il nome o la ragione sociale.", "errore")
+                flash("Indica il nome o la ragione sociale.", "errore")
                 return render_template("cliente_modifica.html", cliente=valori)
             if id_:
                 conn.execute(f"UPDATE clienti SET {', '.join(f'{k} = ?' for k in campi_cliente)} WHERE id = ?",
@@ -318,7 +320,7 @@ def _rotte(app: Flask) -> None:
         except ValueError:
             abort(400, "Valori non validi.")
         if milioni <= 0:
-            flash("Indicare quanti milioni di crediti aggiungere.", "errore")
+            flash("Indica quanti milioni di crediti aggiungere.", "errore")
             return redirect(url_for("cliente", id_=id_))
         conn.execute("INSERT INTO ricariche_ai (cliente_id, data, crediti, prezzo, note) VALUES (?, ?, ?, ?, ?)",
                      (id_, date.today().isoformat(), int(milioni * 1_000_000), prezzo, request.form.get("note", "")))
@@ -334,7 +336,7 @@ def _rotte(app: Flask) -> None:
         conn = _db()
         nuova = emetti(conn, id_, f.get("piano", "pos"), scadenza, int(f.get("postazioni") or 1),
                        float((f.get("prezzo") or "0").replace(",", ".")), f.get("note", ""))
-        flash("Licenza emessa: copia il codice e mandalo al cliente.", "ok")
+        flash("Licenza emessa: copia il codice e invialo al cliente.", "ok")
         return redirect(url_for("dettaglio_licenza", id_=nuova))
 
     @app.route("/licenze/<int:id_>")
@@ -367,7 +369,7 @@ def _rotte(app: Flask) -> None:
         conn.execute("INSERT INTO invii (licenza_id, data, tipo, destinatario, utente) VALUES (?, ?, ?, ?, ?)",
                      (id_, date.today().isoformat(), tipo, l["email"], session.get("utente", "")))
         conn.commit()
-        flash(f"{TIPI_INVIO[tipo]}: registrato.", "ok")
+        flash(f"Invio registrato: {TIPI_INVIO[tipo].lower()}.", "ok")
         return redirect(request.form.get("torna") if request.form.get("torna", "").startswith("/")
                         else url_for("dettaglio_licenza", id_=id_))
 
@@ -390,7 +392,7 @@ def _rotte(app: Flask) -> None:
                        float((request.form.get("prezzo") or vecchia["prezzo"] or 0)), rinnovo_di=id_)
         conn.execute("UPDATE licenze SET stato = 'rinnovata' WHERE id = ?", (id_,))
         conn.commit()
-        flash("Rinnovo emesso: manda al cliente il nuovo codice.", "ok")
+        flash("Rinnovo emesso: invia al cliente il nuovo codice.", "ok")
         return redirect(url_for("dettaglio_licenza", id_=nuova))
 
     @app.route("/licenze/<int:id_>/annulla", methods=["POST"])
@@ -452,7 +454,7 @@ def _rotte(app: Flask) -> None:
             segreto = session.get("totp_nuovo", "")
             contatore = totp.verifica(segreto, request.form.get("codice", ""))
             if contatore is None:
-                flash("Codice non corretto: controllare l'ora del telefono e riprovare.", "errore")
+                flash("Codice non corretto: controlla l'ora del telefono e riprova.", "errore")
                 return redirect(url_for("due_passaggi"))
             conn.execute("UPDATE utenti SET totp = ?, totp_ultimo = ? WHERE id = ?", (segreto, contatore, utente["id"]))
             conn.commit()

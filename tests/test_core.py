@@ -262,8 +262,8 @@ def test_controlli(repo):
     from sicurcantiere import controlli
 
     messaggi = {s.messaggio for s in controlli.controlla(repo)}
-    assert "Manca il committente." in messaggi
-    assert "Nessuna fase di lavoro inserita." in messaggi
+    assert "Indicare il committente." in messaggi
+    assert "Inserire le fasi di lavoro." in messaggi
     repo.inserisci("imprese", ragione_sociale="A")
     repo.inserisci("imprese", ragione_sociale="B")
     errori = [s for s in controlli.controlla(repo) if s.livello == controlli.ERRORE]
@@ -434,8 +434,8 @@ def test_sostanze_nel_pos_e_elenco(repo, tmp_path):
     assert "Cancerogeno o mutageno" in elenco
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
     assert any("Disarmante: cancerogeno" in m for m in messaggi)
-    assert any("Disarmante: data della scheda" in m for m in messaggi)
-    assert any("Orfano: non collegata" in m for m in messaggi)
+    assert any("Disarmante: indicare la data della scheda" in m for m in messaggi)
+    assert any("Orfano: collegare la sostanza" in m for m in messaggi)
 
 
 def test_rumore_e_vibrazioni_nel_pos(repo, tmp_path):
@@ -444,7 +444,7 @@ def test_rumore_e_vibrazioni_nel_pos(repo, tmp_path):
 
     a = _cantiere_completo(repo)
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
-    assert any("valutazione del rumore assente" in m for m in messaggi)
+    assert any("eseguire la valutazione del rumore" in m for m in messaggi)
     r = repo.inserisci("valutazioni", metodo="rumore", impresa_id=a, titolo="Rumore muratori", mansione="Muratore")
     repo.salva_dati_valutazione(r, {"snr": 0, "compiti": [{"nome": "Betoniera", "laeq": 88, "picco": 120,
                                                             "durata": 240}]})
@@ -453,7 +453,7 @@ def test_rumore_e_vibrazioni_nel_pos(repo, tmp_path):
     repo.salva_dati_valutazione(v, {"sistema": "hav", "compiti": [{"nome": "Demolitore", "accelerazione": 8,
                                                                     "durata": 120}]})
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
-    assert not any("valutazione del rumore assente" in m for m in messaggi)
+    assert not any("eseguire la valutazione del rumore" in m for m in messaggi)
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
     assert "Esito della valutazione del rumore" in testo and "85,0 dB(A)" in testo
     assert "Esito della valutazione delle vibrazioni" in testo and "4,00 m/s²" in testo
@@ -509,7 +509,7 @@ def test_figure_e_dati_impresa_nel_pos(repo, tmp_path):
     b = repo.inserisci("imprese", ragione_sociale="Beta Impianti", tipo="Subappaltatrice", affidataria_id=a)
     repo.inserisci("figure", impresa_id=a, ruolo="RLST", nome="Paolo Gialli")
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
-    assert "Alfa Costruzioni: DURC scaduto." in messaggi
+    assert "Alfa Costruzioni: DURC scaduto, acquisire il DURC in corso di validità." in messaggi
     assert not any(m.startswith("Alfa Costruzioni: indicare il rappresentante") for m in messaggi)
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
     assert "BA 123" in testo and "Cassa edile di Bari 7236" in testo and "Edilizia - industria" in testo
@@ -541,7 +541,7 @@ def test_figure_svolte_dal_datore_o_non_presenti(repo, tmp_path):
     assert not [s for s in figure_mancanti() if s.livello == controlli.ERRORE]
     assert not figure_mancanti()
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
-    assert "art. 34 c. 1-bis" in testo and "non è nominato" in testo
+    assert "art. 34, comma 1-bis" in testo and "non è nominato" in testo
     assert "direzione dei lavori dell'impresa è svolta dal datore di lavoro" in testo
 
 
@@ -829,10 +829,10 @@ def test_rischio_non_presente_con_motivazione(repo, tmp_path):
     assert len([r for r in repo.elenco("rischi", fase_id=fase) if r["descrizione"].startswith("Vibrazioni")]) == 1
     assert vibrazioni["id"] not in {r["id"] for r in repo.rischi(fase_id=fase)}
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
-    assert any("non presente senza motivazione" in m for m in messaggi)
+    assert any("motivare l'esclusione del rischio" in m for m in messaggi)
     repo.aggiorna("rischi", vibrazioni["id"], motivazione="Utensile a basse vibrazioni, uso inferiore a 10 minuti")
     messaggi = [s.messaggio for s in controlli.controlla_pos(repo)]
-    assert not any("non presente senza motivazione" in m for m in messaggi)
+    assert not any("motivare l'esclusione del rischio" in m for m in messaggi)
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
     assert "Rischi valutati come non presenti" in testo and "uso inferiore a 10 minuti" in testo
 
@@ -991,7 +991,7 @@ def test_patente_crediti_e_idoneita(repo, tmp_path):
     autonomo = repo.inserisci("imprese", ragione_sociale="Rossi Mario", tipo="Lavoratore autonomo")
     messaggi = [s.messaggio for s in controlli.controlla(repo)]
     assert any("Alfa Costruzioni: indicare la situazione della patente" in m for m in messaggi)
-    assert any("Alfa Costruzioni: verifica dell'idoneità" in m for m in messaggi)
+    assert any("Alfa Costruzioni: eseguire la verifica dell'idoneità" in m for m in messaggi)
 
     repo.aggiorna("imprese", a, patente_stato=anagrafiche.PATENTE_POSSEDUTA, patente_numero="PC-123",
                   patente_crediti=10)
@@ -1004,12 +1004,12 @@ def test_patente_crediti_e_idoneita(repo, tmp_path):
     assert anagrafiche.descrizione_patente(impresa) == "Posseduta: n. PC-123, 30 crediti"
     messaggi = [s.messaggio for s in controlli.controlla(repo)]
     assert not any(m.startswith("Alfa Costruzioni: indicare la situazione") or
-                   m.startswith("Alfa Costruzioni: verifica dell'idoneità") for m in messaggi)
+                   m.startswith("Alfa Costruzioni: eseguire la verifica dell'idoneità") for m in messaggi)
 
     testo = _testo_docx(genera_verifica_idoneita(repo, a, tmp_path / "v.docx"))
     assert "Verifica dell'idoneità tecnico-professionale" in testo and "Idoneità tecnico-professionale verificata" in testo
     assert "Posseduta: n. PC-123, 30 crediti" in testo and "20/09/2025" in testo
     # lavoratore autonomo: le voci del punto 2 dell'Allegato XVII
     testo = _testo_docx(genera_verifica_idoneita(repo, autonomo, tmp_path / "a.docx"))
-    assert "Allegato XVII, punto 2" in testo and "Documentazione incompleta" not in testo
+    assert "Allegato XVII punto 2" in testo and "Documentazione incompleta" not in testo
     assert "PC-123" in _testo_docx(genera_psc(repo, tmp_path / "psc.docx"))

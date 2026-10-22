@@ -163,7 +163,7 @@ class Benvenuto(QWidget):
             inserisci.clicked.connect(finestra.mostra_licenza)
             azioni.addWidget(inserisci)
             if licenza.CONTATTO_ACQUISTO:
-                acquista = QPushButton("Come acquistarlo")
+                acquista = QPushButton("Come acquistare")
                 acquista.clicked.connect(licenza_ui.apri_acquisto)
                 azioni.addWidget(acquista)
             azioni.addStretch()
@@ -178,16 +178,16 @@ class Benvenuto(QWidget):
         pulsanti = QHBoxLayout()
         pulsanti.setSpacing(12)
         nuovo = PulsanteGrande("nuovo", "Nuovo cantiere...",
-                               f"Crea un nuovo file {edizione.estensione} e inizia dalla prima pagina", "Ctrl+N", True)
+                               "Crea un nuovo cantiere e inizia dalla prima pagina", "Ctrl+N", True)
         nuovo.clicked.connect(finestra.nuovo)
-        apri = PulsanteGrande("apri", "Apri cantiere...", "Anche da una cartella di rete", "Ctrl+O", False)
+        apri = PulsanteGrande("apri", "Apri cantiere...", "Apri un cantiere salvato, anche in una cartella di rete", "Ctrl+O", False)
         apri.clicked.connect(finestra.apri)
         nuovo.setEnabled(stato.utilizzabile)
         apri.setEnabled(stato.utilizzabile)
         pulsanti.addWidget(nuovo, 1)
         pulsanti.addWidget(apri, 1)
         if edizione.chiave == "pos":
-            da_psc = PulsanteGrande("psc", "Nuovo POS da un PSC...", "Dal PSC del coordinatore, in PDF o Word",
+            da_psc = PulsanteGrande("psc", "Nuovo POS da un PSC...", "Parti dal PSC del coordinatore, in formato PDF o Word",
                                     "", False)
             da_psc.clicked.connect(finestra.nuovo_da_psc)
             da_psc.setEnabled(stato.utilizzabile)
@@ -339,14 +339,14 @@ class FinestraPrincipale(QMainWindow):
         self.azione_apri = self._azione("&Apri...", self.apri, QKeySequence.StandardKey.Open)
         self.azione_salva = self._azione(
             "&Salva", self.salva, QKeySequence.StandardKey.Save,
-            "Salva le modifiche (il programma salva anche da solo ogni modifica)")
+            "Salva le modifiche (il programma salva comunque ogni modifica in automatico)")
         self.azione_salva_con_nome = self._azione(
             "Salva &con nome...", self.salva_con_nome, QKeySequence.StandardKey.SaveAs,
             "Salva una copia del cantiere con un altro nome")
         self.azione_chiudi = self._azione("C&hiudi cantiere", self.chiudi_cantiere)
         self.azione_da_psc = self._azione("Nuovo POS da un &PSC...", self.nuovo_da_psc,
-                                          suggerimento="Legge il PSC del coordinatore (PDF o Word) e prepara il "
-                                                       "file del POS delle imprese scelte")
+                                          suggerimento="Leggi il PSC del coordinatore (PDF o Word) e prepara il "
+                                                       "POS delle imprese scelte")
         self.azione_psc = self._azione(self.edizione.azione_principale, self._genera_principale, "Ctrl+P")
         self.azione_controlli = self._azione("&Controlli", self._vai_ai_controlli, "F7",
                                              "Mostra i controlli di completezza")
@@ -419,7 +419,7 @@ class FinestraPrincipale(QMainWindow):
         self.stato_controlli = QPushButton()
         self.stato_controlli.setObjectName("checksIndicator")
         self.stato_controlli.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.stato_controlli.setToolTip("Apre la pagina dei controlli (F7)")
+        self.stato_controlli.setToolTip("Apri la pagina dei controlli (F7)")
         self.stato_controlli.clicked.connect(self._vai_ai_controlli)
         barra = self.statusBar()
         barra.setSizeGripEnabled(False)
@@ -472,7 +472,7 @@ class FinestraPrincipale(QMainWindow):
         self.menu_recenti.clear()
         recenti = self._recenti()
         if not recenti:
-            self.menu_recenti.addAction("(nessuno)").setEnabled(False)
+            self.menu_recenti.addAction("(nessun file recente)").setEnabled(False)
         for r in recenti:
             self.menu_recenti.addAction(r).triggered.connect(lambda _=False, p=r: self.apri_file(p))
 
@@ -494,8 +494,8 @@ class FinestraPrincipale(QMainWindow):
             f"<b>{self.edizione.nome}</b> versione {__version__}<br>"
             f"{self.edizione.sottotitolo}, secondo il D.Lgs. 81/2008.<br><br>"
             f"{licenza_ui.descrizione(licenza_ui.stato_corrente(self.edizione.chiave), self.edizione.nome)}<br><br>"
-            "I documenti generati vanno riletti e firmati da chi ne risponde: il programma è uno "
-            "strumento di redazione.<br><br>"
+            "I documenti generati devono essere riletti e firmati da chi ne ha la responsabilità: il programma è "
+            "uno strumento di redazione.<br><br>"
             "Caratteri Ubuntu (Ubuntu Font Licence 1.0, © Canonical Ltd.).",
         )
 
@@ -520,7 +520,7 @@ class FinestraPrincipale(QMainWindow):
         if percorso.suffix.lower() not in ESTENSIONI:
             percorso = percorso.with_suffix(self.edizione.estensione)
         if self.progetto and percorso.resolve() == self.progetto.percorso.resolve():
-            QMessageBox.warning(self, "Nuovo cantiere", "Il file è già aperto: scegliere un altro nome.")
+            QMessageBox.warning(self, "Nuovo cantiere", "Il file è già aperto: scegli un altro nome.")
             return
         if not licenza_ui.consenti_cantiere(self, self.edizione.chiave, percorso):
             return
@@ -539,8 +539,8 @@ class FinestraPrincipale(QMainWindow):
         box.setIcon(QMessageBox.Icon.Question)
         box.setWindowTitle("Nuovo cantiere")
         box.setText(f"Esiste già un cantiere «{percorso.name}» in questa cartella.")
-        box.setInformativeText("Per lavorarci scegliere «Apri il cantiere». «Sostituisci» crea al suo posto un "
-                               "cantiere vuoto (resta una copia di sicurezza del vecchio).")
+        box.setInformativeText("Per lavorarci, scegli «Apri il cantiere». «Sostituisci con uno vuoto» crea al suo "
+                               "posto un cantiere vuoto (del cantiere precedente resta una copia di sicurezza).")
         apri = box.addButton("Apri il cantiere", QMessageBox.ButtonRole.AcceptRole)
         sostituisci = box.addButton("Sostituisci con uno vuoto", QMessageBox.ButtonRole.DestructiveRole)
         box.addButton("Annulla", QMessageBox.ButtonRole.RejectRole)
@@ -802,7 +802,7 @@ class FinestraPrincipale(QMainWindow):
         modifiche = self.progetto.conn.total_changes
         if modifiche != self._modifiche_viste:
             self._modifiche_viste = modifiche
-            self.stato_salvataggio.setText(f"✓ Salvato alle {datetime.now():%H:%M:%S}")
+            self.stato_salvataggio.setText(f"Salvato alle {datetime.now():%H:%M:%S}")
         elenco = self.edizione.controlla(self.pagine[0].repo) if self.pagine else []
         errori = sum(1 for s in elenco if s.livello == controlli.ERRORE)
         avvisi = len(elenco) - errori

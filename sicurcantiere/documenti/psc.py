@@ -41,7 +41,7 @@ from sicurcantiere.repository import Repository
 MAX_COLONNE_CRONO = 22
 PRESCRIZIONE_GENERICA = (
     "Sfasamento spaziale delle lavorazioni o, se non possibile, sfasamento temporale; "
-    "verifica del CSE prima dell'inizio."
+    "verifica da parte del CSE prima dell'inizio delle lavorazioni."
 )
 # Sezioni dei programmi in cui si compilano i dati (per i collegamenti dei dati mancanti).
 CANTIERE, SOGGETTI, IMPRESE, FASI, RISCHI, INTERFERENZE, COSTI, RELAZIONE = (
@@ -161,9 +161,10 @@ def _diagramma_gantt(doc, fasi: list[dict[str, Any]], imprese: dict[int, str], l
         stile._run(p, "Diagramma di Gantt dei lavori" + (f" ({n + 1} di {len(pagine)})" if len(pagine) > 1 else ""),
                    13, stile.INCHIOSTRO, carattere=stile.CARATTERE_TITOLI)
         doc.add_picture(io.BytesIO(immagine), width=Cm(gantt.LARGHEZZA_CM))
-    stile.nota(doc, "Barre colorate per impresa; in rosso i periodi in cui lavorazioni di imprese diverse si "
-                    "sovrappongono (capitolo «Interferenze tra le lavorazioni»). In grigio i fine settimana. Sotto le "
-                    "fasi, i lavoratori presenti e il rischio massimo di ogni giorno lavorativo.")
+    stile.nota(doc, "Le barre sono colorate per impresa; in rosso sono evidenziati i periodi in cui lavorazioni di "
+                    "imprese diverse si sovrappongono (capitolo «Interferenze tra le lavorazioni»), in grigio i fine "
+                    "settimana. Sotto le fasi sono riportati i lavoratori presenti e il rischio massimo di ciascun "
+                    "giorno lavorativo.")
     stile.pagine_verticali(doc)
 
 
@@ -269,7 +270,8 @@ def _tavole(doc, allegati: list[dict[str, Any]]) -> None:
             except Exception:  # noqa: BLE001 - PDF non leggibile
                 pagine = []
             if not pagine:
-                stile.nota(doc, f"Il PDF {percorso.name} non si può inserire: allegarlo a parte.", avviso=True)
+                stile.nota(doc, f"Il file PDF {percorso.name} non può essere inserito nel documento: allegarlo "
+                                "separatamente.", avviso=True)
             for k, (dati, orizzontale) in enumerate(pagine):
                 _immagine_png(doc, dati, stile.LARGHEZZA_UTILE if orizzontale else 15.5,
                               f"{percorso.name} · pagina {k + 1} di {len(pagine)}" if len(pagine) > 1 else "")
@@ -390,8 +392,8 @@ def _rischi_particolari(doc, repo: Repository, fasi: list[dict[str, Any]]) -> No
     ], 4.2)
     stile.nota(doc, "La valutazione del rischio da ordigni bellici inesplosi è eseguita dal coordinatore per la "
                     "progettazione. Se si procede alla bonifica preventiva, il committente incarica un'impresa "
-                    "specializzata iscritta nell'albo del Ministero della difesa (artt. 91, comma 2-bis, e 104, "
-                    "comma 4-bis).")
+                    "specializzata iscritta all'albo istituito presso il Ministero della difesa (artt. 91, comma "
+                    "2-bis, e 104, comma 4-bis).")
 
 
 def _costi(doc, c: dict[str, Any], costi: list[dict[str, Any]]) -> None:
@@ -531,7 +533,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     # ===== Parte 1 =====
     stile.parte(doc, "1", "L'opera e i soggetti",
                 "Identificazione e descrizione dell'opera, soggetti con compiti di sicurezza, imprese e lavoratori "
-                "autonomi, organigramma (Allegato XV punto 2.1.2, lettere a e b).")
+                "autonomi, organigramma (Allegato XV punto 2.1.2, lettere a) e b)).")
 
     stile.capitolo(doc, "Dati generali del lavoro", "Allegato XV punto 2.1.2, lettera a), punto 1")
     stile.scheda(doc, [
@@ -576,8 +578,9 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
 
     stile.capitolo(doc, "Imprese esecutrici e lavoratori autonomi", "Allegato XV punto 2.1.2, lettera b)")
     if imprese:
-        doc.add_paragraph("Imprese e lavoratori autonomi previsti, con i datori di lavoro. L'elenco si completa "
-                          "prima dell'inizio dei lavori, quando le imprese sono note.")
+        doc.add_paragraph("Sono di seguito indicati le imprese e i lavoratori autonomi previsti, con i rispettivi "
+                          "datori di lavoro. L'elenco è completato prima dell'inizio dei lavori, quando le imprese "
+                          "sono individuate.")
         affidatarie = {i["id"]: i["ragione_sociale"] for i in imprese}
         stile.tabella_colorata(doc, ["Ragione sociale", "Ruolo", "Datore di lavoro", "Patente a crediti",
                                      "Lavori affidati"], [
@@ -593,8 +596,8 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
             for i in imprese], 8, larghezze=[4.2, 2.4, 3.2, 3.4, 4.2])
         stile.nota(doc, "Prima dell'inizio dei lavori il committente o il responsabile dei lavori verifica l'idoneità "
                         "tecnico-professionale delle imprese e dei lavoratori autonomi (art. 90, comma 9, e Allegato "
-                        "XVII), compresa la patente a crediti (art. 27): senza patente, o con meno di 15 crediti, non "
-                        "si può operare in cantiere.")
+                        "XVII), compresa la patente a crediti (art. 27): le imprese e i lavoratori autonomi privi di "
+                        "patente, o con un punteggio inferiore a 15 crediti, non possono operare in cantiere.")
     else:
         stile.testo(doc, "", "imprese esecutrici e lavoratori autonomi, da indicare prima dell'inizio dei lavori",
                     IMPRESE, CONSIGLIATO)
@@ -607,7 +610,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     if schema:
         _immagine_png(doc, schema, stile.LARGHEZZA_UTILE)
     else:
-        doc.add_paragraph("Soggetti e imprese da indicare.")
+        doc.add_paragraph("Organigramma non disponibile: soggetti e imprese da indicare.")
 
     stile.capitolo(doc, "Documentazione da custodire in cantiere", "artt. 90, 96, 99 e 101 e Allegato XVII")
     doc.add_paragraph("Le imprese tengono in cantiere, a disposizione degli organi di vigilanza e del coordinatore "
@@ -617,7 +620,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     # ===== Parte 2 =====
     stile.parte(doc, "2", "Area, organizzazione e lavorazioni",
                 "Valutazione dei rischi e scelte progettuali e organizzative per l'area di cantiere, "
-                "l'organizzazione del cantiere e le lavorazioni (Allegato XV punto 2.1.2, lettere c e d, e "
+                "l'organizzazione del cantiere e le lavorazioni (Allegato XV punto 2.1.2, lettere c) e d), e "
                 "punto 2.2).")
 
     stile.capitolo(doc, "Metodo di valutazione dei rischi", "Allegato XV punto 2.1.2, lettera c)")
@@ -688,9 +691,9 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
         else:
             stile.testo(doc, "", f"rischi della fase {nome_fase(f)} (nessun rischio valutato)", RISCHI, OBBLIGATORIO)
 
-    stile.capitolo(doc, "Rischi individuati e lavorazioni in cui compaiono", "Allegato XV punto 2.2.3 e 2.2.4")
-    doc.add_paragraph("Riepilogo dei rischi delle lavorazioni, dal più alto, con le fasi in cui compaiono e le "
-                      "misure previste.")
+    stile.capitolo(doc, "Rischi individuati e lavorazioni in cui compaiono", "Allegato XV punti 2.2.3 e 2.2.4")
+    doc.add_paragraph("Si riporta il riepilogo dei rischi delle lavorazioni, in ordine decrescente di livello, con le "
+                      "fasi in cui compaiono e le misure previste.")
     _rischi_per_rischio(doc, rischi, nomi_fasi)
 
     stile.capitolo(doc, "Macchine, attrezzature e opere provvisionali", "artt. 70-73 e Allegati V-VII")
@@ -702,15 +705,15 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     # ===== Parte 3 =====
     stile.parte(doc, "3", "Coordinamento",
                 "Interferenze tra le lavorazioni, procedure da sviluppare nei POS, uso comune di apprestamenti e "
-                "servizi, cooperazione tra le imprese ed emergenze (Allegato XV punto 2.1.2, lettere e, f, g, h, "
+                "servizi, cooperazione tra le imprese ed emergenze (Allegato XV punto 2.1.2, lettere e), f), g) e h), "
                 "e punti 2.1.3 e 2.3).")
 
     stile.capitolo(doc, "Interferenze tra le lavorazioni e prescrizioni operative",
                    "Allegato XV punto 2.1.2, lettera e), e punti 2.3.1-2.3.3")
     if elenco_interferenze:
         doc.add_paragraph("Dal cronoprogramma risultano le seguenti lavorazioni contemporanee di imprese diverse, "
-                          "con la gravità (livello di rischio più alto tra le due fasi) e le prescrizioni per "
-                          "eliminarle o ridurle.")
+                          "con la relativa gravità (livello di rischio più alto tra le due fasi) e le prescrizioni "
+                          "per eliminarle o ridurle.")
         t = stile.tabella_colorata(doc, ["Fase", "Fase interferente", "Periodo", "Gravità", "Prescrizioni operative"], [
             [nome_fase(i.fase_a), nome_fase(i.fase_b), f"{data_it(i.inizio)}\n{data_it(i.fine)}",
              f"{i.gravita}\n{analisi.classe_rischio(i.gravita)}" if i.gravita else "-",
@@ -757,7 +760,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     # ===== Parte 4 =====
     stile.parte(doc, "4", "Tempi e costi",
                 "Durata delle lavorazioni e cronoprogramma, stima dei costi della sicurezza (Allegato XV punto "
-                "2.1.2, lettere i e l, e punto 4).")
+                "2.1.2, lettere i) e l), e punto 4).")
 
     stile.capitolo(doc, "Cronoprogramma dei lavori", "Allegato XV punto 2.1.2, lettera i)")
     if fasi:
@@ -777,7 +780,7 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
     stile.capitolo(doc, "Allegati e firme")
     tavole = [a for a in allegati if a["tipo"] != TIPO_FOTO]
     voci_allegati = [f"{a['tipo']}" + (f": {a['titolo']}" if a["titolo"] else "") + ";" for a in tavole]
-    voci_allegati.append("fascicolo con le caratteristiche dell'opera (art. 91, comma 1, lettera b).")
+    voci_allegati.append("fascicolo con le caratteristiche dell'opera, ai sensi dell'art. 91, comma 1, lettera b).")
     doc.add_paragraph("Fanno parte integrante del presente piano:")
     stile.elenco_lettere(doc, voci_allegati)
     if not any(a["tipo"] == "Planimetria di cantiere" for a in tavole):
@@ -787,7 +790,8 @@ def _genera(repo: Repository, destinazione: str | Path) -> Path:
                       "e coordinamento ai sensi dell'art. 100 e dell'Allegato XV del D.Lgs. 81/2008. Il committente "
                       "o il responsabile dei lavori lo trasmette a tutte le imprese invitate a presentare offerte; "
                       "le imprese esecutrici ne prendono visione e lo mettono a disposizione dei rappresentanti dei "
-                      "lavoratori per la sicurezza almeno dieci giorni prima dell'inizio dei lavori (art. 102).")
+                      "lavoratori per la sicurezza almeno dieci giorni prima dell'inizio dei lavori (art. 101, "
+                      "comma 1, e art. 100, comma 4).")
     p = doc.add_paragraph(f"{c['comune'] or ''}, {data_documento}".strip(", "))
     stile._spaziatura(p, 8, 8)
     firme = [("Il coordinatore per la progettazione", csp["nome"] if csp else ""),

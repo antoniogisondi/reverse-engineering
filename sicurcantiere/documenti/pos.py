@@ -74,11 +74,11 @@ DOCUMENTI_IN_CANTIERE = [
     "titolo abilitativo dei lavori",
     "iscrizione alla Camera di commercio, DURC e documentazione dell'idoneità tecnico-professionale "
     "delle imprese e dei lavoratori autonomi (art. 90 e Allegato XVII)",
-    "libro unico del lavoro o documentazione equivalente e tessere di riconoscimento dei lavoratori (art. 26 c. 8)",
+    "libro unico del lavoro o documentazione equivalente e tessere di riconoscimento dei lavoratori (art. 26, comma 8)",
     "attestati di formazione, addestramento e abilitazione all'uso delle attrezzature (artt. 37 e 73)",
     "giudizi di idoneità alla mansione rilasciati dal medico competente (art. 41)",
     "verbali di consegna dei DPI (art. 77)",
-    "schede di dati di sicurezza delle sostanze e miscele pericolose usate (Reg. CE 1907/2006)",
+    "schede di dati di sicurezza delle sostanze e miscele pericolose utilizzate (Regolamento (CE) n. 1907/2006)",
     "libretti d'uso e manutenzione e dichiarazioni di conformità CE di macchine e attrezzature (art. 70)",
     "verbali delle verifiche periodiche delle attrezzature di sollevamento e registro delle verifiche "
     "trimestrali di funi e catene (art. 71 e Allegato VII), ove previsto",
@@ -223,7 +223,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         doc,
         comune=comune,
         titolo="Piano operativo di sicurezza",
-        riferimento="D.Lgs. 9 aprile 2008, n. 81 · art. 89 c. 1 lett. h), art. 96 e Allegato XV punto 3.2",
+        riferimento="D.Lgs. 9 aprile 2008, n. 81 · art. 89, comma 1, lettera h), art. 96 e Allegato XV punto 3.2",
         voci=[("Cantiere", _o(indirizzo_cantiere(c), "indirizzo del cantiere", "Cantiere")),
               ("Opera", _o(c["nome"] or c["descrizione"], "denominazione dell'opera", "Cantiere")),
               ("Committente", _o(committente["nome"] if committente else "", "committente", "Committente")),
@@ -250,7 +250,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     # ===== Parte 1 =====
     stile.parte(doc, "1", "Il cantiere e l'impresa",
                 "Dati del lavoro, soggetti coinvolti, impresa esecutrice, organizzazione della sicurezza e "
-                "lavoratori (Allegato XV punto 3.2.1, lettere a e b).")
+                "lavoratori (Allegato XV punto 3.2.1, lettere a) e b)).")
 
     stile.capitolo(doc, "Dati generali del lavoro", "Allegato XV punto 3.2.1, lettera a), punto 1")
     stile.scheda(doc, [
@@ -349,9 +349,9 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
 
     stile.capitolo(doc, "Organizzazione della sicurezza",
                    "Allegato XV punto 3.2.1, lettera a), punti 3-6, e lettera b)")
-    doc.add_paragraph("Il datore di lavoro e le figure della sicurezza dell'impresa per questo cantiere, con le "
-                      "specifiche mansioni inerenti la sicurezza svolte da ciascuno. Una stessa persona può "
-                      "ricoprire più ruoli, nei limiti previsti dal D.Lgs. 81/2008.")
+    doc.add_paragraph("Sono di seguito indicati il datore di lavoro e le figure della sicurezza dell'impresa per il "
+                      "presente cantiere, con le specifiche mansioni inerenti alla sicurezza svolte da ciascuno. "
+                      "Una stessa persona può ricoprire più ruoli, nei limiti previsti dal D.Lgs. 81/2008.")
     righe_figure = []
     if datore:
         righe_figure.append([anagrafiche.DATORE, datore, " · ".join(v for v in (impresa["telefono"],
@@ -383,7 +383,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         p.paragraph_format.keep_with_next = True
         stile._run(p, ruolo, grassetto=True)
         stile._run(p, f" · {', '.join(nomi)}", colore=stile.TESTO2)
-        p = doc.add_paragraph(anagrafiche.compiti(ruolo) or "Compiti secondo l'incarico ricevuto.")
+        p = doc.add_paragraph(anagrafiche.compiti(ruolo) or "Compiti definiti nell'incarico ricevuto.")
         p.paragraph_format.left_indent = Cm(0.4)
         for nota_ruolo in dict.fromkeys(f["nota"] for f in figure if f["ruolo"] == ruolo and f.get("nota")):
             q = doc.add_paragraph()
@@ -414,7 +414,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     # ===== Parte 2 =====
     stile.parte(doc, "2", "Attività e valutazione dei rischi",
                 "Lavorazioni svolte, modalità organizzative, macchine e opere provvisionali, sostanze, rumore "
-                "e rischi specifici (Allegato XV punto 3.2.1, lettere a2, c, d, e, f).")
+                "e rischi specifici (Allegato XV punto 3.2.1, lettera a), punto 2, e lettere c), d), e) e f)).")
 
     stile.capitolo(doc, "Attività di cantiere, modalità organizzative e turni di lavoro",
                    "Allegato XV punto 3.2.1, lettera a), punto 2, e lettera c)")
@@ -495,7 +495,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                   for p_ in ponteggi]
         stile.tabella_colorata(doc, ["Tipo", "Denominazione", "Lavorazioni in cui è utilizzata"], righe,
                                larghezze=[3.2, 5.6, 8.6])
-        stile.nota(doc, "Macchine, attrezzature e opere provvisionali sono ad uso dell'impresa esecutrice, salvo "
+        stile.nota(doc, "Macchine, attrezzature e opere provvisionali sono a uso dell'impresa esecutrice, salvo "
                         "diversa indicazione nel PSC o negli accordi con l'impresa affidataria.")
     else:
         stile.testo(doc, "", "macchine, attrezzature e opere provvisionali usate (nessuna indicata nelle "
@@ -534,7 +534,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
                            ("Classe di carico", p_["classe_carico"]),
                            ("Montato secondo gli schemi tipo", "sì" if p_["conforme_schemi"] else "no, con progetto"),
                            ("Piano di appoggio", p_["piano_appoggio"]), ("Ancoraggi", p_["ancoraggi"])])
-        stile.nota(doc, "Montaggio, trasformazione e smontaggio secondo il PiMUS (art. 136).")
+        stile.nota(doc, "Il montaggio, la trasformazione e lo smontaggio sono eseguiti secondo il PiMUS (art. 136).")
 
     stile.capitolo(doc, "Sostanze e miscele pericolose", "Allegato XV punto 3.2.1, lettera e), e Titolo IX")
     aggiungi_sostanze(doc, repo, sostanze_elenco, livello=3)
@@ -551,7 +551,8 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
         if elenco_v:
             stile.tabella_colorata(doc, ["Mansione / gruppo omogeneo", "Livello di esposizione", "Esito"], [
                 [v["mansione"] or v["titolo"], *_esito_breve(repo, v)] for v in elenco_v], larghezze=[6, 4, 7.4])
-            stile.nota(doc, "Calcoli e misure di dettaglio nel capitolo «Valutazioni dei rischi specifici».")
+            stile.nota(doc, "I calcoli e le misure di dettaglio sono riportati nel capitolo «Valutazioni dei rischi "
+                                "specifici».")
         if metodo == "rumore" and (sezioni["rumore"].strip() or not elenco_v):
             stile.testo(doc, sezioni["rumore"], "esito della valutazione del rumore (art. 190), oppure la "
                                                 "valutazione nella pagina «Valutazioni»", "Testi del POS",
@@ -571,7 +572,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     # ===== Parte 3 =====
     stile.parte(doc, "3", "Misure, protezione ed emergenze",
                 "Misure integrative al PSC, procedure, dispositivi di protezione, formazione, emergenze, "
-                "segnaletica e documenti (Allegato XV punto 3.2.1, lettere g, h, i, l).")
+                "segnaletica e documenti (Allegato XV punto 3.2.1, lettere g), h), i) e l)).")
 
     stile.capitolo(doc, dict(SEZIONI_POS)["integrative"], "Allegato XV punto 3.2.1, lettera g)")
     stile.testo(doc, sezioni["integrative"], "misure integrative rispetto a quelle del PSC, se previste",
@@ -642,12 +643,12 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     cartelli = segnaletica.segnali_cantiere([r["descrizione"] for r in rischi],
                                             [r["dpi"] for r in rischi] + [a["dpi"] for a in attrezzature])
     stile.griglia_immagini(doc, [(s.file, s.testo) for s in cartelli], colonne=5, lato_cm=2.3)
-    stile.nota(doc, "Rappresentazione indicativa: i cartelli posati in cantiere sono conformi alla UNI EN ISO 7010 "
-                    "e collocati in prossimità dei pericoli e degli accessi.")
+    stile.nota(doc, "Rappresentazione indicativa: i cartelli installati in cantiere sono conformi alla norma UNI EN "
+                    "ISO 7010 e collocati in prossimità dei pericoli e degli accessi.")
 
     stile.capitolo(doc, "Documentazione da custodire in cantiere")
     doc.add_paragraph("Presso il cantiere o gli uffici di cantiere l'impresa tiene a disposizione degli organi di "
-                      "vigilanza e del coordinatore la seguente documentazione:")
+                      "vigilanza e del coordinatore per l'esecuzione la seguente documentazione:")
     stile.elenco(doc, DOCUMENTI_IN_CANTIERE)
 
     # --- allegati e firme ---
@@ -663,6 +664,7 @@ def genera_pos(repo: Repository, impresa_id: int, destinazione: str | Path) -> P
     if ponteggi:
         allegati.append("PiMUS dei ponteggi;")
     if allegati:
+        allegati[-1] = allegati[-1][:-1] + "."
         doc.add_paragraph("Sono allegati al presente piano operativo di sicurezza, e ne fanno parte integrante:")
         stile.elenco_lettere(doc, allegati)
     doc.add_paragraph("Il datore di lavoro dichiara di aver redatto il presente piano operativo di sicurezza per il "

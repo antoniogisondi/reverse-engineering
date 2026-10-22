@@ -67,7 +67,7 @@ def _vibrazioni_hav(p: int = 3, d: int = 2, nota: str = "") -> dict[str, Any]:
 def _silice(p: int = 3, d: int = 3, nota: str = "") -> dict[str, Any]:
     return r("Polveri e fibre", p, d,
              "Taglio di calcestruzzo, laterizio e conglomerati: polvere con silice cristallina respirabile, "
-             "agente cancerogeno (Titolo IX, Capo II, Allegato XLII): lavorazione ad umido o con "
+             "agente cancerogeno (Titolo IX, Capo II, Allegato XLII): lavorazione a umido o con "
              "aspirazione alla fonte; area delimitata; pulizia con aspiratore e non a secco con scope o "
              "aria compressa." + (" " + nota if nota else ""),
              DPI_BASE + ", facciale filtrante FFP3, occhiali a maschera")
@@ -140,7 +140,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
           "Paranco conforme alla UNI EN 14492-2 con portata targata non inferiore al carico; gancio di "
           "sospensione o trave in testata del vano di portata verificata e certificata; catena "
           "(UNI EN 818) e brache (UNI EN 1492) idonee e controllate; ganci con dispositivo di chiusura; "
-          "nessuno sotto il carico e vano interdetto ai piani durante il sollevamento (Allegato VI, punto 3).",
+          "nessuno sotto il carico e vano interdetto ai piani durante il sollevamento (Allegato VI punto 3).",
           DPI_BASE + ", casco con sottogola"),
         r("Urti, colpi, impatti e compressioni", 2, 3,
           "Carico guidato con funi e non con le mani; velocità ridotta in prossimità di guide e pareti; "
@@ -156,7 +156,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     ], scheda_uso=scheda(
         "Paranco con motore elettrico e catena calibrata, appeso a un gancio o a una trave, usato per "
         "sollevare guide, cabine, contrappesi e macchinari nei vani ascensore e in spazi ristretti.",
-        ["verificare targa, portata, data dell'ultima verifica trimestrale di funi e catene (Allegato VI, punto 3.1.2)",
+        ["verificare targa, portata, data dell'ultima verifica trimestrale di funi e catene (Allegato VI punto 3.1.2)",
          "controllare il punto di sospensione e la sua portata dichiarata",
          "provare a vuoto finecorsa, freno e pulsante di arresto d'emergenza",
          "controllare catena, gancio e chiusura di sicurezza, scartando gli elementi usurati o deformati",
@@ -237,7 +237,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
         "Treppiede telescopico in alluminio con carrucola di testa e verricello o dispositivo retrattile "
         "con recupero, usato per accedere a pozzetti, camerette e serbatoi e per estrarre in emergenza "
         "l'operatore.",
-        ["verificare la marcatura EN 795 tipo B del treppiede e EN 1496 o EN 360 del dispositivo",
+        ["verificare la marcatura UNI EN 795 tipo B del treppiede e UNI EN 1496 o UNI EN 360 del dispositivo",
          "controllare cavo, moschettoni, freno e manovella e la data dell'ultima verifica periodica",
          "montare il treppiede su base stabile, bloccando piedi e gambe come da manuale",
          "misurare l'atmosfera nel pozzetto e avviare la ventilazione",
@@ -451,7 +451,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
          "controllare tubi, raccordi rapidi, valvola di massima e livello dell'olio della centralina",
          "pulire testata, piastra e cunei e verificarne l'integrità",
          "delimitare la zona di rispetto sull'asse del tirante e montare lo schermo di protezione",
-         "concordare con il direttore lavori il programma di carico"],
+         "concordare con il direttore dei lavori il programma di carico"],
         ["mettere in carico per gradini secondo il programma e registrare letture e allungamenti",
          "stare in posizione laterale, mai sull'asse del tirante",
          "interrompere la tesatura se il manometro o gli allungamenti mostrano valori anomali",
@@ -657,14 +657,14 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
           "prima dello scavo; distanza da scavi e cigli secondo il fabbricante."),
         r("Caduta di materiale dall'alto o a livello", 2, 4,
           "Benna o fresa sospesa: nessuno sotto o vicino all'utensile in movimento; funi e attacchi "
-          "verificati (Allegato VI e VII); distanza di sicurezza durante lo scarico dello smarino; gabbie "
+          "verificati (Allegati VI e VII); distanza di sicurezza durante lo scarico dello smarino; gabbie "
           "d'armatura sollevate con bilancini.", DPI_BASE + ", casco con sottogola"),
         r("Annegamento", 2, 4,
           "Pannello aperto pieno di fango: muretti guida sporgenti dal piano di lavoro, chiusura con "
           "grigliati o parapetti a fine turno, giubbotti e salvagenti disponibili presso lo scavo.",
           DPI_BASE + ", giubbotto di salvataggio"),
         _investimento(2, 4, "Raggio di rotazione della torretta delimitato; movimenti di autocarri e "
-                            "betoniere regolati da un movieriere."),
+                            "betoniere regolati da un moviere."),
         _rumore(3, 2),
         r("Elettrocuzione", 1, 4,
           "Distanze dalle linee elettriche aeree secondo l'Allegato IX con braccio alzato; sottoservizi "
@@ -771,7 +771,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
 
     "Estrattore d'aria con filtro assoluto HEPA (depressore)": attrezzatura(ATTREZZO, rischi=[
         r("Esposizione ad amianto", 2, 4,
-          "Confinamento dinamico secondo il D.M. 6/9/1994: estrattori con filtro assoluto HEPA in funzione "
+          "Confinamento dinamico secondo il D.M. 6 settembre 1994: estrattori con filtro assoluto HEPA in funzione "
           "continua per tutta la bonifica, con capacità di almeno 4 ricambi d'aria all'ora del volume "
           "confinato; depressione controllata con manometro differenziale e registrata; collaudo "
           "dell'area con fumogeni prima dell'inizio; macchina di riserva o alimentazione di emergenza; "
@@ -809,7 +809,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
     "Nebulizzatore a bassa pressione": attrezzatura(ATTREZZO, rischi=[
         r("Esposizione ad amianto", 2, 4,
           "Bagnatura e impregnazione dei materiali con acqua o incapsulante a bassa pressione, come previsto "
-          "dal D.M. 6/9/1994 che esclude getti in pressione su materiali contenenti amianto; ugello "
+          "dal D.M. 6 settembre 1994 che esclude getti in pressione su materiali contenenti amianto; ugello "
           "regolato a nebbia e avvicinato senza colpire il materiale; impregnazione completata prima "
           "della rimozione.",
           "Maschera con filtro specifico, tuta monouso, guanti, calzature di sicurezza"),
@@ -922,7 +922,7 @@ ATTREZZATURE: dict[str, dict[str, Any]] = {
           "etichetta e colore della portata), ganci e componenti UNI EN 1677, bilancini UNI EN 13155; "
           "portata scelta tenendo conto del modo di imbracatura e dell'angolo tra i bracci (angolo al "
           "vertice non oltre 120°); ganci con chiusura di sicurezza; verifica trimestrale di funi e "
-          "catene registrata (Allegato VI, punto 3.1.2); scarto degli accessori con fili rotti, maglie "
+          "catene registrata (Allegato VI punto 3.1.2); scarto degli accessori con fili rotti, maglie "
           "allungate, tagli o etichetta illeggibile.", DPI_BASE + ", casco con sottogola"),
         r("Urti, colpi, impatti e compressioni", 2, 3,
           "Carico guidato con funi e mai con le mani; imbracatore fuori dalla traiettoria e mai tra "

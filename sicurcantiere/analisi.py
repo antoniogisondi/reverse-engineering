@@ -220,9 +220,10 @@ class Obblighi:
             f"Entità presunta del cantiere: {self.uomini_giorno} uomini-giorno",
         ]
         if self.psc:
-            righe.append("Nomina CSP/CSE e redazione del PSC obbligatorie (art. 90 c. 3-4).")
+            righe.append("Nomina del CSP e del CSE e redazione del PSC obbligatorie (art. 90, commi 3 e 4).")
         else:
-            righe.append("PSC non obbligatorio con un'unica impresa esecutrice (resta il POS dell'impresa).")
+            righe.append("PSC non obbligatorio con un'unica impresa esecutrice (resta obbligatorio il POS "
+                         "dell'impresa).")
         if self.notifica:
             righe.append("Notifica preliminare obbligatoria (art. 99).")
         else:

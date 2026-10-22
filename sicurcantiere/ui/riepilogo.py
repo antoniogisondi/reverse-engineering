@@ -60,14 +60,14 @@ def calcola(repo: Repository) -> list[Voce]:
              f"{len(gravi)} gravi, {len(scoperte)} senza prescrizioni" if interferenze else "Nessuna contemporaneità",
              ERRORE if scoperte else ATTENZIONE if interferenze else OK),
         Voce("psc", "PSC e coordinatori", "Obbligatori" if obblighi.psc else "Non obbligatori",
-             "art. 90 c. 3-4 (più imprese)" if obblighi.psc else "Una sola impresa esecutrice",
+             "art. 90, commi 3 e 4 (più imprese)" if obblighi.psc else "Una sola impresa esecutrice",
              ATTENZIONE if obblighi.psc else OK),
         Voce("notifica", "Notifica preliminare", "Obbligatoria" if obblighi.notifica else "Non obbligatoria",
-             "art. 99 D.Lgs. 81/2008", ATTENZIONE if obblighi.notifica else OK),
+             "art. 99 del D.Lgs. 81/2008", ATTENZIONE if obblighi.notifica else OK),
         Voce("controlli", "Controlli", "Nessun problema" if not segnalazioni else
              (f"{errori} errori" if errori != 1 else "1 errore") if errori else
              (f"{avvisi} avvisi" if avvisi != 1 else "1 avviso"),
-             f"{avvisi} avvisi" if errori else "Pagina Documenti e controlli",
+             f"{avvisi} avvisi" if errori else "Pagina «Documenti e controlli»",
              ERRORE if errori else ATTENZIONE if avvisi else OK),
     ]
 
@@ -102,7 +102,7 @@ def calcola_pos(repo: Repository) -> list[Voce]:
     avvisi = len(segnalazioni) - errori
     return [
         Voce("imprese", "Imprese", str(len(imprese)),
-             ", ".join(i["ragione_sociale"] for i in imprese)[:80] or "Inserire l'impresa",
+             ", ".join(i["ragione_sociale"] for i in imprese)[:80] or "Inserisci l'impresa",
              NEUTRO if imprese else ERRORE),
         Voce("lavoratori", "Lavoratori", str(len(lavoratori)),
              f"{len(scadute)} con idoneità scaduta" if scadute else "Idoneità in corso di validità",
@@ -111,7 +111,7 @@ def calcola_pos(repo: Repository) -> list[Voce]:
              f"{analisi.giorni_lavorativi(*periodo)} gg lavorativi" if periodo else "-",
              f"{data_it(periodo[0])} - {data_it(periodo[1])}" if periodo else "Date dei lavori dell'impresa mancanti"),
         Voce("fasi", "Lavorazioni", str(len(fasi)), f"{len(rischi)} rischi valutati"),
-        Voce("rischi", "Rischi alti e molto alti", str(len(alti)), "livello P x D da 9 a 16",
+        Voce("rischi", "Rischi alti e molto alti", str(len(alti)), "livello P × D da 9 a 16",
              ATTENZIONE if alti else OK),
         Voce("valutazioni", "Valutazioni specifiche", str(len(esiti)),
              f"{len(critiche)} con rischio presente" if critiche else "Nessun rischio oltre la soglia",
@@ -119,7 +119,7 @@ def calcola_pos(repo: Repository) -> list[Voce]:
         Voce("controlli", "Controlli", "Nessun problema" if not segnalazioni else
              (f"{errori} errori" if errori != 1 else "1 errore") if errori else
              (f"{avvisi} avvisi" if avvisi != 1 else "1 avviso"),
-             f"{avvisi} avvisi" if errori else "Pagina Documenti e controlli",
+             f"{avvisi} avvisi" if errori else "Pagina «POS e controlli»",
              ERRORE if errori else ATTENZIONE if avvisi else OK),
     ]
 

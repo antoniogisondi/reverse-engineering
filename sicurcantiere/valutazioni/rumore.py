@@ -45,22 +45,22 @@ MISURE = {
         "Nessun obbligo specifico oltre alla valutazione; ripeterla se cambiano attrezzature o tempi (art. 190).",
     ],
     GIALLO: [
-        "Mettere a disposizione dei lavoratori i protettori auricolari (art. 193 c. 1 lett. a).",
+        "Mettere a disposizione dei lavoratori i protettori auricolari (art. 193, comma 1, lettera a).",
         "Informazione e formazione sui rischi del rumore e sull'uso dei DPI uditivi (art. 195).",
         "Sorveglianza sanitaria su richiesta del lavoratore o se il medico competente ne conferma "
-        "l'opportunità (art. 196 c. 2).",
+        "l'opportunità (art. 196, comma 2).",
     ],
     ROSSO: [
-        "Programma di misure tecniche e organizzative per ridurre l'esposizione (art. 192 c. 2).",
-        "Segnalare e delimitare le aree con rumore oltre il valore superiore di azione (art. 192 c. 3).",
-        "Uso obbligatorio dei protettori auricolari, con verifica dell'efficacia (art. 193 c. 1 lett. c e d).",
-        "Sorveglianza sanitaria dei lavoratori esposti (art. 196 c. 1); informazione e formazione (art. 195).",
+        "Programma di misure tecniche e organizzative per ridurre l'esposizione (art. 192, comma 2).",
+        "Segnalare e delimitare le aree con rumore oltre il valore superiore di azione (art. 192, comma 3).",
+        "Uso obbligatorio dei protettori auricolari, con verifica dell'efficacia (art. 193, comma 1, lettere c e d).",
+        "Sorveglianza sanitaria dei lavoratori esposti (art. 196, comma 1); informazione e formazione (art. 195).",
     ],
     VIOLA: [
         "Misure immediate per riportare l'esposizione al di sotto del valore limite; individuarne le cause "
         "e adeguare le misure di protezione (art. 194).",
         "Verificare la scelta dei protettori auricolari: l'attenuazione stimata non è sufficiente.",
-        "Sorveglianza sanitaria dei lavoratori esposti (art. 196 c. 1).",
+        "Sorveglianza sanitaria dei lavoratori esposti (art. 196, comma 1).",
     ],
 }
 
@@ -75,7 +75,7 @@ def calcola(dati: dict[str, Any]) -> Esito:
     protetto = lex(compiti, attenuazione)
     picco_protetto = picco - attenuazione
 
-    # Classe per gli obblighi: livelli senza DPI; per il valore limite contano i DPI (art. 189 c. 2).
+    # Classe per gli obblighi: livelli senza DPI; per il valore limite contano i DPI (art. 189, comma 2).
     nome, colore = classe(livello, picco)
     if colore == VIOLA and attenuazione and protetto <= LIMITE and picco_protetto <= PICCO_LIMITE:
         nome, colore = "Superiore al valore superiore di azione (limite rispettato con i DPI)", ROSSO

@@ -37,15 +37,15 @@ RUOLO_COPPIA = Qt.ItemDataRole.UserRole
 
 def salva_e_apri(genitore: QWidget, repo: Repository, nome: str, funzione: Callable[[str], Any]) -> None:
     predefinito = repo.progetto.percorso.with_name(f"{nome}.docx".replace("/", "-"))
-    percorso, _ = QFileDialog.getSaveFileName(genitore, "Salva documento", str(predefinito), "Documento Word (*.docx)")
+    percorso, _ = QFileDialog.getSaveFileName(genitore, "Salva il documento", str(predefinito), "Documento Word (*.docx)")
     if not percorso:
         return
     try:
         file = funzione(percorso)
     except PermissionError:
-        QMessageBox.warning(genitore, "Errore", "Impossibile scrivere il file: è aperto in Word?")
+        QMessageBox.warning(genitore, "Errore", "Impossibile salvare il file: verifica che non sia aperto in Word.")
         return
-    risposta = QMessageBox.question(genitore, "Documento generato", f"Creato {Path(file).name}.\nAprirlo ora?")
+    risposta = QMessageBox.question(genitore, "Documento generato", f"Documento creato: {Path(file).name}.\n\nVuoi aprirlo ora?")
     if risposta == QMessageBox.StandardButton.Yes:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(file)))
 
@@ -72,8 +72,8 @@ class DialogoMansioni(QDialog):
         self.resize(640, 560)
         titolo = QLabel(f"<b>{anagrafiche.nominativo(lavoratore) or 'Lavoratore'}</b>"
                         + (f" ({lavoratore['mansione']})" if lavoratore["mansione"] else ""))
-        aiuto = QLabel("Spuntare le lavorazioni svolte e, al loro interno, le macchine e le attrezzature utilizzate. "
-                       "In rosso le voci che non hanno ancora nessun lavoratore assegnato.")
+        aiuto = QLabel("Spunta le lavorazioni svolte e, al loro interno, le macchine e le attrezzature utilizzate. "
+                       "In rosso sono indicate le voci a cui non è ancora assegnato alcun lavoratore.")
         aiuto.setWordWrap(True)
         aiuto.setObjectName("pageSubtitle")
 
@@ -115,7 +115,7 @@ class DialogoMansioni(QDialog):
         layout.addWidget(titolo)
         layout.addWidget(aiuto)
         if not fasi:
-            layout.addWidget(QLabel("Inserire prima le lavorazioni nella pagina «Lavorazioni e rischi»."))
+            layout.addWidget(QLabel("Inserisci prima le lavorazioni nella pagina «Lavorazioni e rischi»."))
         layout.addWidget(self.albero)
         layout.addWidget(self.solo_svolte)
         layout.addWidget(pulsanti)
@@ -195,7 +195,7 @@ class PannelloLavoratori(QWidget):
             campi += [("formazione", "Altro (corsi, attestati, abilitazioni)", "testo_lungo")]
         self.dettaglio = ModuloRecord(repo, "lavoratori", campi)
         self.dettaglio.salvato = self._salvato
-        self.foto = QLabel("(Foto vuota)")
+        self.foto = QLabel("(nessuna foto)")
         self.foto.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.foto.setFixedSize(160, 190)
         self.foto.setObjectName("pageSubtitle")
@@ -244,7 +244,7 @@ class PannelloLavoratori(QWidget):
         fasi = [self.repo.leggi("fasi", f) for f in dict.fromkeys(f for f, _ in self.repo.mansioni(id_))]
         nomi = [nome_fase(f) for f in fasi if f]
         self.mansioni_testo.setText("Lavorazioni svolte: " + ("; ".join(nomi) if nomi else
-                                    "nessuna (pulsante «Mansioni...»)"))
+                                    "nessuna (assegnale con «Mansioni...»)"))
 
     def _salvato(self, campo: str) -> None:
         if campo == "foto" and self.dettaglio.record:
@@ -253,7 +253,7 @@ class PannelloLavoratori(QWidget):
     def _lavoratore(self) -> dict[str, Any] | None:
         id_ = self.tabella.id_selezionato()
         if id_ is None:
-            QMessageBox.information(self, "Mansioni", "Selezionare prima un lavoratore.")
+            QMessageBox.information(self, "Mansioni", "Seleziona prima un lavoratore.")
             return None
         return self.repo.leggi("lavoratori", id_)
 

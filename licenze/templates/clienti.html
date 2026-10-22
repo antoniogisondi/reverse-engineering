@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block titolo %}Clienti{% endblock %}
 {% block contenuto %}
-<h1>Clienti</h1><p class="sotto">Chi ha acquistato o provato SicurCantiere.</p>
+<h1>Clienti</h1><p class="sotto">Clienti che hanno acquistato o provato SicurCantiere.</p>
 <div class="card"><h2><form class="riga" method="get"><input name="cerca" value="{{ cerca }}" placeholder="Cerca per nome, email o partita IVA" style="width:320px"><button>Cerca</button></form>
 <a class="pulsante primario" href="{{ url_for('modifica_cliente') }}">Nuovo cliente</a></h2>
 {% if clienti %}<table><tr><th>Nome</th><th>Tipo</th><th>Email</th><th>Partita IVA</th><th>Licenze</th><th>Scadenza</th></tr>

@@ -119,7 +119,7 @@ def classe(indice: float) -> tuple[str, str]:
 
 MISURE_PER_FATTORE = {
     "HM": "Avvicinare il carico al corpo (distanza orizzontale ≤ 25 cm): eliminare ostacoli, usare piani di appoggio vicini.",
-    "VM": "Portare l'altezza di presa vicino a 75 cm da terra: rialzare i carichi depositati a terra con pallet o supporti.",
+    "VM": "Portare l'altezza di presa a circa 75 cm da terra: rialzare i carichi depositati a terra con pallet o supporti.",
     "DM": "Ridurre il dislivello tra presa e deposito, con piani di lavoro regolabili o carrelli a piattaforma.",
     "AM": "Eliminare le torsioni del tronco riorganizzando le posizioni di prelievo e deposito.",
     "FM": "Ridurre la frequenza dei sollevamenti, introdurre pause e rotazione su compiti diversi.",
@@ -133,13 +133,13 @@ MISURE_GENERALI = {
     ],
     ROSSO: [
         "Ridurre il rischio con interventi tecnici e organizzativi (art. 168); priorità ai fattori più penalizzanti.",
-        "Sorveglianza sanitaria dei lavoratori esposti (art. 168 c. 2 lett. d).",
+        "Sorveglianza sanitaria dei lavoratori esposti (art. 168, comma 2, lettera d).",
         "Valutare l'uso di ausili meccanici: carrelli, sollevatori, paranchi, manipolatori.",
     ],
     VIOLA: [
         "Interventi di riprogettazione prioritari e immediati: il compito non è sostenibile con la sola formazione.",
         "Introdurre ausili meccanici o la movimentazione in coppia, ridurre il peso dei singoli carichi.",
-        "Sorveglianza sanitaria dei lavoratori esposti (art. 168 c. 2 lett. d).",
+        "Sorveglianza sanitaria dei lavoratori esposti (art. 168, comma 2, lettera d).",
     ],
 }
 

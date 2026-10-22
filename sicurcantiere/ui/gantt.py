@@ -142,7 +142,7 @@ class Gantt(QWidget):
         if not self.periodo:
             p.setPen(testo)
             p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
-                       "Inserire le date delle fasi per vedere il cronoprogramma")
+                       "Inserisci le date delle fasi per visualizzare il cronoprogramma.")
             return
         self._disegna_griglia(p, testo)
         self._disegna_fasi(p, testo)
@@ -234,7 +234,7 @@ class Gantt(QWidget):
     def _disegna_grafici(self, p: QPainter, testo: QColor) -> None:
         y0 = self._y_grafici()
         massimo = max((g.lavoratori for g in self.giornate), default=0)
-        self._etichetta_grafico(p, testo, y0, f"Affollamento (max {massimo} lavoratori)")
+        self._etichetta_grafico(p, testo, y0, f"Affollamento (massimo {massimo} lavoratori)")
         self._etichetta_grafico(p, testo, y0 + ALTEZZA_GRAFICO + 6, "Pericolosità (rischio massimo)")
         p.setPen(Qt.PenStyle.NoPen)
         for g in self.giornate:
@@ -329,7 +329,7 @@ class Gantt(QWidget):
             t["anteprima"] = (inizio, max(inizio, fine + timedelta(days=giorni)))
         da, a = t["anteprima"]
         QToolTip.showText(evento.globalPosition().toPoint(),
-                          f"{da:%d/%m/%Y} - {a:%d/%m/%Y} ({analisi.giorni_lavorativi(da, a)} gg lavorativi)", self)
+                          f"{da:%d/%m/%Y} - {a:%d/%m/%Y} ({analisi.giorni_lavorativi(da, a)} giorni lavorativi)", self)
         self.update()
 
     def mouseReleaseEvent(self, evento) -> None:
@@ -355,9 +355,9 @@ class Gantt(QWidget):
                     f"<b>{f['codice']} {f['descrizione']}</b><br>"
                     f"Impresa: {self.imprese.get(f.get('impresa_id'), 'da definire')}<br>"
                     f"{inizio:%d/%m/%Y} - {fine:%d/%m/%Y} "
-                    f"({analisi.giorni_lavorativi(inizio, fine)} gg lavorativi)<br>"
+                    f"({analisi.giorni_lavorativi(inizio, fine)} giorni lavorativi)<br>"
                     f"Squadra: {f.get('lavoratori') or 0} lavoratori<br>"
-                    "<i>Trascina per spostare, dal bordo destro per cambiare la durata</i>"
+                    "<i>Trascina la barra per spostare la fase, il bordo destro per cambiarne la durata</i>"
                 ), self)
             return True
         return super().event(evento)

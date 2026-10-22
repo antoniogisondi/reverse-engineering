@@ -644,8 +644,8 @@ def indice(doc) -> None:
     contesto(doc).ancora = p._p  # il riepilogo dei dati mancanti della bozza va prima dell'indice
     contesto(doc).confini.append(p._p)
     p = doc.add_paragraph()
-    campo(p, 'TOC \\o "1-2" \\h \\z \\u', "L'indice si aggiorna all'apertura in Word (o con tasto destro > "
-                                          "Aggiorna campo).")
+    campo(p, 'TOC \\o "1-2" \\h \\z \\u', "L'indice si aggiorna all'apertura del documento in Word "
+                                          "(oppure con il tasto destro del mouse, «Aggiorna campo»).")
     aggiorna_campi_all_apertura(doc)
 
 

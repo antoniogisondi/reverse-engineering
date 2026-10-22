@@ -105,7 +105,7 @@ _FERRI_SPORGENTI = r("Punture, tagli e abrasioni", 3, 2,
                      "piegati; filo di legatura tagliato e ripiegato; guanti antitaglio nella "
                      "manipolazione dei tondini e delle reti elettrosaldate.", _DPI_FERRI)
 _CEMENTO = r("Rischio chimico", 3, 2,
-             "Calcestruzzo e malte sono alcalini e contengono cromo VI (tenore limitato dal Reg. UE "
+             "Calcestruzzo e malte sono alcalini e contengono cromo VI (tenore limitato dal Reg. (UE) "
              "1907/2006, Allegato XVII voce 47): evitare il contatto con la pelle e gli occhi, guanti "
              "impermeabili con polsino, stivali sotto i pantaloni; lavare subito la pelle con acqua; "
              "lavaocchi in cantiere; disarmanti applicati secondo la scheda di sicurezza; "
@@ -166,7 +166,7 @@ _MATERIALE_IMPALCATO = r("Caduta di materiale dall'alto o a livello", 2, 3,
                          "Sugli impalcati solo il materiale necessario alla lavorazione in corso, "
                          "senza superarne la portata (art. 124); fermapiede continui; blocchi e "
                          "malta lontani dal bordo; zona sottostante delimitata e protetta con "
-                         "mantovana o segregata (art. 129 c. 3).", DPI_BASE + ", casco con sottogola")
+                         "mantovana o segregata (art. 129, comma 3).", DPI_BASE + ", casco con sottogola")
 _FIBRE_ISOLANTI = r("Polveri e fibre", 3, 2,
                     "Pannelli in lana minerale tagliati con coltello e non con utensili veloci; "
                     "maniche lunghe e guanti per evitare il prurito da fibre; ambiente ventilato e "
@@ -232,7 +232,7 @@ LAVORAZIONI = [
     fase("ST.04", _ST, "Opere di fondazione in c.a.",
          "Getto del calcestruzzo per le strutture di fondazione",
          "Getto del calcestruzzo di plinti, travi rovesce e platee con autopompa o direttamente "
-         "dalla canala dell'autobetoniera, procedendo per strati e compattando con vibratore ad "
+         "dalla canala dell'autobetoniera, procedendo per strati e compattando con vibratore a "
          "immersione. Sulle platee segue la staggiatura e, se previsto, la lisciatura meccanica; "
          "la superficie è poi protetta e bagnata durante la maturazione.",
          "Addetto al getto del calcestruzzo per le fondazioni", 20, _NC_RI_INF,
@@ -284,8 +284,8 @@ LAVORAZIONI = [
          "Getto del calcestruzzo di pilastri, setti, travi e solette con autopompa",
          "Getto del calcestruzzo nelle casseforme di pilastri, setti, travi e solette con autopompa "
          "o con benna sollevata dalla gru, a strati di altezza contenuta, e compattazione con "
-         "vibratore ad immersione. Gli addetti operano dalle mensole dei casseri o dal solaio "
-         "protetto; al termine si stagia e si cura la maturazione delle superfici.",
+         "vibratore a immersione. Gli addetti operano dalle mensole dei casseri o dal solaio "
+         "protetto; al termine si staggia e si cura la maturazione delle superfici.",
          "Addetto al getto del calcestruzzo in elevazione", 25, _NC_RI,
          ["Autobetoniera", "Autopompa per calcestruzzo", "Gru a torre", "Vibratore per calcestruzzo",
           "Ponteggio metallico fisso", "Parapetto provvisorio", "Utensili manuali"], [
@@ -309,7 +309,7 @@ LAVORAZIONI = [
              r("Crollo o ribaltamento di strutture", 2, 4,
                "Disarmo solo dopo il tempo di maturazione stabilito e l'autorizzazione del "
                "direttore dei lavori; mai con carichi accidentali o materiali depositati sul "
-               "solaio (art. 145 c. 2); allentare i puntelli dal centro verso gli appoggi, "
+               "solaio (art. 145, comma 2); allentare i puntelli dal centro verso gli appoggi, "
                "lasciando i rompitratta previsti; nessuno sotto le zone in disarmo."),
              r("Caduta di materiale dall'alto o a livello", 3, 3,
                "Pannelli e tavole staccati in modo controllato e calati, non lasciati cadere; zona "
@@ -334,7 +334,7 @@ LAVORAZIONI = [
                "Vano scala e lati liberi delle rampe protetti con parapetti provvisori con "
                "fermapiede (UNI EN 13374) fin dal montaggio del cassero e fino alla posa delle "
                "ringhiere (art. 146); armature provvisorie della scala realizzate secondo l'art. "
-               "142 c. 2; accesso alle rampe in costruzione solo su tavole fissate.",
+               "142, comma 2; accesso alle rampe in costruzione solo su tavole fissate.",
                _DPI_ANTICADUTA),
              _CROLLO_CASSERI, _FERRI_SPORGENTI, _CEMENTO, _SCIVOLAMENTI,
          ]),
@@ -579,7 +579,7 @@ LAVORAZIONI = [
                "elementi depositati accanto all'apertura alla quota di posa."),
              r("Crollo o ribaltamento di strutture", 2, 3,
                "Architravi e casseri delle piattabande sostenuti da puntelli fino a maturazione "
-               "(art. 142 c. 2); rimozione dei sostegni solo su indicazione del preposto; nelle "
+               "(art. 142, comma 2); rimozione dei sostegni solo su indicazione del preposto; nelle "
                "murature esistenti apertura del vano dopo la posa dei sostegni provvisori."),
              _IMBRACATURA, _CADUTA_PONTEGGIO, _CEMENTO,
          ]),
@@ -669,8 +669,8 @@ LAVORAZIONI = [
           "Ponteggio metallico fisso", "Piattaforma di lavoro elevabile", "Aspiratore con filtro HEPA",
           "Utensili manuali"], [
              r("Polveri e fibre", 3, 2,
-               "Caricamento della tramoggia con sacchi aperti con cautela e in posizione sopra "
-               "vento; forature con aspirazione; tubo e ugello ben fissati al foro per evitare "
+               "Caricamento della tramoggia con sacchi aperti con cautela e in posizione "
+               "sopravvento; forature con aspirazione; tubo e ugello ben fissati al foro per evitare "
                "fuoriuscite; facciale filtrante per tutta la durata dell'insufflaggio.",
                DPI_BASE + ", facciale filtrante FFP3, occhiali a maschera, tuta monouso"),
              _CADUTA_PONTEGGIO,

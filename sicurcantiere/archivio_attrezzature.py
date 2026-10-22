@@ -98,7 +98,7 @@ SCHEDE: dict[str, dict[str, Any]] = {
         "Macchina con cestello per lavori in quota (PLE).",
         ["verificare comandi, dispositivi di emergenza e parapetti del cestello",
          "posizionare la macchina su terreno piano e portante con gli stabilizzatori",
-         "operatore con formazione specifica (Accordo Stato-Regioni 22/02/2012)"],
+         "operatore con formazione specifica (Accordo Stato-Regioni 22 febbraio 2012)"],
         ["agganciare l'imbracatura agli attacchi del cestello", "non sporgersi né salire sui parapetti",
          "non superare la portata e non usare la PLE come apparecchio di sollevamento",
          "delimitare l'area sottostante"],
@@ -185,7 +185,7 @@ def _r(descrizione: str, p: int, d: int, misure: str, dpi: str) -> dict[str, Any
     return {"descrizione": descrizione, "probabilita": p, "danno": d, "misure": misure, "dpi": dpi}
 
 
-_DPI = "Casco, scarpe antinfortunistiche, guanti, indumenti ad alta visibilità"
+_DPI = "Casco, calzature di sicurezza, guanti, indumenti ad alta visibilità"
 
 # Nuove macchine e attrezzi per la preparazione delle aree di cantiere.
 NUOVE: dict[str, dict[str, Any]] = {
@@ -201,7 +201,7 @@ NUOVE: dict[str, dict[str, Any]] = {
     ]},
     "Autocarro con gru": {"tipo": "Macchina", "rischi": [
         _r("Caduta del carico sospeso", 2, 4, "Imbracature verificate; ganci con chiusura; area sotto il carico "
-           "delimitata; operatore formato (Accordo Stato-Regioni 22/02/2012).", _DPI),
+           "delimitata; operatore formato (Accordo Stato-Regioni 22 febbraio 2012).", _DPI),
         _r("Ribaltamento durante il sollevamento", 2, 4, "Stabilizzatori estesi su terreno portante; rispetto del "
            "diagramma di carico.", _DPI),
         _r("Investimento di persone a terra", 2, 4, "Moviere nelle manovre; nessuno nel raggio d'azione.", _DPI),
@@ -215,7 +215,7 @@ NUOVE: dict[str, dict[str, Any]] = {
            "area interdetta per un raggio pari a due volte l'altezza della pianta.", _DPI),
         _r("Rumore", 4, 2, "Valutazione dell'esposizione; turnazione degli addetti.", _DPI + ", otoprotettori"),
         _r("Vibrazioni al sistema mano-braccio", 3, 2, "Motosega con sistema antivibrante; pause.",
-           _DPI + ", guanti antivibrazione"),
+           _DPI + ", guanti antivibrazioni"),
         _r("Incendio durante il rifornimento", 1, 3, "Rifornimento a motore freddo, lontano da fiamme.", _DPI),
     ]},
     "Decespugliatore a motore": {"tipo": "Attrezzo", "rischi": [
@@ -225,7 +225,7 @@ NUOVE: dict[str, dict[str, Any]] = {
            "taglio; imbracatura di sostegno.", _DPI + ", ghette"),
         _r("Rumore", 4, 2, "Valutazione dell'esposizione; turnazione degli addetti.", _DPI + ", otoprotettori"),
         _r("Vibrazioni al sistema mano-braccio", 3, 2, "Impugnature antivibranti; pause.",
-           _DPI + ", guanti antivibrazione"),
+           _DPI + ", guanti antivibrazioni"),
     ]},
 }
 

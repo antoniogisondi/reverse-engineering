@@ -53,7 +53,7 @@ def genera_pimus(repo: Repository, ponteggio_id: int, destinazione: str | Path) 
     doc.add_heading("3. Squadra di lavoratori e preposto", 1)
     tabella_voci(doc, [("Preposto alle operazioni", p["preposto"]), ("Addetti", p["squadra"])])
     doc.add_paragraph("Gli addetti hanno frequentato il corso di formazione previsto dall'Allegato XXI "
-                      "(art. 136 c. 6).")
+                      "(art. 136, comma 6).")
 
     doc.add_heading("4. Identificazione del ponteggio", 1)
     tabella_voci(doc, [
@@ -69,7 +69,7 @@ def genera_pimus(repo: Repository, ponteggio_id: int, destinazione: str | Path) 
     doc.add_heading("5. Disegno esecutivo e progetto", 1)
     if p["altezza"] > pimus.ALTEZZA_SENZA_PROGETTO or not p["conforme_schemi"]:
         doc.add_paragraph(
-            "Il ponteggio richiede il progetto (art. 133), allegato al presente piano, redatto da "
+            "Per il ponteggio è richiesto il progetto (art. 133), allegato al presente piano, redatto da "
             f"{p['progettista'] or '[indicare il progettista abilitato]'}."
         )
     else:
@@ -105,7 +105,7 @@ def genera_pimus(repo: Repository, ponteggio_id: int, destinazione: str | Path) 
     else:
         testo_o_segnaposto(doc, "")
 
-    firma(doc, "Il Datore di lavoro dell'impresa che esegue il montaggio")
-    doc.add_paragraph("Il Preposto alle operazioni")
+    firma(doc, "Il datore di lavoro dell'impresa che esegue il montaggio")
+    doc.add_paragraph("Il preposto alle operazioni")
     doc.add_paragraph("_______________________________")
     return salva(doc, destinazione)

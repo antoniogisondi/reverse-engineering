@@ -90,7 +90,7 @@ class RispostaTroncata(ErroreAI):
     `parziale` è il testo arrivato fino al taglio, da cui spesso si recupera la parte valida.
     """
 
-    def __init__(self, messaggio: str = "La risposta è stata troncata: provare con una descrizione più breve.",
+    def __init__(self, messaggio: str = "La risposta è stata troncata: riprova con una descrizione più breve.",
                  parziale: str = ""):
         super().__init__(messaggio)
         self.parziale = parziale
@@ -142,9 +142,9 @@ def _credito_esaurito(fornitore: str, stato: int | None, messaggio: str) -> Erro
     if stato == 402 or any(p in testo for p in ("credit balance", "insufficient balance", "insufficient_quota",
                                                  "exceeded your current quota", "billing")):
         return ErroreAI(f"Credito esaurito sull'account {FORNITORI[fornitore].nome}: le chiavi API si pagano a "
-                        f"consumo, separatamente da eventuali abbonamenti. Ricaricare il credito su "
-                        f"{SITI_CREDITO[fornitore]} oppure scegliere un altro fornitore in Strumenti > "
-                        "Impostazioni assistente AI.")
+                        f"consumo, separatamente da eventuali abbonamenti. Ricarica il credito su "
+                        f"{SITI_CREDITO[fornitore]} oppure scegli un altro fornitore in «Strumenti > "
+                        "Impostazioni assistente AI».")
     return None
 
 
@@ -231,8 +231,8 @@ class AssistenteAI:
 
                 chiave = self.api_key or os.environ.get(VARIABILI_AMBIENTE[DEEPSEEK], "")
                 if not chiave:
-                    raise ErroreAI("Chiave API DeepSeek mancante: inserirla in Strumenti > Impostazioni "
-                                   "assistente AI oppure nella variabile d'ambiente DEEPSEEK_API_KEY.")
+                    raise ErroreAI("Chiave API DeepSeek mancante: inseriscila in «Strumenti > Impostazioni "
+                                   "assistente AI» oppure nella variabile d'ambiente DEEPSEEK_API_KEY.")
                 self._client = openai.OpenAI(api_key=chiave, base_url=self.url or URL_DEEPSEEK)
             elif self.fornitore == OPENAI:
                 import openai
@@ -262,10 +262,10 @@ class AssistenteAI:
 
         indirizzo = server_ai()
         if not indirizzo:
-            raise ErroreAI("L'assistente incluso nella licenza non è ancora disponibile: usare una chiave propria "
-                           "in Strumenti > Impostazioni assistente AI.")
+            raise ErroreAI("L'assistente incluso nella licenza non è ancora disponibile: usa una chiave API propria "
+                           "in «Strumenti > Impostazioni assistente AI».")
         if not self.api_key:
-            raise ErroreAI("L'assistente incluso richiede una licenza: inserirla in Aiuto > Licenza.")
+            raise ErroreAI("L'assistente AI richiede una licenza: inseriscila in «Aiuto > Licenza».")
         corpo = json.dumps({"licenza": self.api_key, "motore": self.modello, "testo": testo, "schema": schema,
                             "versione": __version__}).encode()
         richiesta = urllib.request.Request(f"{indirizzo}/api/ai/richiesta", data=corpo, method="POST",
@@ -278,10 +278,10 @@ class AssistenteAI:
                 messaggio = json.loads(e.read().decode()).get("errore", "")
             except (ValueError, AttributeError):
                 messaggio = ""
-            raise ErroreAI(messaggio or f"Errore del servizio SicurCantiere AI ({e.code}): riprovare più tardi.") from e
+            raise ErroreAI(messaggio or f"Errore del servizio SicurCantiere AI ({e.code}): riprova più tardi.") from e
         except (urllib.error.URLError, TimeoutError, OSError) as e:
-            raise ErroreAI("Impossibile contattare il servizio SicurCantiere AI: controllare la connessione a "
-                           "internet e riprovare.") from e
+            raise ErroreAI("Impossibile contattare il servizio SicurCantiere AI: verifica la connessione a "
+                           "Internet e riprova.") from e
         except ValueError as e:
             raise ErroreAI("Risposta del servizio SicurCantiere AI non leggibile.") from e
         self.credito = risposta.get("credito") or {}
@@ -301,7 +301,7 @@ class AssistenteAI:
         mancanti = [k for k in schema.get("required", []) if k not in dati]
         if mancanti:
             # Solo in modalità JSON (DeepSeek) lo schema non è garantito dal servizio.
-            raise ErroreAI("Risposta dell'assistente incompleta (mancano: " + ", ".join(mancanti) + "): riprovare.")
+            raise ErroreAI("Risposta dell'assistente incompleta (dati mancanti: " + ", ".join(mancanti) + "): riprova.")
         return dati
 
     def _richiesta_deepseek(self, testo: str, schema: dict[str, Any]) -> str:
@@ -313,7 +313,7 @@ class AssistenteAI:
                                                modalita_json=True, nome="DeepSeek")
             if contenuto.strip():
                 return contenuto
-        raise ErroreAI("L'assistente DeepSeek ha restituito una risposta vuota: riprovare.")
+        raise ErroreAI("L'assistente DeepSeek ha restituito una risposta vuota: riprova.")
 
     def _richiesta_openai(self, testo: str, schema: dict[str, Any], sistema: str = SISTEMA,
                           modalita_json: bool = False, nome: str = "OpenAI") -> str:
@@ -331,18 +331,18 @@ class AssistenteAI:
                 **limite,
             )
         except openai.AuthenticationError as e:
-            raise ErroreAI(f"Chiave API {nome} non valida o mancante: controllare Strumenti > "
-                           "Impostazioni assistente AI.") from e
+            raise ErroreAI(f"Chiave API {nome} non valida o mancante: verificala in «Strumenti > "
+                           "Impostazioni assistente AI».") from e
         except openai.PermissionDeniedError as e:
             raise ErroreAI("La chiave API non ha i permessi per questo modello.") from e
         except openai.NotFoundError as e:
             raise ErroreAI(f"Modello «{self.modello}» non disponibile per questa chiave: "
-                           "sceglierne un altro nelle impostazioni.") from e
+                           "scegline un altro nelle impostazioni.") from e
         except openai.RateLimitError as e:
             raise (_credito_esaurito(self.fornitore, 429, str(e)) or ErroreAI(
-                f"Troppe richieste in poco tempo sull'account {nome}: riprovare tra qualche istante.")) from e
+                f"Troppe richieste in poco tempo sull'account {nome}: riprova tra qualche istante.")) from e
         except openai.APIConnectionError as e:
-            raise ErroreAI("Impossibile contattare il servizio: controllare la connessione a internet.") from e
+            raise ErroreAI("Impossibile contattare il servizio: verifica la connessione a Internet.") from e
         except openai.APIStatusError as e:
             raise (_credito_esaurito(self.fornitore, e.status_code, str(e))
                    or ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}")) from e
@@ -373,15 +373,15 @@ class AssistenteAI:
                 output_config={"effort": "medium", "format": {"type": "json_schema", "schema": schema}},
             )
         except anthropic.AuthenticationError as e:
-            raise ErroreAI("Chiave API Anthropic non valida o mancante: controllare Strumenti > "
-                           "Impostazioni assistente AI.") from e
+            raise ErroreAI("Chiave API Anthropic non valida o mancante: verificala in «Strumenti > "
+                           "Impostazioni assistente AI».") from e
         except anthropic.PermissionDeniedError as e:
             raise ErroreAI("La chiave API non ha i permessi per questo modello.") from e
         except anthropic.RateLimitError as e:
             raise (_credito_esaurito(ANTHROPIC, 429, str(e))
-                   or ErroreAI("Troppe richieste in poco tempo: riprovare tra qualche istante.")) from e
+                   or ErroreAI("Troppe richieste in poco tempo: riprova tra qualche istante.")) from e
         except anthropic.APIConnectionError as e:
-            raise ErroreAI("Impossibile contattare il servizio: controllare la connessione a internet.") from e
+            raise ErroreAI("Impossibile contattare il servizio: verifica la connessione a Internet.") from e
         except anthropic.APIStatusError as e:
             raise (_credito_esaurito(ANTHROPIC, e.status_code, str(e))
                    or ErroreAI(f"Errore del servizio AI ({e.status_code}): {e.message}")) from e
