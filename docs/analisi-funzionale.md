@@ -1,9 +1,8 @@
 # Analisi funzionale
 
-Questo documento confronta le funzioni dichiarate nella documentazione
-**pubblica** dei software per la sicurezza nei cantieri presenti sul mercato
-(pagine prodotto ACCA CerTus, consultate a ottobre 2026) con il modo in cui
-SicurCantiere le realizza.
+Questo documento elenca le funzioni attese da un software per la sicurezza nei
+cantieri, ricavate dalla normativa (D.Lgs. 81/2008, Titolo IV e allegati) e dalle
+esigenze dei coordinatori, e il modo in cui SicurCantiere le realizza.
 
 ## Regole del progetto (clean room)
 
