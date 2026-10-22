@@ -43,7 +43,7 @@ GRUPPI: list[tuple[str, list[Sezione]]] = [
                 "Allegato XV punto 2.2.1, lettera c)"),
         Sezione("idrogeologia", "Caratteristiche idrogeologiche del terreno e profilo altimetrico",
                 "Natura del terreno, falda, pendenze; oppure il rinvio alla relazione geologica o geotecnica, se "
-                "già redatta. Se non sono previsti scavi né opere nel terreno, indicalo.",
+                "già redatta. Se non sono previsti scavi né opere nel terreno, indicarlo.",
                 "Allegato XV punto 2.1.4", SE_PERTINENTE),
     ]),
     ("Organizzazione del cantiere", [
@@ -87,7 +87,7 @@ GRUPPI: list[tuple[str, list[Sezione]]] = [
                 "Allegato XV punto 2.2.2, lettera m)"),
         Sezione("org_infiammabili", "Zone di deposito dei materiali con pericolo d'incendio o di esplosione",
                 "Bombole, carburanti, solventi: dove sono depositati e con quali protezioni; se non sono "
-                "presenti, indicalo.", "Allegato XV punto 2.2.2, lettera n)", SE_PERTINENTE),
+                "presenti, indicarlo.", "Allegato XV punto 2.2.2, lettera n)", SE_PERTINENTE),
     ]),
     ("Scelte e coordinamento", [
         Sezione("scelte", "Scelte progettuali e organizzative, procedure e misure preventive generali",
