@@ -2,18 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
-from sicurcantiere.documenti.comune import (
-    firma,
-    nome_fase,
-    nuovo_documento,
-    ombreggia,
-    salva,
-    tabella,
-    tabella_voci,
-)
+from sicurcantiere.documenti import stile
+from sicurcantiere.documenti.comune import data_it, indirizzo_cantiere, nome_fase, salva
 from sicurcantiere.repository import Repository
 from sicurcantiere.valutazioni import COLORI, METODI
 
@@ -33,6 +27,7 @@ def lavorazioni_valutazione(repo: Repository, valutazione: dict[str, Any]) -> st
 
 def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], livello: int = 1,
                          titolo: bool = True) -> None:
+    """Relazione di una valutazione: dati, metodo, calcolo, esito e misure (nel POS e come documento a sé)."""
     metodo = METODI.get(valutazione["metodo"])
     if metodo is None:
         return
@@ -41,9 +36,9 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
     impresa = repo.leggi("imprese", valutazione["impresa_id"]) if valutazione["impresa_id"] else None
 
     if titolo:
-        doc.add_heading(valutazione["titolo"] or metodo.nome, livello)
-    tabella_voci(doc, [
-        ("Metodo", f"{metodo.nome} - {metodo.norma}"),
+        stile.riquadro(doc, valutazione["titolo"] or metodo.nome, metodo.nome)
+    stile.scheda(doc, [
+        ("Metodo", f"{metodo.nome} · {metodo.norma}"),
         ("Mansione / gruppo omogeneo", valutazione["mansione"]),
         ("Lavorazioni", lavorazioni_valutazione(repo, valutazione)),
         ("Impresa", impresa["ragione_sociale"] if impresa else ""),
@@ -51,20 +46,17 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
 
     grezzi = repo.dati_valutazione(valutazione["id"])
     if not grezzi:
-        from sicurcantiere.documenti import stile
-
         stile.nota(doc, "Valutazione da eseguire: la lavorazione presenta questo rischio, ma i parametri del "
                         "metodo non sono ancora stati indicati.", avviso=True)
         return
     if str(grezzi.get("descrizione", "")).strip():
-        doc.add_heading("Descrizione dell'attività", livello + 1)
-        for paragrafo in str(grezzi["descrizione"]).strip().split("\n"):
-            doc.add_paragraph(paragrafo)
+        stile.banda(doc, "Descrizione dell'attività")
+        stile.testo(doc, str(grezzi["descrizione"]), "")
 
-    doc.add_heading("Metodo di valutazione", livello + 1)
+    stile.banda(doc, "Metodo di valutazione")
     doc.add_paragraph(metodo.descrizione)
 
-    doc.add_heading("Dati rilevati", livello + 1)
+    stile.banda(doc, "Dati rilevati")
     voci = []
     for campo in metodo.campi:
         valore = dati[campo.chiave]
@@ -74,7 +66,7 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
             valore = f"{valore:g}".replace(".", ",") + campo.suffisso
         voci.append((campo.etichetta, str(valore)))
     if voci:
-        tabella_voci(doc, voci)
+        stile.scheda(doc, voci, 7.0)
     if metodo.colonne_compiti and dati.get("compiti"):
         righe = []
         for compito in dati["compiti"]:
@@ -89,35 +81,31 @@ def aggiungi_valutazione(doc, repo: Repository, valutazione: dict[str, Any], liv
             righe.append(riga)
         intestazioni = [c.etichetta + (f" ({c.suffisso.strip()})" if c.suffisso.strip() else "")
                         for c in metodo.colonne_compiti]
-        doc.add_paragraph()
-        tabella(doc, intestazioni, righe, dimensione=8)
+        stile.tabella_colorata(doc, intestazioni, righe, 8)
 
     ipotesi = [str(i) for i in grezzi.get("ipotesi_ai") or []]
     if ipotesi:
-        doc.add_paragraph().add_run("Ipotesi formulate in fase di compilazione, verificate dal valutatore:").italic = True
-        for voce in ipotesi:
-            doc.add_paragraph(voce, style="List Bullet")
+        stile.nota(doc, "Ipotesi formulate in fase di compilazione, verificate dal valutatore: " + "; ".join(ipotesi)
+                   + ".")
 
-    doc.add_heading("Calcolo e risultato", livello + 1)
-    tabella_voci(doc, esito.dettagli)
+    stile.banda(doc, "Calcolo e risultato")
+    stile.scheda(doc, esito.dettagli, 7.0)
     if esito.righe_compiti:
-        doc.add_paragraph()
-        tabella(doc, esito.intestazioni_compiti, esito.righe_compiti, dimensione=8)
-    doc.add_paragraph()
-    t = tabella(doc, ["Indice", "Classe di rischio"], [[esito.indice_testo, esito.classe]])
+        stile.tabella_colorata(doc, esito.intestazioni_compiti, esito.righe_compiti, 8)
+    t = stile.tabella_colorata(doc, ["Indice", "Classe di rischio"], [[esito.indice_testo, esito.classe]], 9.5,
+                               larghezze=[5.2, 12.2])
     for cella in t.rows[1].cells:
-        ombreggia(cella, COLORI[esito.colore].lstrip("#"))
+        stile.ombreggia_cella(cella, COLORI[esito.colore].lstrip("#"))
         for run in cella.paragraphs[0].runs:
             run.bold = True
-    for nota in esito.note:
-        doc.add_paragraph(nota).runs[0].italic = True
+    for testo_nota in esito.note:
+        stile.nota(doc, testo_nota)
 
-    doc.add_heading("Misure di prevenzione e protezione", livello + 1)
-    for misura in esito.misure:
-        doc.add_paragraph(misura, style="List Bullet")
+    stile.banda(doc, "Misure di prevenzione e protezione")
+    stile.elenco(doc, list(esito.misure))
     if valutazione["note"].strip():
-        doc.add_heading("Note del valutatore", livello + 1)
-        doc.add_paragraph(valutazione["note"].strip())
+        stile.banda(doc, "Note del valutatore")
+        stile.testo(doc, valutazione["note"], "")
 
 
 def genera_valutazione(repo: Repository, valutazione_id: int, destinazione: str | Path) -> Path:
@@ -125,9 +113,18 @@ def genera_valutazione(repo: Repository, valutazione_id: int, destinazione: str 
     if valutazione is None:
         raise ValueError("Valutazione inesistente")
     c = repo.cantiere()
-    doc = nuovo_documento()
-    doc.add_heading("VALUTAZIONE DEI RISCHI SPECIFICI", 0)
-    doc.add_paragraph(f"Cantiere: {c['nome'] or '-'} - {c['comune'] or ''}".strip(" -"))
-    aggiungi_valutazione(doc, repo, valutazione)
-    firma(doc, "Il datore di lavoro, in collaborazione con il RSPP e il medico competente")
+    metodo = METODI.get(valutazione["metodo"])
+    comune = f"{c['comune']} ({c['provincia']})" if c["provincia"] else c["comune"]
+    oggi = data_it(date.today())
+    doc = stile.documento_semplice(" · ".join(v for v in (c["nome"], comune) if v),
+                                   ("Valutazione dei rischi specifici", oggi))
+    stile.intestazione_modulo(doc, f"D.Lgs. 9 aprile 2008, n. 81 · {metodo.norma}" if metodo else
+                              "D.Lgs. 9 aprile 2008, n. 81", "Valutazione dei rischi specifici",
+                              valutazione["titolo"] or (metodo.nome if metodo else ""))
+    stile.scheda(doc, [("Cantiere", " · ".join(v for v in (c["nome"], indirizzo_cantiere(c)) if v))])
+    aggiungi_valutazione(doc, repo, valutazione, titolo=False)
+    p = doc.add_paragraph(f"{c['comune'] or ''}, {oggi}".strip(", "))
+    stile._spaziatura(p, 14, 8)
+    stile.firme(doc, [("Il datore di lavoro", ""), ("In collaborazione con il RSPP", ""),
+                      ("Il medico competente, ove nominato", "")])
     return salva(doc, destinazione)

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QFrame,
     QScrollArea,
     QSplitter,
     QTabWidget,
@@ -201,7 +202,11 @@ class PaginaSostanze(Pagina):
         self.classificazione = PannelloClassificazione()
         self.schede = QTabWidget()
         self.schede.addTab(self.classificazione, "Classificazione e misure")
-        self.schede.addTab(self.dati, "Dati del prodotto")
+        scorrimento_dati = QScrollArea()
+        scorrimento_dati.setWidgetResizable(True)
+        scorrimento_dati.setFrameShape(QFrame.Shape.NoFrame)
+        scorrimento_dati.setWidget(self.dati)
+        self.schede.addTab(scorrimento_dati, "Dati del prodotto")
         self.schede.setEnabled(False)
 
         divisore = QSplitter(Qt.Orientation.Vertical)

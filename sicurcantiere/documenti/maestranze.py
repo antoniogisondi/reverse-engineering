@@ -6,19 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.shared import Cm, Pt
+from docx.shared import Cm
 
 from sicurcantiere import analisi, anagrafiche
-from sicurcantiere.documenti.comune import (
-    data_it,
-    indirizzo_cantiere,
-    nome_fase,
-    nuovo_documento,
-    ombreggia,
-    salva,
-    tabella,
-    tabella_voci,
-)
+from sicurcantiere.documenti import stile
+from sicurcantiere.documenti.comune import data_it, indirizzo_cantiere, nome_fase, salva
 from sicurcantiere.documenti.pos import elenco_dpi
 from sicurcantiere.repository import Repository
 from sicurcantiere.valutazioni import METODI
@@ -45,29 +37,35 @@ def genera_tesserini(repo: Repository, impresa_id: int, destinazione: str | Path
     impresa = repo.leggi("imprese", impresa_id)
     if impresa is None:
         raise ValueError("Impresa inesistente")
+    c = repo.cantiere()
     lavoratori = lavoratori_impresa(repo, impresa_id) or [{"nome": "", "cognome": "", "autonomo": 0}]
-    doc = nuovo_documento()
-    for sezione in doc.sections:
-        sezione.top_margin = sezione.bottom_margin = Cm(1.5)
-    doc.add_paragraph().add_run(f"Tessere di riconoscimento - {impresa['ragione_sociale']}").bold = True
-    doc.add_paragraph("Ritagliare lungo i bordi e inserire nell'apposita custodia. Il lavoratore espone la tessera in "
-                      "modo visibile per tutta la permanenza in cantiere.")
+    doc = stile.documento_semplice(c["nome"] or "", ("Tessere di riconoscimento", impresa["ragione_sociale"]))
+    stile.intestazione_modulo(doc, "D.Lgs. 9 aprile 2008, n. 81 · artt. 18, 21 e 26 · L. 136/2010, art. 5",
+                              "Tessere di riconoscimento", impresa["ragione_sociale"])
+    stile.nota(doc, "Ritagliare lungo il bordo e inserire nell'apposita custodia. Il lavoratore espone la tessera in "
+                    "modo visibile per tutta la permanenza in cantiere.")
 
-    griglia = doc.add_table(rows=0, cols=2)
-    griglia.style = "Table Grid"
+    griglia = doc.add_table(rows=0, cols=3)  # due tessere con uno spazio in mezzo per il taglio
     griglia.alignment = WD_TABLE_ALIGNMENT.CENTER
     for n, l in enumerate(lavoratori):
         if n % 2 == 0:
-            celle = griglia.add_row().cells
-        cella = celle[n % 2]
-        cella.width = Cm(8.6)
+            riga = griglia.add_row()
+            stile._non_spezzare(riga)
+            celle = riga.cells
+        cella = celle[0 if n % 2 == 0 else 2]
+        stile.bordi_cella(cella, stile.LINEA_FORTE, 6)
+        intestazione = cella.paragraphs[0]
+        stile.ombreggia_paragrafo(intestazione, stile.ACCENTO)
+        stile._spaziatura(intestazione, 0, 4)
+        stile._run(intestazione, f" {impresa['ragione_sociale'] or 'Impresa'}", 8.5, "FFFFFF", grassetto=True,
+                   carattere=stile.CARATTERE_TITOLI)
         interna = cella.add_table(rows=1, cols=2)
         foto, dati = interna.rows[0].cells
-        foto.width, dati.width = Cm(2.6), Cm(5.6)
-        if not _immagine(foto.paragraphs[0].add_run(), l.get("foto", ""), Cm(2.3)):
-            foto.paragraphs[0].add_run("\nFOTO\n\n").font.size = Pt(7)
-        cella.paragraphs[0].add_run(impresa["ragione_sociale"] or "Impresa").bold = True
-        ombreggia(cella, "F2F2F2")
+        foto.width, dati.width = Cm(2.4), Cm(5.6)
+        p_foto = foto.paragraphs[0]
+        if not _immagine(p_foto.add_run(), l.get("foto", ""), Cm(2.2)):
+            stile.bordi_cella(foto, stile.LINEA, 4)
+            stile._run(p_foto, "\nFOTO\n\n", 7, stile.TESTO3)
         righe = [("", anagrafiche.nominativo(l) or "________________")]
         if l.get("data_nascita"):
             righe.append(("Nato/a il", f"{data_it(l['data_nascita'])} {l.get('luogo_nascita', '')}".strip()))
@@ -83,17 +81,18 @@ def genera_tesserini(repo: Repository, impresa_id: int, destinazione: str | Path
             righe.append(("Datore di lavoro", impresa["datore_lavoro"]))
         if impresa["aut_subappalto"]:
             righe.append(("Aut. subappalto", impresa["aut_subappalto"]))
-        dati.paragraphs[0].text = ""
         for i, (etichetta, valore) in enumerate(righe):
             p = dati.paragraphs[0] if i == 0 else dati.add_paragraph()
-            p.paragraph_format.space_after = Pt(1)
+            stile._spaziatura(p, 0, 1)
             if etichetta:
-                p.add_run(f"{etichetta}: ").font.size = Pt(7)
-            r = p.add_run(valore or "-")
-            r.font.size = Pt(9 if i == 0 else 7.5)
-            r.bold = i == 0
-        nota = cella.add_paragraph("Tessera di riconoscimento ai sensi degli artt. 18, 21 e 26 del D.Lgs. 81/2008")
-        nota.runs[0].font.size = Pt(6)
+                stile._run(p, f"{etichetta}: ", 6.5, stile.TESTO3)
+            stile._run(p, valore or "—", 10 if i == 0 else 7.5, stile.INCHIOSTRO, grassetto=i == 0,
+                       carattere=stile.CARATTERE_TITOLI if i == 0 else None)
+        nota = cella.add_paragraph()
+        stile._spaziatura(nota, 3, 2)
+        stile._run(nota, f" {c['nome'] or 'Cantiere'} · tessera ai sensi degli artt. 18, 21 e 26 del D.Lgs. 81/2008",
+                   6, stile.TESTO3)
+    stile.larghezze_colonne(griglia, [8.4, 0.6, 8.4])
     return salva(doc, destinazione)
 
 
@@ -126,43 +125,48 @@ def genera_schede_lavoratori(repo: Repository, impresa_id: int, destinazione: st
         raise ValueError("Impresa inesistente")
     c = repo.cantiere()
     valutazioni = [v for v in repo.elenco("valutazioni") if v["fase_id"] is not None and v["metodo"] in METODI]
-    doc = nuovo_documento()
+    comune = f"{c['comune']} ({c['provincia']})" if c["provincia"] else c["comune"]
+    doc = stile.documento_semplice(" · ".join(v for v in (c["nome"], comune) if v),
+                                   ("Schede dei lavoratori", impresa["ragione_sociale"]))
     lavoratori = lavoratori_impresa(repo, impresa_id)
     if not lavoratori:
-        doc.add_paragraph("Nessun lavoratore indicato per l'impresa.")
+        stile.intestazione_modulo(doc, "D.Lgs. 9 aprile 2008, n. 81 · artt. 36 e 37", "Scheda del lavoratore",
+                                  impresa["ragione_sociale"])
+        stile.nota(doc, "Nessun lavoratore indicato per l'impresa.", avviso=True)
     for n, l in enumerate(lavoratori):
-        if n:
-            doc.add_page_break()
-        doc.add_heading(f"SCHEDA DEL LAVORATORE - {anagrafiche.nominativo(l) or 'nominativo da indicare'}", 1)
-        doc.add_paragraph(f"Cantiere: {c['nome']} - {indirizzo_cantiere(c)}".strip(" -"))
+        stile.intestazione_modulo(doc, "D.Lgs. 9 aprile 2008, n. 81 · artt. 36 e 37", "Scheda del lavoratore",
+                                  anagrafiche.nominativo(l) or "Nominativo da indicare", nuova_pagina=n > 0)
         voci = [
             ("Impresa", impresa["ragione_sociale"]),
+            ("Cantiere", " · ".join(v for v in (c["nome"], indirizzo_cantiere(c)) if v)),
             ("Posizione", "Lavoratore autonomo" if l["autonomo"] else "Lavoratore dipendente"),
             ("Qualifica / mansione", l["mansione"]),
             ("Data e luogo di nascita",
              f"{data_it(l['data_nascita']) if l['data_nascita'] else ''} {l['luogo_nascita']}".strip()),
         ]
         if l["autonomo"]:
-            voci += [("Codice fiscale / P. IVA", " - ".join(v for v in (l["codice_fiscale"], l["partita_iva"]) if v)),
-                     ("Periodo in cantiere", f"{data_it(l['data_inizio'])} - {data_it(l['data_fine'])}")]
+            voci += [("Codice fiscale / P. IVA", " · ".join(v for v in (l["codice_fiscale"], l["partita_iva"]) if v)),
+                     ("Periodo in cantiere", " - ".join(v for v in (data_it(l["data_inizio"]),
+                                                                    data_it(l["data_fine"])) if v != "-"))]
         else:
             voci += [("Matricola", l["matricola"]),
                      ("Data di assunzione", data_it(l["data_assunzione"]) if l["data_assunzione"] else "")]
         voci.append(("Idoneità sanitaria fino al", data_it(l["idoneita_scadenza"]) if l["idoneita_scadenza"] else ""))
-        tabella_voci(doc, voci)
+        stile.scheda(doc, voci)
 
         mansioni = mansioni_lavoratore(repo, l)
-        doc.add_heading("Lavorazioni svolte e macchine o attrezzature utilizzate", 2)
+        stile.banda(doc, "Lavorazioni svolte e macchine o attrezzature utilizzate")
         if mansioni:
-            tabella(doc, ["Lavorazione", "Periodo", "Macchine e attrezzature"], [
-                [nome_fase(m["fase"]), f"{data_it(m['fase']['data_inizio'])} - {data_it(m['fase']['data_fine'])}",
+            stile.tabella_colorata(doc, ["Lavorazione", "Periodo", "Macchine e attrezzature"], [
+                [nome_fase(m["fase"]), " - ".join(v for v in (data_it(m["fase"]["data_inizio"]),
+                                                              data_it(m["fase"]["data_fine"])) if v != "-"),
                  ", ".join(a["nome"] for a in m["attrezzature"]) or "-"] for m in mansioni
-            ])
+            ], 8.5, larghezze=[6.4, 3.6, 7.4])
         else:
-            doc.add_paragraph().add_run("Mansioni non ancora assegnate.").italic = True
+            stile.nota(doc, "Mansioni non ancora assegnate.")
 
         rischi = [r for m in mansioni for r in m["rischi"]]
-        doc.add_heading("Rischi cui è esposto il lavoratore e misure di prevenzione", 2)
+        stile.banda(doc, "Rischi cui è esposto il lavoratore e misure di prevenzione")
         if rischi:
             visti: dict[str, dict] = {}
             for r in rischi:
@@ -170,34 +174,39 @@ def genera_schede_lavoratori(repo: Repository, impresa_id: int, destinazione: st
                 livello = analisi.livello_rischio(r["probabilita"], r["danno"])
                 if chiave not in visti or livello > visti[chiave]["livello"]:
                     visti[chiave] = {**r, "livello": livello}
-            tabella(doc, ["Rischio", "Livello", "Misure"], [
+            ordinati = sorted(visti.values(), key=lambda x: -x["livello"])
+            t = stile.tabella_colorata(doc, ["Rischio", "Livello", "Misure"], [
                 [r["descrizione"], f"{r['livello']} {analisi.classe_rischio(r['livello'])}", r["misure"]]
-                for r in sorted(visti.values(), key=lambda x: -x["livello"])
-            ], dimensione=8.5)
+                for r in ordinati], 8, larghezze=[4.6, 2.4, 10.4])
+            for riga, r in zip(t.rows[1:], ordinati):
+                livello = r["livello"]
+                stile.colora_livello(riga.cells[1], 3 if livello >= 9 else 2 if livello >= 6 else 1 if livello >= 3
+                                     else 0)
         else:
-            doc.add_paragraph("-")
+            doc.add_paragraph("Nessun rischio associato alle lavorazioni assegnate.")
 
         fasi_lavoratore = {m["fase"]["id"] for m in mansioni}
         sue = [v for v in valutazioni if v["fase_id"] in fasi_lavoratore]
         if sue:
-            doc.add_heading("Valutazioni dei rischi specifici", 2)
-            tabella(doc, ["Valutazione", "Metodo", "Esito"], [
+            stile.banda(doc, "Valutazioni dei rischi specifici")
+            stile.tabella_colorata(doc, ["Valutazione", "Metodo", "Esito"], [
                 [v["titolo"] or METODI[v["metodo"]].nome, METODI[v["metodo"]].norma,
-                 f"{(e := METODI[v['metodo']].esegui(repo.dati_valutazione(v['id']))).indice_testo} - {e.classe}"]
+                 f"{(e := METODI[v['metodo']].esegui(repo.dati_valutazione(v['id']))).indice_testo} · {e.classe}"]
                 for v in sue
-            ])
+            ], 8.5, larghezze=[6.0, 5.0, 6.4])
 
-        doc.add_heading("Dispositivi di protezione individuale", 2)
+        stile.banda(doc, "Dispositivi di protezione individuale")
         dpi = anagrafiche.dpi_lavoratore(l) or elenco_dpi([r["dpi"] for r in rischi])
-        doc.add_paragraph("; ".join(dpi) if dpi else "-")
-        doc.add_heading("Informazione, formazione e addestramento", 2)
-        formazione = anagrafiche.formazione_lavoratore(l)
-        for voce in formazione or ["-"]:
-            doc.add_paragraph(voce, style="List Bullet")
+        if dpi:
+            stile.elenco_colonne(doc, dpi, 2)
+        else:
+            doc.add_paragraph("—")
+        stile.banda(doc, "Informazione, formazione e addestramento")
+        stile.elenco(doc, anagrafiche.formazione_lavoratore(l) or ["Da indicare."])
 
-        doc.add_paragraph()
-        doc.add_paragraph("Il lavoratore dichiara di aver ricevuto copia della presente scheda e le informazioni "
-                          "sui rischi e sulle misure relative alle proprie mansioni.")
-        doc.add_paragraph("Il datore di lavoro                                         Il lavoratore")
-        doc.add_paragraph("_____________________________            _____________________________")
+        p = doc.add_paragraph("Il lavoratore dichiara di aver ricevuto copia della presente scheda e le informazioni "
+                              "sui rischi e sulle misure relative alle proprie mansioni (art. 36).")
+        stile._spaziatura(p, 10, 6)
+        stile.firme(doc, [("Il datore di lavoro", impresa["datore_lavoro"]),
+                          ("Il lavoratore", anagrafiche.nominativo(l))])
     return salva(doc, destinazione)

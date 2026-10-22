@@ -785,3 +785,34 @@ def pagine_orizzontali(doc):
 def pagine_verticali(doc):
     """Da qui le pagine tornano verticali."""
     return _nuova_sezione(doc, False)
+
+
+# --- documenti brevi (verbali, elenchi, schede) ---
+
+def documento_semplice(piede: str, intestazione: tuple[str, str] = ("", "")):
+    """Documento senza copertina, con intestazione e piè di pagina fin dalla prima pagina."""
+    from docx import Document
+
+    doc = Document()
+    imposta_stili(doc)
+    imposta_pagina(doc, piede, intestazione)
+    for s in doc.sections:
+        s.different_first_page_header_footer = False
+    return doc
+
+
+def intestazione_modulo(doc, riferimento: str, titolo: str, sottotitolo: str = "",
+                        nuova_pagina: bool = False) -> None:
+    """Testata dei documenti brevi: riferimento di legge, titolo con filetto e sottotitolo (impresa, lavoratore)."""
+    p = doc.add_paragraph()
+    p.paragraph_format.page_break_before = nuova_pagina
+    _spaziatura(p, 0, 2)
+    _run(p, riferimento.upper(), 7.5, ACCENTO, grassetto=True)
+    p = doc.add_paragraph()
+    _spaziatura(p, 0, 4 if sottotitolo else 12)
+    _bordo_paragrafo(p, ("bottom",), ACCENTO, 18, 6)
+    _run(p, titolo, 20, INCHIOSTRO, carattere=CARATTERE_TITOLI)
+    if sottotitolo:
+        p = doc.add_paragraph()
+        _spaziatura(p, 4, 10)
+        _run(p, sottotitolo, 12, ACCENTO_SCURO, carattere=CARATTERE_TITOLI)

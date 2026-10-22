@@ -407,7 +407,7 @@ def test_controlli_pos_e_consegna_dpi(repo, tmp_path):
     assert any("idoneità sanitaria scaduta" in m for m in messaggi)
     assert any("medico competente" in m for m in messaggi)
     testo = _testo_docx(genera_consegna_dpi(repo, a, tmp_path / "dpi.docx"))
-    assert "VERBALE DI CONSEGNA" in testo and "Giuseppe Neri" in testo and "Casco" in testo
+    assert "Verbale di consegna dei DPI" in testo and "Giuseppe Neri" in testo and "Casco" in testo
 
 
 def test_sostanze_nel_pos_e_elenco(repo, tmp_path):
@@ -601,8 +601,8 @@ def test_mansioni_tesserini_e_schede(repo, tmp_path):
     assert "Giuseppe Neri" in testo and "M7" in testo and "01/03/2020" in testo
     assert "Prot. 123" in testo and "Lavoratore autonomo" in testo and "Sara Gialli" in testo
     testo = _testo_docx(genera_schede_lavoratori(repo, a, tmp_path / "s.docx"))
-    assert "SCHEDA DEL LAVORATORE - Giuseppe Neri" in testo and "Gru a torre" in testo
-    assert "casco; guanti antitaglio" in testo and "terza categoria" in testo
+    assert "Scheda del lavoratore\nGiuseppe Neri" in testo and "Gru a torre" in testo
+    assert "casco" in testo and "guanti antitaglio" in testo and "terza categoria" in testo
     testo = _testo_docx(genera_pos(repo, a, tmp_path / "pos.docx"))
     assert "Lavoratori impegnati" in testo and "Giuseppe Neri (Muratore)" in testo
     assert "Lavoratori autonomi: 1" in testo and "0123" in testo and "Prot. 123" in testo

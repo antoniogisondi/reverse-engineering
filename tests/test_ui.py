@@ -1183,5 +1183,5 @@ def test_finestra_sta_su_un_portatile(app, tmp_path):
         for riga in range(len(f.pagine)):
             f.navigazione.setCurrentRow(riga)
         assert f.minimumSizeHint().width() <= 1366, chiave
-        assert f.minimumSizeHint().height() <= 740, chiave
+        assert f.minimumSizeHint().height() <= 720, chiave
         f.close()
