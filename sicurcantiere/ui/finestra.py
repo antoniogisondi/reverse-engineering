@@ -37,8 +37,9 @@ from sicurcantiere.repository import Repository
 from sicurcantiere.ui import aggiornamenti, archivio_anagrafiche, tema
 from sicurcantiere.ui.edizioni import ESTENSIONI, PSC, Edizione
 from sicurcantiere.ui.icone import icona, icona_applicazione
-from sicurcantiere import licenza
+from sicurcantiere import licenza, licenza_pc
 from sicurcantiere.ui import licenza as licenza_ui
+from sicurcantiere.ui import sola_lettura
 from sicurcantiere.ui.guida import DialogoGuida
 from sicurcantiere.ui.lavoro_ai import DialogoImpostazioniAI, aggiorna_pulsanti_ai
 from sicurcantiere.ui.pagine import Pagina, primario
@@ -181,11 +182,13 @@ class Benvenuto(QWidget):
         stato = licenza_ui.stato_corrente(edizione.chiave)
         if not stato.utilizzabile:
             blocco = QVBoxLayout()
-            titolo = "Non incluso nella tua licenza" if stato.tipo == licenza.NON_INCLUSO else "Prova terminata"
+            titolo = ("Non incluso nella tua licenza" if stato.tipo == licenza.NON_INCLUSO else
+                      "Licenza da sistemare: i cantieri si aprono in sola lettura" if stato.tipo == licenza.SOLA_LETTURA
+                      else "Prova terminata")
             blocco.addWidget(_etichetta(titolo, "sectionTitle"))
             blocco.addWidget(_etichetta(licenza_ui.descrizione(stato, edizione.nome), "pageSubtitle", True))
             azioni = QHBoxLayout()
-            inserisci = QPushButton("Inserisci la licenza...")
+            inserisci = QPushButton("Licenza..." if stato.tipo == licenza.SOLA_LETTURA else "Inserisci la licenza...")
             tema.imposta_variante(inserisci, "primary")
             inserisci.clicked.connect(finestra.mostra_licenza)
             azioni.addWidget(inserisci)
@@ -209,8 +212,7 @@ class Benvenuto(QWidget):
         nuovo.clicked.connect(finestra.nuovo)
         apri = PulsanteGrande("apri", "Apri cantiere...", "Anche da una cartella di rete", "Ctrl+O", False)
         apri.clicked.connect(finestra.apri)
-        nuovo.setEnabled(stato.utilizzabile)
-        apri.setEnabled(stato.utilizzabile)
+        nuovo.setEnabled(stato.utilizzabile)  # senza licenza valida i cantieri si aprono in sola lettura
         if da_psc_primario:
             da_psc = PulsanteGrande("psc", "Nuovo POS da un PSC...", "L'AI legge il PSC in PDF o Word", "", True)
             da_psc.clicked.connect(finestra.nuovo_da_psc)
@@ -324,6 +326,10 @@ class FinestraPrincipale(QMainWindow):
         self._salvato_a = 0
         self._istantanea: Path | None = None
         self.cronologia: Cronologia | None = None
+        # sola lettura (licenza non valida): il cantiere è aperto da una copia temporanea
+        self.sola_lettura = False
+        self._copia_lettura: Path | None = None
+        self._percorso_aperto: Path | None = None
 
         # Barra laterale: cantiere aperto ed elenco numerato delle pagine, con i problemi di ognuna.
         self.navigazione = QListWidget()
@@ -359,6 +365,19 @@ class FinestraPrincipale(QMainWindow):
         contenuto.setObjectName("centralArea")
         lay_contenuto = QVBoxLayout(contenuto)
         lay_contenuto.setContentsMargins(0, 0, 0, 0)
+        self.avviso_lettura = QFrame()
+        self.avviso_lettura.setObjectName("statusBanner")
+        self.avviso_lettura.setProperty("state", "warning")
+        lay_avviso = QHBoxLayout(self.avviso_lettura)
+        lay_avviso.setContentsMargins(16, 8, 12, 8)
+        self.testo_lettura = QLabel()
+        self.testo_lettura.setWordWrap(True)
+        licenza_lettura = QPushButton("Licenza...")
+        licenza_lettura.clicked.connect(lambda: self.mostra_licenza())
+        lay_avviso.addWidget(self.testo_lettura, 1)
+        lay_avviso.addWidget(licenza_lettura)
+        self.avviso_lettura.hide()
+        lay_contenuto.addWidget(self.avviso_lettura)
         lay_contenuto.addWidget(self.contenitore)
 
         centrale = QWidget()
@@ -381,6 +400,8 @@ class FinestraPrincipale(QMainWindow):
 
         self._chiudi_progetto()
         self._aggiorna_licenza()
+        if licenza_pc.attive():  # rinnovo del certificato o attivazione del PC, senza fermare l'avvio
+            QTimer.singleShot(1500, self._verifica_licenza)
         self.resize(1280, 820)
         geometria = self.impostazioni.value("geometria")
         if geometria is not None:
@@ -568,15 +589,52 @@ class FinestraPrincipale(QMainWindow):
 
     def mostra_licenza(self) -> None:
         licenza_ui.DialogoLicenza(self.edizione.chiave, self.edizione.nome, self).exec()
-        self._aggiorna_licenza()
+        self._licenza_cambiata()
+
+    def _aggiorna_licenza(self) -> licenza.Stato:
+        stato = licenza_ui.stato_corrente(self.edizione.chiave)
+        testo = licenza_ui.testo_barra(stato)
+        self.stato_licenza.setText(testo)
+        self.stato_licenza.setToolTip(licenza_ui.descrizione(stato, self.edizione.nome))
+        self.stato_licenza.setVisible(bool(testo))
+        for azione in (self.azione_nuovo, self.azione_da_modello, self.azione_da_psc):
+            azione.setEnabled(stato.utilizzabile)  # senza licenza valida si aprono solo i cantieri esistenti
+        return stato
+
+    def _licenza_cambiata(self) -> None:
+        """Dopo l'attivazione, la verifica in sottofondo o un cambio di licenza: se il cantiere aperto deve
+        passare in sola lettura (o tornare modificabile) si riapre nel modo giusto."""
+        stato = self._aggiorna_licenza()
         aggiorna_pulsanti_ai()  # l'assistente incluso dipende dalla licenza
         if not self.pagine:
             self._mostra_benvenuto()
+            return
+        if self.sola_lettura == (not stato.utilizzabile):
+            return
+        percorso = self._percorso_aperto
+        if not stato.utilizzabile:
+            self._salva_in_sospeso()
+            QMessageBox.information(self, "Licenza", f"{licenza_ui.descrizione(stato, self.edizione.nome)}\n\n"
+                                                     "Il cantiere si riapre in sola lettura: le modifiche fatte "
+                                                     "finora sono salvate.")
+        self._chiudi_progetto()
+        if percorso is not None:
+            self.apri_file(percorso, chiedi=False)
 
-    def _aggiorna_licenza(self) -> None:
-        testo = licenza_ui.testo_barra(licenza_ui.stato_corrente(self.edizione.chiave))
-        self.stato_licenza.setText(testo)
-        self.stato_licenza.setVisible(bool(testo))
+    def _verifica_licenza(self) -> None:
+        """Rinnovo del certificato del PC (o prima attivazione con il codice già inserito), in sottofondo."""
+        if not licenza_pc.attive():
+            return
+        programma, codice = self.edizione.chiave, licenza_ui.codice_salvato()
+        prima = licenza_ui.stato_corrente(programma).utilizzabile
+        aggiornamenti._avvia(aggiornamenti._Lavoro(lambda _s: licenza_pc.verifica_in_sottofondo(programma, codice)),
+                             lambda _esito: self._dopo_verifica(prima), lambda _errore: None)
+
+    def _dopo_verifica(self, prima: bool) -> None:
+        if licenza_ui.stato_corrente(self.edizione.chiave).utilizzabile != prima or not self.pagine:
+            self._licenza_cambiata()
+        else:
+            self._aggiorna_licenza()
 
     def _informazioni(self) -> None:
         QMessageBox.about(
@@ -772,14 +830,25 @@ class FinestraPrincipale(QMainWindow):
     def apri_file(self, percorso: str | Path, chiedi: bool = True) -> None:
         if chiedi and not self.conferma_chiusura():
             return
-        if not licenza_ui.consenti_cantiere(self, self.edizione.chiave, Path(percorso)):
+        modo = licenza_ui.modo_apertura(self, self.edizione.chiave, Path(percorso))
+        if modo is None:
             return
+        copia = None
         try:
-            progetto = Progetto(percorso)
+            if modo == licenza_ui.LETTURA:
+                # sola lettura: si lavora su una copia temporanea, il file del cliente non cambia mai
+                cartella = Path(tempfile.mkdtemp(prefix="sicurcantiere-lettura-"))
+                copia = cartella / Path(percorso).name
+                shutil.copy2(percorso, copia)
+                progetto = Progetto(copia)
+            else:
+                progetto = Progetto(percorso)
         except (ErroreProgetto, OSError) as e:
+            if copia is not None:
+                shutil.rmtree(copia.parent, ignore_errors=True)
             QMessageBox.critical(self, "Impossibile aprire il cantiere", str(e))
             return
-        self._carica(progetto)
+        self._carica(progetto, Path(percorso), copia)
 
     def salva_con_nome(self) -> None:
         if not self.progetto:
@@ -825,7 +894,7 @@ class FinestraPrincipale(QMainWindow):
     def _segna_salvato(self) -> None:
         """Punto di ritorno per «Non salvare»: copia del cantiere com'è adesso."""
         self._togli_istantanea()
-        if not self.progetto:
+        if not self.progetto or self.sola_lettura:
             return
         self._salvato_a = self.progetto.conn.total_changes
         try:
@@ -843,7 +912,7 @@ class FinestraPrincipale(QMainWindow):
             self._istantanea = None
 
     def modifiche_non_salvate(self) -> bool:
-        if not self.progetto:
+        if not self.progetto or self.sola_lettura:
             return False
         self._salva_in_sospeso()
         return self.progetto.conn.total_changes != self._salvato_a
@@ -880,17 +949,19 @@ class FinestraPrincipale(QMainWindow):
         if self.conferma_chiusura():
             self._chiudi_progetto()
 
-    def _carica(self, progetto: Progetto) -> None:
+    def _carica(self, progetto: Progetto, originale: Path | None = None, copia: Path | None = None) -> None:
         # niente ridisegni a metà mentre si costruiscono le pagine: la finestra si aggiorna una volta
         # sola, a cantiere pronto (senza, si vedono comparire e sparire pezzi di pagina)
         self.setUpdatesEnabled(False)
         try:
-            self._carica_pagine(progetto)
+            self._carica_pagine(progetto, originale or progetto.percorso, copia)
         finally:
             self.setUpdatesEnabled(True)
 
-    def _carica_pagine(self, progetto: Progetto) -> None:
+    def _carica_pagine(self, progetto: Progetto, originale: Path, copia: Path | None = None) -> None:
         self._chiudi_progetto()
+        self.sola_lettura, self._copia_lettura, self._percorso_aperto = copia is not None, copia, originale
+        sola_lettura.imposta(self.sola_lettura)
         self.progetto = progetto
         self._modifiche_viste = progetto.conn.total_changes
         self._segna_salvato()
@@ -916,15 +987,30 @@ class FinestraPrincipale(QMainWindow):
         for a in self.azioni_progetto:
             a.setEnabled(True)
         self.laterale.show()
-        self._aggiungi_recente(progetto.percorso)
-        self.setWindowTitle(f"{progetto.percorso.name} - {self.edizione.nome}")
-        self.stato_file.setText(progetto.percorso.name)
-        self.stato_file.setToolTip(str(progetto.percorso))
-        self.stato_salvataggio.setText("Salvataggio automatico attivo")
-        self.cronologia = Cronologia(progetto)
+        self._aggiungi_recente(originale)
+        self.setWindowTitle(f"{originale.name}{' (sola lettura)' if self.sola_lettura else ''} - {self.edizione.nome}")
+        self.stato_file.setText(originale.name)
+        self.stato_file.setToolTip(str(originale))
+        self.stato_salvataggio.setText("Sola lettura: nessuna modifica viene salvata" if self.sola_lettura
+                                       else "Salvataggio automatico attivo")
+        self.cronologia = None if self.sola_lettura else Cronologia(progetto)
         self._aggiorna_annulla()
+        if self.sola_lettura:
+            self._applica_sola_lettura()
         self._timer_stato.start()
         self._aggiorna_stato()
+
+    def _applica_sola_lettura(self) -> None:
+        stato = licenza_ui.stato_corrente(self.edizione.chiave)
+        self.testo_lettura.setText("<b>Sola lettura.</b> " + licenza_ui.descrizione(stato, self.edizione.nome)
+                                   + " I documenti già composti si aprono in Word e si esportano in PDF dalla pagina "
+                                     "dei documenti.")
+        self.avviso_lettura.show()
+        for a in (self.azione_salva, self.azione_salva_con_nome, self.azione_salva_modello, self.azione_psc,
+                  self.azione_annulla, self.azione_ripeti):
+            a.setEnabled(False)
+        for pagina in self.pagine:
+            sola_lettura.applica(pagina)
 
     def _mostra_benvenuto(self) -> None:
         while self.contenitore.count():
@@ -955,6 +1041,11 @@ class FinestraPrincipale(QMainWindow):
                                         f"Non è stato possibile ripristinare il cantiere: {e}")
         self._ripristina = False
         self._togli_istantanea()
+        if self._copia_lettura is not None:
+            shutil.rmtree(self._copia_lettura.parent, ignore_errors=True)
+        self.sola_lettura, self._copia_lettura, self._percorso_aperto = False, None, None
+        sola_lettura.imposta(False)
+        self.avviso_lettura.hide()
         self._popola_navigazione()
         self.navigazione.setEnabled(False)
         self.nome_cantiere.hide()
@@ -988,6 +1079,8 @@ class FinestraPrincipale(QMainWindow):
         self._salva_in_sospeso()
         self.contenitore.setCurrentWidget(self.pagine[indice])
         self.pagine[indice].aggiorna()
+        if self.sola_lettura:
+            sola_lettura.applica(self.pagine[indice])
         self._aggiorna_stato()
 
     def _pagina_principale(self) -> Pagina | None:
@@ -1026,6 +1119,8 @@ class FinestraPrincipale(QMainWindow):
             self._modifiche_viste = modifiche
             self.stato_salvataggio.setText(f"Salvato alle {datetime.now():%H:%M:%S}")
         self._registra_cronologia()
+        if self.sola_lettura and self.contenitore.currentWidget() is not None:
+            sola_lettura.applica(self.contenitore.currentWidget())  # pulsanti riattivati dalla pagina
         elenco = self.edizione.controlla(self.pagine[0].repo) if self.pagine else []
         errori = sum(1 for s in elenco if s.livello == controlli.ERRORE)
         avvisi = len(elenco) - errori

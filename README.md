@@ -197,6 +197,12 @@ gestionale web in `licenze/`, da installare su un server dell'ufficio: vedi `lic
 programma non c'è la chiave pubblica del gestionale, il controllo delle licenze non è attivo. Il titolare della
 licenza compare nella barra di stato del programma e a piè di pagina dei documenti generati.
 
+Le licenze sono legate ai PC (`sicur_license/`, `sicurcantiere/licenza_pc.py`, `licenze/attivazioni.py`): il
+programma attiva il PC sul server delle attivazioni (lo stesso del ponte AI), che rifiuta il PC in più rispetto
+alle postazioni della licenza; il certificato firmato del PC vale 14 giorni e si rinnova a ogni avvio. Se la
+licenza non è valida il cantiere si apre in sola lettura (`sicurcantiere/ui/sola_lettura.py`), da una copia
+temporanea: i dati restano sempre consultabili.
+
 ## Prossimi passi
 
 - Ampliamento dell'archivio delle lavorazioni

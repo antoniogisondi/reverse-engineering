@@ -6,7 +6,7 @@ dell'ufficio con la chiave privata, che non lascia mai il server. Il programma c
 chiave pubblica e verifica la firma senza collegarsi a internet: un codice modificato, anche di
 una lettera, non è più valido.
 
-Alla scadenza il programma continua a funzionare (opzione scelta per il prodotto), ma non
+Senza le attivazioni dei PC (licenza_pc), alla scadenza il programma continua a funzionare ma non
 propone gli aggiornamenti pubblicati dopo la scadenza. Senza licenza c'è la prova gratuita:
 30 giorni con un solo cantiere.
 
@@ -131,6 +131,7 @@ def leggi(codice: str, chiave: str | None = None) -> Licenza:
 # --- stato per un programma ---
 
 LICENZA, PROVA, PROVA_FINITA, NON_INCLUSO, LIBERO = "licenza", "prova", "prova_finita", "non_incluso", "libero"
+SOLA_LETTURA = "sola_lettura"  # licenza con l'attivazione del PC non valida (vedi licenza_pc)
 
 
 @dataclass
@@ -140,9 +141,13 @@ class Stato:
     giorni_prova: int = 0
     messaggi: list[str] = field(default_factory=list)
     scaduta: bool = False  # licenza scaduta: il programma funziona, ma senza nuovi aggiornamenti
+    motivo: str = ""       # sola lettura: perché, in una frase
+    cosa_fare: str = ""    # sola lettura: cosa può fare l'utente
+    avvisi: list[str] = field(default_factory=list)  # promemoria con la licenza in regola
 
     @property
     def utilizzabile(self) -> bool:
+        """Si possono creare e modificare cantieri; altrimenti si aprono in sola lettura."""
         return self.tipo in (LICENZA, PROVA, LIBERO)
 
 
@@ -185,7 +190,7 @@ def dicitura_documenti(stato_attuale: Stato | None = None) -> str:
     s = stato_attuale or _attivo
     if s is None or s.tipo == LIBERO:
         return ""
-    if s.licenza is not None and s.tipo in (LICENZA, NON_INCLUSO):
+    if s.licenza is not None and s.tipo in (LICENZA, NON_INCLUSO, SOLA_LETTURA):
         return f"SicurCantiere · licenza {s.licenza.id} intestata a {s.licenza.cliente}"
     return "Documento redatto con SicurCantiere in versione di prova"
 

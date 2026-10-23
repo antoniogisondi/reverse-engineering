@@ -415,6 +415,27 @@ Fatto (non ancora nei programmi pubblicati):
   «Annulla la licenza» la blocca davvero (con «Riattiva»). Nel cruscotto «Da guardare»: licenze con PC
   rifiutati nel mese e PC sospetti di copia; pagina «Attivazioni» con il registro di tutte le licenze.
   Nella scheda del cliente, per ogni licenza, i PC attivati su quelli disponibili.
+- **Nei programmi** (passo 4):
+  - *attivazione*: in «Aiuto > Licenza...» si incolla il codice e «Attiva la licenza» attiva questo PC sul
+    server; con i posti finiti si apre l'elenco dei PC della licenza (nome, attivazione, ultimo uso) con
+    «Disattiva» per liberarne uno, e l'attivazione riprova da sola; «PC della licenza...», «Disattiva questo
+    PC» e «Attivazione senza internet» (file di richiesta da mandare all'assistenza, file `.sclic` da
+    caricare);
+  - *chi ha già il codice*: al primo avvio della nuova versione il PC si attiva da solo in sottofondo; senza
+    internet il programma funziona 14 giorni con l'avviso nella barra, poi passa in sola lettura;
+  - *a ogni avvio* il certificato si rinnova in sottofondo; se la licenza diventa non valida (annullata,
+    scaduta, PC liberato da un altro PC...) il cantiere aperto si riapre in sola lettura, e torna
+    modificabile appena la licenza è di nuovo valida;
+  - *sola lettura*: il cantiere si apre da una copia temporanea (il file del cliente non cambia mai), con
+    una fascia in alto che dice il motivo e cosa fare; i campi non sono modificabili, Salva, Genera,
+    Annulla e i nuovi cantieri sono disattivati; restano la navigazione, la ricerca, i controlli e, per i
+    documenti già composti, «Apri in Word», l'anteprima e l'esportazione in PDF;
+  - dopo un rifiuto del server o «Disattiva questo PC» il programma non si riattiva da solo (niente
+    tentativi ripetuti nel registro, niente posti spostati avanti e indietro): si riattiva da «Licenza...»;
+  - anche la prova gratuita finita e i cantieri oltre il primo durante la prova si aprono in sola lettura,
+    invece di essere bloccati;
+  - email del gestionale aggiornate: la consegna spiega l'attivazione sul PC e come spostarla, il promemoria
+    dice che senza rinnovo il programma passa in sola lettura.
 - I codici `SC1-…` già venduti valgono anche con le attivazioni: nessun codice nuovo da mandare.
 
 Regole scelte (modificabili): abbonamento scaduto → sola lettura; licenza perpetua → funzionano le
@@ -432,12 +453,9 @@ versioni uscite entro la fine degli aggiornamenti inclusi, le successive si apro
 
 ## Prossimi passi
 
-1. **Licenze per PC, passi successivi** (fatti i passi 1, 2 e 3, vedi sopra):
-   4. finestre nei programmi: attivazione, elenco dei PC con i posti finiti, «Disattiva questo PC»,
-      sola lettura e avvisi; codici nuovi casuali al posto di `SC1-…`; decidere se legare al PC anche
-      la prova gratuita; aggiornare i testi delle email del gestionale (consegna: «vale per N PC, per
-      spostarla usa Disattiva questo PC»; promemoria: alla scadenza sola lettura invece di «continua a
-      funzionare»), da fare insieme alla versione dei programmi con le attivazioni;
+1. **Licenze per PC, passi successivi** (fatti i passi 1, 2, 3 e 4, vedi sopra):
+   4. ancora da decidere: codici nuovi casuali al posto di `SC1-…` per le licenze nuove; prova gratuita
+      legata al PC sul server (oggi riparte reinstallando il programma);
    5. assistente AI con il certificato del PC al posto del codice; aggiornamenti firmati (elenco firmato
       con l'hash dell'installatore, verificato prima di installare);
    6. compilazione con Nuitka, firma del programma (certificato OV, circa 120 €/anno, o Azure Artifact

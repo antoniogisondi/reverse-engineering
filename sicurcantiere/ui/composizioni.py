@@ -122,6 +122,9 @@ class PannelloComposizioni(QWidget):
         menu.addSeparator()
         self.p_annulla = menu.addAction("Annulla")
         self.p_altro.setMenu(menu)
+        from sicurcantiere.ui import sola_lettura
+
+        sola_lettura.consenti(self.p_apri, self.p_anteprima, self.p_altro)
         self.p_componi.setToolTip("Compone il documento dai dati del cantiere e lo salva qui come bozza: se c'è già "
                                   "una bozza, la ricompone con i dati aggiornati.")
         self.p_apri.setToolTip("Apre il documento in Word. Le bozze si possono modificare e poi riprendere qui; "
@@ -277,6 +280,12 @@ class PannelloComposizioni(QWidget):
         self.p_confronta.setEnabled(c is not None and len(getattr(self, "_righe", [])) > 1)
         self.p_annulla.setEnabled(c is not None and stato != comp.ANNULLATA)
         self.p_annulla.setText("Elimina la bozza" if stato == comp.BOZZA else "Annulla la revisione...")
+        from sicurcantiere.ui import sola_lettura
+
+        if sola_lettura.attiva():  # licenza non valida: si aprono, si vedono e si esportano i documenti già fatti
+            for azione in (self.p_componi, self.p_capitoli, self.p_emetti, self.p_riprendi, self.p_consegna,
+                           self.p_annulla):
+                azione.setEnabled(False)
         self._mostra_mancanti(c)
 
     def _mostra_mancanti(self, c: dict[str, Any] | None) -> None:

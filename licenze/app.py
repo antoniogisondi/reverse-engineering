@@ -143,7 +143,11 @@ def testo_consegna(l, nome_piano: str) -> str:
             f"le inviamo il codice della licenza SicurCantiere n. {l['codice_licenza']} (piano {nome_piano}{validita}, "
             f"per {l['postazioni']} {'postazione' if l['postazioni'] == 1 else 'postazioni'}):\n\n{l['codice']}\n\n"
             "Per attivare la licenza apra SicurCantiere, scelga Aiuto > Licenza..., incolli il codice e prema "
-            f"«Attiva la licenza».\nL'installatore aggiornato è disponibile all'indirizzo:\n{DOWNLOAD}\n\n"
+            "«Attiva la licenza»: il programma si collega a internet e attiva la licenza su quel PC. "
+            f"La licenza vale per {l['postazioni']} {'PC' if l['postazioni'] == 1 else 'PC diversi'}; per spostarla "
+            "su un altro PC usi «Disattiva questo PC» nella stessa finestra, oppure disattivi il vecchio PC da "
+            "«PC della licenza...».\n"
+            f"L'installatore aggiornato è disponibile all'indirizzo:\n{DOWNLOAD}\n\n"
             "La licenza è nominativa: il nome del titolare compare nel programma e nei documenti generati.\n\n"
             "Cordiali saluti")
 
@@ -153,8 +157,9 @@ def testo_promemoria(l, nome_piano: str) -> str:
     return (f"Gentile {l['cliente']},\n"
             f"la sua licenza SicurCantiere n. {l['codice_licenza']} (piano {nome_piano}) "
             f"{'è scaduta' if scade else 'scade'} il {_data(l['scadenza'])}.\n\n"
-            "Il programma continua a funzionare, ma senza rinnovo non riceve più gli aggiornamenti normativi e "
-            "l'assistenza. Rinnovando ora, la nuova scadenza decorre da quella attuale, senza perdere giorni.\n\n"
+            "Senza rinnovo il programma passa in sola lettura: i cantieri e i documenti già fatti restano "
+            "consultabili, stampabili ed esportabili in PDF, ma non se ne possono creare di nuovi né modificarli. "
+            "Rinnovando ora, la nuova scadenza decorre da quella attuale, senza perdere giorni.\n\n"
             "Se desidera rinnovare, risponda a questa email: le invieremo il nuovo codice.\n\n"
             "Cordiali saluti")
 

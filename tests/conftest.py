@@ -30,3 +30,15 @@ def senza_server_ai(monkeypatch):
 
     monkeypatch.setattr(ai, "SERVER_AI", "")
     monkeypatch.delenv("SICURCANTIERE_SERVER_AI", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def licenza_pc_temporanea(tmp_path, monkeypatch):
+    # Certificato e impronte del PC dei test in una cartella temporanea; nessun server delle licenze.
+    monkeypatch.setenv("SICUR_LICENSE_CARTELLA", str(tmp_path / "licenza-pc"))
+    monkeypatch.delenv("SICUR_LICENSE_SERVER", raising=False)
+    from sicurcantiere import licenza_pc
+    from sicurcantiere.ui import sola_lettura
+
+    monkeypatch.setattr(licenza_pc, "trasporto", None)
+    sola_lettura.imposta(False)

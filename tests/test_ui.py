@@ -783,17 +783,19 @@ def test_licenza_prova_e_programma_non_incluso(app, tmp_path, monkeypatch):
     f.apri_file(tmp_path / "a.spo")
     assert f.progetto is not None
     f._chiudi_progetto()
-    f.apri_file(tmp_path / "b.spo")  # secondo cantiere: bloccato
-    assert f.progetto is None
-    f.apri_file(tmp_path / "a.spo")  # il primo resta disponibile
-    assert f.progetto is not None
+    assert not f.sola_lettura
+    f.apri_file(tmp_path / "b.spo")  # secondo cantiere: solo in lettura
+    assert f.progetto is not None and f.sola_lettura and "(sola lettura)" in f.windowTitle()
+    f.apri_file(tmp_path / "a.spo")  # il primo resta modificabile
+    assert f.progetto is not None and not f.sola_lettura
     f.close()
 
-    # Prova finita: niente cantieri, pagina iniziale con l'invito a inserire la licenza.
+    # Prova finita: i cantieri si aprono in sola lettura, nessun cantiere nuovo.
     impostazioni.setValue("prova/inizio", (date.today() - timedelta(days=40)).isoformat())
     f = FinestraPrincipale(POS)
+    assert f.stato_licenza.text() == "Sola lettura: licenza mancante"
     f.apri_file(tmp_path / "a.spo")
-    assert f.progetto is None
+    assert f.progetto is not None and f.sola_lettura and not f.azione_salva.isEnabled()
     f.close()
 
     # Licenza POS: il POS funziona, il PSC mostra «Non incluso nella tua licenza».
@@ -801,7 +803,8 @@ def test_licenza_prova_e_programma_non_incluso(app, tmp_path, monkeypatch):
     impostazioni.setValue("licenza/codice", codice)
     f = FinestraPrincipale(POS)
     f.apri_file(tmp_path / "b.spo")
-    assert f.progetto is not None and f.stato_licenza.text() == "Licenza POS · Studio Rossi"
+    assert f.progetto is not None and not f.sola_lettura
+    assert f.stato_licenza.text() == "Licenza POS · Studio Rossi"
     f.close()
     f = FinestraPrincipale(PSC)
     testi = [w.text() for w in f.findChildren(QtWidgets.QLabel)]
