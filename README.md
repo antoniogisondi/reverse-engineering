@@ -164,11 +164,24 @@ python -m pytest
 
 ## Eseguibile e installatore per Windows
 
-Da Windows eseguire `scripts\build_windows.bat`: lo script esegue i test, genera le icone e crea i tre
-eseguibili in `dist\`. Se è installato [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+Da Windows eseguire `scripts\build_windows.bat`: lo script installa le librerie alle versioni esatte con
+impronta (`requisiti\build.txt`, `--require-hashes`), esegue i test, genera le icone e compila il programma
+con **Nuitka** in `dist\SicurCantiere\`: il codice Python diventa C compilato, quindi l'eseguibile non
+contiene il sorgente. I tre programmi (`SicurCantiere PSC.exe`, `POS`, `PiMUS`) sono copie dello stesso
+eseguibile nella stessa cartella: l'edizione dipende dal nome del file e le librerie si installano una volta. Se è installato [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 crea anche l'installatore `dist\SicurCantiere-<versione>-setup.exe`, che permette di scegliere
 quali programmi installare e associa le estensioni: con un doppio clic su un file `.spo` si apre
 il POS, su `.scs` il PSC, su `.spm` il PiMUS.
+
+Ogni build su GitHub fa prima i **controlli di sicurezza**: analisi del codice (bandit), librerie con falle
+note (pip-audit) ed elenco delle librerie del programma (SBOM CycloneDX, allegato a ogni versione pubblicata).
+Le librerie si aggiornano modificando `requisiti/*.in` e rigenerando i file con le impronte:
+
+```bash
+cd requisiti
+uv pip compile --universal --generate-hashes --python-version 3.12 programma.in -o programma.txt
+uv pip compile --universal --generate-hashes --python-version 3.12 build.in -o build.txt
+```
 
 ## Struttura
 

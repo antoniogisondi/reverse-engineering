@@ -111,6 +111,20 @@ def main(argv: list[str] | None = None, edizione: str | None = None) -> int:
     return codice
 
 
+def edizione_da_eseguibile(percorso: str) -> str | None:
+    """Edizione dal nome dell'eseguibile («SicurCantiere POS.exe» -> pos): i tre programmi installati sono
+    copie dello stesso eseguibile compilato, nella stessa cartella."""
+    nome = Path(percorso).stem.upper()
+    for chiave in ("PIMUS", "PSC", "POS"):
+        if nome.endswith(chiave) or f" {chiave}" in nome:
+            return chiave.lower()
+    return None
+
+
+def main_da_eseguibile() -> int:
+    return main(edizione=edizione_da_eseguibile(sys.argv[0]))
+
+
 def main_psc() -> int:
     return main(edizione="psc")
 

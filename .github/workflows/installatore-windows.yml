@@ -24,15 +24,49 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
+  # Controlli di sicurezza a ogni build (Cyber Resilience Act): analisi del codice, librerie con falle
+  # note, elenco delle librerie del programma (SBOM). Se uno fallisce, non si compila e non si pubblica.
+  controlli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Strumenti
+        run: python -m pip install bandit pip-audit cyclonedx-bom
+      - name: Analisi del codice (bandit)
+        run: bandit -q -c pyproject.toml -r sicurcantiere sicur_license licenze --severity-level medium
+      - name: Librerie con falle note (pip-audit)
+        run: |
+          pip-audit -r requisiti/programma.txt --require-hashes --disable-pip --progress-spinner off
+          pip-audit -r requisiti/build.txt --require-hashes --disable-pip --progress-spinner off
+          pip-audit -r licenze/requirements.txt --progress-spinner off
+      - name: Elenco delle librerie (SBOM CycloneDX)
+        run: cyclonedx-py requirements requisiti/programma.txt --output-format JSON -o sbom-programma.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom-programma.json
+
   windows:
+    needs: controlli
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      # cache del compilatore di Nuitka: le build successive ricompilano solo ciò che è cambiato
+      - uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Nuitka\Nuitka\Cache
+          key: nuitka-${{ runner.os }}-${{ hashFiles('requisiti/build.txt') }}-${{ github.sha }}
+          restore-keys: nuitka-${{ runner.os }}-${{ hashFiles('requisiti/build.txt') }}-
 
       - name: Inno Setup
         shell: pwsh
@@ -50,20 +84,32 @@ jobs:
         run: |
           foreach ($p in "PSC", "POS", "PiMUS") {
             $cartella = Join-Path $env:RUNNER_TEMP "prova-$p"
-            $exe = "dist\SicurCantiere $p\SicurCantiere $p.exe"
+            $exe = "dist\SicurCantiere\SicurCantiere $p.exe"
             $proc = Start-Process -FilePath $exe -ArgumentList "--autoverifica", "`"$cartella`"" -Wait -PassThru
             Get-Content (Join-Path $cartella "autoverifica.txt")
             if ($proc.ExitCode -ne 0) { throw "SicurCantiere ${p}: autoverifica non riuscita" }
           }
 
-      - name: Prova dell'installatore
+      - name: Prova dell'installatore (anche sopra la versione pubblicata)
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # prima l'ultima versione pubblicata, come sul PC di un cliente, poi l'aggiornamento
+          gh release download --repo $env:GITHUB_REPOSITORY --pattern "SicurCantiere-setup.exe" --dir $env:RUNNER_TEMP
+          $vecchio = Join-Path $env:RUNNER_TEMP "SicurCantiere-setup.exe"
+          if (Test-Path $vecchio) {
+            $proc = Start-Process -FilePath $vecchio -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"C:\SicurCantiere`"" -Wait -PassThru
+            if ($proc.ExitCode -ne 0) { throw "installazione della versione pubblicata non riuscita" }
+          }
           $setup = (Get-ChildItem dist\SicurCantiere-*-setup.exe | Select-Object -First 1).FullName
           $proc = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"C:\SicurCantiere`"" -Wait -PassThru
           if ($proc.ExitCode -ne 0) { throw "installazione non riuscita ($($proc.ExitCode))" }
+          foreach ($vecchia in "PSC", "POS", "PiMUS") {
+            if (Test-Path "C:\SicurCantiere\$vecchia") { throw "cartella della versione precedente rimasta: $vecchia" }
+          }
           $cartella = Join-Path $env:RUNNER_TEMP "prova-installato"
-          $proc = Start-Process -FilePath "C:\SicurCantiere\POS\SicurCantiere POS.exe" -ArgumentList "--autoverifica", "`"$cartella`"" -Wait -PassThru
+          $proc = Start-Process -FilePath "C:\SicurCantiere\SicurCantiere POS.exe" -ArgumentList "--autoverifica", "`"$cartella`"" -Wait -PassThru
           Get-Content (Join-Path $cartella "autoverifica.txt")
           if ($proc.ExitCode -ne 0) { throw "programma installato: autoverifica non riuscita" }
 
@@ -71,6 +117,11 @@ jobs:
         with:
           name: SicurCantiere-setup
           path: dist/SicurCantiere-*-setup.exe
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: dist
 
       - name: Pubblica la versione
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.pubblica)
@@ -90,7 +141,9 @@ jobs:
           # firma dell'aggiornamento (versione, dimensione e SHA-256), verificata dal programma prima di installare
           python scripts\firma_aggiornamento.py $setup
           if ($LASTEXITCODE -ne 0) { throw "firma dell'aggiornamento non riuscita" }
-          $allegati = @($setup, $fisso)
+          $sbom = Join-Path (Split-Path $setup) "SicurCantiere-$versione-sbom.json"
+          Move-Item (Join-Path (Split-Path $setup) "sbom-programma.json") $sbom
+          $allegati = @($setup, $fisso, $sbom)
           $firma = Join-Path (Split-Path $setup) "SicurCantiere-setup.exe.firma"
           if (Test-Path $firma) { $allegati += $firma }
           gh release create $tag @allegati --target $env:GITHUB_SHA --title "SicurCantiere $versione" --notes-file docs\installazione.md --latest

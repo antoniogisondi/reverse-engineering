@@ -200,7 +200,7 @@ def _testo_elemento(elemento) -> str:
 
 
 def impronta(testo: str) -> str:
-    return hashlib.sha1(testo.encode("utf-8")).hexdigest()[:12]
+    return hashlib.sha1(testo.encode("utf-8"), usedforsecurity=False).hexdigest()[:12]
 
 
 def _dividi_capitoli(doc, c: Contesto) -> list[dict[str, Any]]:

@@ -529,7 +529,7 @@ class Progetto:
         # copie (non accanto al file): per ogni cantiere si tengono le ultime COPIE_TENUTE.
         cartella = cartella_copie()
         cartella.mkdir(parents=True, exist_ok=True)
-        impronta = hashlib.sha1(str(self.percorso.resolve()).lower().encode()).hexdigest()[:8]
+        impronta = hashlib.sha1(str(self.percorso.resolve()).lower().encode(), usedforsecurity=False).hexdigest()[:8]
         prefisso = f"{self.percorso.stem}-{impronta}-"
         istante = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         shutil.copy2(self.percorso, cartella / f"{prefisso}{istante}{self.percorso.suffix}")

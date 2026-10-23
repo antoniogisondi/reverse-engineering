@@ -1,0 +1,4 @@
+# Librerie che finiscono nel programma installato dai clienti (da qui si ricava lo SBOM).
+PySide6>=6.6
+python-docx>=1.1
+pypdf>=5

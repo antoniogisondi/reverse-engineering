@@ -330,7 +330,8 @@ class PannelloComposizioni(QWidget):
         return re.sub(r'[\\/:*?"<>|]+', "-", nome).strip()
 
     def _percorso_copia(self, c: dict[str, Any]) -> Path:
-        impronta = hashlib.sha1(str(self.repo.progetto.percorso.resolve()).lower().encode()).hexdigest()[:6]
+        impronta = hashlib.sha1(str(self.repo.progetto.percorso.resolve()).lower().encode(),
+                                usedforsecurity=False).hexdigest()[:6]
         return cartella_lavoro() / f"{self._nome_file(c)} [{impronta}-{c['id']}].docx"
 
     def _modificata_in_word(self, c: dict[str, Any]) -> bool:

@@ -56,12 +56,16 @@ class ErroreServer(Exception):
 
 
 def trasporto_http(url_base: str, timeout: float = 15) -> Trasporto:
+    sicuro = url_base.lower().startswith(("https://", "http://"))  # mai file: o altri schemi
+
     def invia(percorso: str, dati: dict) -> tuple[int, dict]:
+        if not sicuro:
+            raise ErroreRete("Indirizzo del server delle licenze non valido.")
         richiesta = urllib.request.Request(
             url_base.rstrip("/") + "/api/licenze/" + percorso, data=json.dumps(dati).encode("utf-8"),
             headers={"Content-Type": "application/json", "User-Agent": "SicurCantiere"}, method="POST")
         try:
-            with urllib.request.urlopen(richiesta, timeout=timeout) as risposta:
+            with urllib.request.urlopen(richiesta, timeout=timeout) as risposta:  # nosec B310
                 return risposta.status, json.loads(risposta.read() or b"{}")
         except urllib.error.HTTPError as e:
             try:

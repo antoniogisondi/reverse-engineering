@@ -36,7 +36,9 @@ STANDARD, AVANZATO = "standard", "avanzato"
 
 
 def server_ai() -> str:
-    return (os.environ.get("SICURCANTIERE_SERVER_AI") or SERVER_AI).rstrip("/")
+    """Indirizzo del server ponte; solo http(s): un indirizzo di altro tipo (file:, ...) non si usa."""
+    indirizzo = (os.environ.get("SICURCANTIERE_SERVER_AI") or SERVER_AI).rstrip("/")
+    return indirizzo if indirizzo.lower().startswith(("https://", "http://")) else ""
 
 
 @dataclass(frozen=True)
@@ -273,7 +275,7 @@ class AssistenteAI:
         richiesta = urllib.request.Request(f"{indirizzo}/api/ai/richiesta", data=corpo, method="POST",
                                            headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(richiesta, timeout=300) as r:
+            with urllib.request.urlopen(richiesta, timeout=300) as r:  # nosec B310
                 risposta = json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
             try:

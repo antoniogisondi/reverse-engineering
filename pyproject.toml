@@ -25,3 +25,10 @@ sicurcantiere = ["risorse/segnali/*.png", "risorse/tema/*.qss", "risorse/font/*"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.bandit]
+# B101: gli assert nei controlli interni e nell'autoverifica sono voluti.
+# B608: le query composte con f-string usano solo nomi di tabella e colonna fissi nel codice o verificati
+# sullo schema (Repository._verifica); i valori passano sempre come parametri «?». Verificato a mano
+# (ottobre 2026): da ricontrollare quando si aggiungono query composte.
+skips = ["B101", "B608"]

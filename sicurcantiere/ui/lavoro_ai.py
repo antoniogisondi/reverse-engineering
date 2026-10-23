@@ -286,7 +286,7 @@ def credito_integrato() -> dict[str, Any]:
                                        data=json.dumps({"licenza": codice_licenza(), **credenziali()}).encode(),
                                        headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(richiesta, timeout=15) as r:
+        with urllib.request.urlopen(richiesta, timeout=15) as r:  # nosec B310
             stato = json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         try:

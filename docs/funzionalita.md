@@ -437,6 +437,12 @@ Fatto (non ancora nei programmi pubblicati):
   - email del gestionale aggiornate: la consegna spiega l'attivazione sul PC e come spostarla, il promemoria
     dice che senza rinnovo il programma passa in sola lettura.
 - I codici `SC1-…` già venduti valgono anche con le attivazioni: nessun codice nuovo da mandare.
+- **Programma compilato e controlli di sicurezza** (passo 6): il programma si compila con Nuitka (codice C,
+  niente sorgente Python nell'eseguibile); i tre programmi sono copie dello stesso eseguibile in un'unica
+  cartella (installazione più piccola, una sola copia di Qt; l'aggiornamento toglie le cartelle PSC, POS e
+  PiMUS delle versioni precedenti). A ogni build: analisi del codice (bandit), librerie con falle note
+  (pip-audit), SBOM CycloneDX allegato alla versione pubblicata, librerie installate solo alle versioni
+  esatte con impronta (`requisiti/`). L'installatore si prova anche sopra l'ultima versione pubblicata.
 - **Assistente AI con il certificato del PC** (passo 5): il programma manda il certificato e le impronte del
   PC; il server accetta solo PC attivi sulla licenza e certificati non copiati. Il solo codice vale finché
   la licenza non ha PC attivati (clienti con la versione precedente), poi non basta più; in sola lettura
@@ -462,15 +468,14 @@ versioni uscite entro la fine degli aggiornamenti inclusi, le successive si apro
 
 ## Prossimi passi
 
-1. **Licenze per PC, passi successivi** (fatti i passi 1-5, vedi sopra):
-   4. ancora da decidere: codici nuovi casuali al posto di `SC1-…` per le licenze nuove; prova gratuita
-      legata al PC sul server (oggi riparte reinstallando il programma);
-   6. compilazione con Nuitka, controlli in CI: SBOM, pip-audit, bandit, dipendenze bloccate;
-   8. ultimo passo prima del rilascio ufficiale (deciso a ottobre 2026): firma del programma con un
-      certificato di firma del codice (OV, circa 120 €/anno, o Azure Artifact Signing);
-   7. checklist GDPR (informativa, registro dei trattamenti, backup cifrati con password) e Cyber
-      Resilience Act (segnalazione delle vulnerabilità sfruttate già obbligatoria dall'11 settembre
-      2026, requisiti completi dall'11 dicembre 2027).
+1. **Licenze per PC, passi successivi** (fatti i passi 1-6, vedi sopra):
+   - da decidere: codici nuovi casuali al posto di `SC1-…` per le licenze nuove; prova gratuita legata al PC
+     sul server (oggi riparte reinstallando il programma);
+   - passo 7: checklist GDPR (informativa, registro dei trattamenti, backup cifrati con password) e Cyber
+     Resilience Act (segnalazione delle vulnerabilità sfruttate già obbligatoria dall'11 settembre 2026,
+     requisiti completi dall'11 dicembre 2027);
+   - ultimo passo prima del rilascio ufficiale (deciso a ottobre 2026): firma del programma con un
+     certificato di firma del codice (OV, circa 120 €/anno, o Azure Artifact Signing).
 1. **Server ponte AI**: da ottobre 2026 il motore Standard è DeepSeek V4.1 Flash su **Scaleway**
    (Parigi, dati trattati nell'UE). Il programma mostra ai clienti la sede comunicata dal server (riga
    SEDE di `ai.env`), quindi cambiando fornitore non serve una nuova versione. All'arrivo dei primi

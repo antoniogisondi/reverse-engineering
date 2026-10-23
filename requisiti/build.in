@@ -1,0 +1,11 @@
+# Strumenti per i test e la compilazione (non finiscono nel programma, tranne quanto in programma.in).
+-r programma.in
+pytest>=8
+nuitka>=2.7
+ordered-set
+zstandard
+flask>=3
+cryptography>=42
+segno>=1.5
+openai>=3.30
+anthropic>=1.15

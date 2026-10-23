@@ -1,6 +1,10 @@
 @echo off
-REM Crea gli eseguibili Windows dei programmi SicurCantiere (PSC, POS, PiMUS) in dist\
-REM e, se Inno Setup 6 e' installato, l'installatore dist\SicurCantiere-<versione>-setup.exe
+REM Compila i programmi SicurCantiere (PSC, POS, PiMUS) con Nuitka in dist\SicurCantiere\ e, se Inno Setup 6
+REM e' installato, crea l'installatore dist\SicurCantiere-<versione>-setup.exe
+REM
+REM Nuitka traduce il codice Python in C e lo compila: l'eseguibile non contiene il sorgente e non si
+REM decompila come un programma Python impacchettato. I tre programmi sono copie dello stesso eseguibile
+REM nella stessa cartella (l'edizione dipende dal nome del file): le librerie si installano una volta sola.
 setlocal
 cd /d "%~dp0\.."
 
@@ -9,13 +13,36 @@ if not exist .venv (
 )
 call .venv\Scripts\activate.bat || goto :errore
 python -m pip install --upgrade pip || goto :errore
-python -m pip install -e ".[dev]" || goto :errore
+REM versioni esatte con impronta (hash): un pacchetto alterato sull'indice non viene installato
+python -m pip install --require-hashes -r requisiti\build.txt || goto :errore
+python -m pip install --no-deps -e . || goto :errore
 python -m pytest -q || goto :errore
 python scripts\genera_icona.py || goto :errore
 
-call :programma PSC psc || goto :errore
-call :programma POS pos || goto :errore
-call :programma PiMUS pimus || goto :errore
+for /f "tokens=2 delims==" %%v in ('findstr /b "__version__" sicurcantiere\__init__.py') do set VERSIONE=%%~v
+set VERSIONE=%VERSIONE: =%
+set VERSIONE=%VERSIONE:"=%
+echo Versione %VERSIONE%
+
+if exist build\nuitka rmdir /s /q build\nuitka
+if exist dist\SicurCantiere rmdir /s /q dist\SicurCantiere
+python -m nuitka --standalone --assume-yes-for-downloads --msvc=latest ^
+    --enable-plugin=pyside6 --include-qt-plugins=sensible ^
+    --windows-console-mode=disable --windows-icon-from-ico=assets\sicurcantiere.ico ^
+    --company-name=SicurCantiere --product-name=SicurCantiere ^
+    --file-version=%VERSIONE% --product-version=%VERSIONE% --file-description="SicurCantiere" ^
+    --include-package=sicurcantiere --include-package=sicur_license ^
+    --include-data-dir=sicurcantiere\risorse=sicurcantiere\risorse --include-package-data=docx ^
+    --nofollow-import-to=openai,anthropic,cryptography,pytest,flask,licenze,tests ^
+    --output-dir=build\nuitka --output-filename=SicurCantiere.exe ^
+    scripts\sicurcantiere.py || goto :errore
+
+move build\nuitka\sicurcantiere.dist dist\SicurCantiere || goto :errore
+for %%p in (PSC POS PiMUS) do (
+    copy /y dist\SicurCantiere\SicurCantiere.exe "dist\SicurCantiere\SicurCantiere %%p.exe" >nul || goto :errore
+)
+del dist\SicurCantiere\SicurCantiere.exe
+echo Creati i programmi in dist\SicurCantiere
 
 set ISCC="%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
 if exist %ISCC% (
@@ -25,19 +52,6 @@ if exist %ISCC% (
     echo Inno Setup non trovato: installatore non creato.
     echo Per l'associazione dei file installare Inno Setup 6 e rilanciare.
 )
-exit /b 0
-
-:programma
-REM %1 = nome visibile, %2 = chiave dell'edizione
-pyinstaller --noconfirm --clean --windowed --name "SicurCantiere %1" ^
-    --icon assets\sicurcantiere-%2.ico ^
-    --collect-data docx ^
-    --paths . ^
-    --collect-submodules sicurcantiere ^
-    --exclude-module cryptography ^
-    --add-data "sicurcantiere\risorse;sicurcantiere\risorse" ^
-    scripts\avvio_%2.py || exit /b 1
-echo Creato dist\SicurCantiere %1\SicurCantiere %1.exe
 exit /b 0
 
 :errore
