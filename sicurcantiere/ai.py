@@ -222,6 +222,8 @@ class AssistenteAI:
         self.max_token = max_token  # lunghezza massima della risposta (None: quella predefinita del fornitore)
         self.uso = (0, 0)  # token in ingresso e in uscita dell'ultima richiesta
         self.credito: dict[str, Any] = {}  # credito AI restante, dall'ultima risposta del server ponte
+        # per INTEGRATO: certificato e impronte del PC attivato (il solo codice non basta più al server)
+        self.credenziali: dict[str, Any] = {}
 
     @property
     def client(self) -> Any:
@@ -266,8 +268,8 @@ class AssistenteAI:
                            "in «Strumenti > Impostazioni assistente AI».")
         if not self.api_key:
             raise ErroreAI("L'assistente AI richiede una licenza: inseriscila in «Aiuto > Licenza».")
-        corpo = json.dumps({"licenza": self.api_key, "motore": self.modello, "testo": testo, "schema": schema,
-                            "versione": __version__}).encode()
+        corpo = json.dumps({"licenza": self.api_key, **self.credenziali, "motore": self.modello, "testo": testo,
+                            "schema": schema, "versione": __version__}).encode()
         richiesta = urllib.request.Request(f"{indirizzo}/api/ai/richiesta", data=corpo, method="POST",
                                            headers={"Content-Type": "application/json"})
         try:

@@ -74,6 +74,15 @@ def _verifica(chiave_pubblica: bytes, dati: bytes, firma: bytes) -> bool:
     return True
 
 
+def firma_dati(chiave_privata: bytes, dati: bytes) -> bytes:
+    """Firma Ed25519 di dati qualsiasi (per esempio gli aggiornamenti del programma)."""
+    return _firma(chiave_privata, dati)
+
+
+def verifica_dati(chiave_pubblica: bytes, dati: bytes, firma: bytes) -> bool:
+    return _verifica(chiave_pubblica, dati, firma)
+
+
 def pubblica_da_privata(chiave_privata: bytes) -> bytes:
     return ed25519.chiave_pubblica(chiave_privata)
 

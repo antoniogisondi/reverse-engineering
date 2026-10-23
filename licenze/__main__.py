@@ -10,6 +10,9 @@
     python -m licenze chiave-servizio   crea una nuova chiave di servizio (servizio.json) per il server delle
                                         attivazioni: da copiare sul server separato, se c'è
     python -m licenze pc CODICE_LICENZA elenca i PC attivi di una licenza (es. SC-2026-0012)
+    python -m licenze chiave-aggiornamenti
+                                        crea la chiave che firma gli aggiornamenti del programma (una volta
+                                        sola) e mostra cosa copiare su GitHub e cosa nel programma
 """
 
 from __future__ import annotations
@@ -90,6 +93,28 @@ def main(argv: list[str]) -> int:
             print(f"  {p['id']}  {p['nome']:<30} attivato {p['attivato']}  ultimo uso {p['ultimo_uso']}"
                   + ("  (offline)" if p["offline"] else ""))
         conn.commit()
+        return 0
+    if comando == "chiave-aggiornamenti":
+        import base64
+        import secrets
+
+        from sicur_license.certificato import pubblica_da_privata
+
+        file = archivio.cartella_dati() / "chiave_aggiornamenti.key"
+        if file.exists():
+            privata = base64.b64decode(file.read_text().strip())
+            print(f"La chiave degli aggiornamenti esiste già ({file}): non va rigenerata.\n")
+        else:
+            privata = secrets.token_bytes(32)
+            file.write_text(base64.b64encode(privata).decode())
+            file.chmod(0o600)
+            print(f"Chiave degli aggiornamenti creata: {file}\n")
+        print("1. Su GitHub, nel repository sicurcantiere: Settings > Secrets and variables > Actions >")
+        print("   New repository secret. Nome: SICURCANTIERE_FIRMA_AGGIORNAMENTI  Valore (segreto, non darlo a nessuno):")
+        print(f"\n   {base64.b64encode(privata).decode()}\n")
+        print("2. Chiave pubblica da inserire nel programma (si può condividere):")
+        print(f"\n   {base64.b64encode(pubblica_da_privata(privata)).decode()}\n")
+        print("Conserva una copia del file della chiave insieme alla chiave delle licenze (vedi README).")
         return 0
     if comando == "prova":
         from licenze.app import crea_app

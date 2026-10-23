@@ -161,6 +161,17 @@ def disattiva(programma: str) -> None:
     _aggiorna_memoria(rifiuto={"codice": DISATTIVATO, "messaggio": "La licenza è stata disattivata su questo PC."})
 
 
+def credenziali_ai() -> dict:
+    """Certificato e impronte di questo PC per l'assistente AI ({} se il PC non è attivato)."""
+    if not attive():
+        return {}
+    l = gestore("")
+    certificato, _ = l.certificato()
+    if certificato is None:
+        return {}
+    return {"certificato": custodia.leggi_certificato(), "impronte": l.impronte(certificato.sale)}
+
+
 # --- stato combinato con il codice di licenza ---
 
 @dataclass

@@ -77,6 +77,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          SICURCANTIERE_FIRMA_AGGIORNAMENTI: ${{ secrets.SICURCANTIERE_FIRMA_AGGIORNAMENTI }}
         run: |
           $versione = (Select-String -Path sicurcantiere\__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
           $tag = "v$versione"
@@ -86,4 +87,10 @@ jobs:
           # Copia con nome fisso: .../releases/latest/download/SicurCantiere-setup.exe scarica sempre l'ultima versione.
           $fisso = Join-Path (Split-Path $setup) "SicurCantiere-setup.exe"
           Copy-Item $setup $fisso
-          gh release create $tag $setup $fisso --target $env:GITHUB_SHA --title "SicurCantiere $versione" --notes-file docs\installazione.md --latest
+          # firma dell'aggiornamento (versione, dimensione e SHA-256), verificata dal programma prima di installare
+          python scripts\firma_aggiornamento.py $setup
+          if ($LASTEXITCODE -ne 0) { throw "firma dell'aggiornamento non riuscita" }
+          $allegati = @($setup, $fisso)
+          $firma = Join-Path (Split-Path $setup) "SicurCantiere-setup.exe.firma"
+          if (Test-Path $firma) { $allegati += $firma }
+          gh release create $tag @allegati --target $env:GITHUB_SHA --title "SicurCantiere $versione" --notes-file docs\installazione.md --latest

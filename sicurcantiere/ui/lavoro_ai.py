@@ -91,12 +91,19 @@ def codice_licenza() -> str:
 
 
 def licenza_ai() -> licenza.Licenza | None:
-    """La licenza che dà diritto all'assistente: valida e non scaduta (altrimenti None)."""
+    """La licenza che dà diritto all'assistente: valida, non scaduta e, con le attivazioni, non in sola lettura."""
     try:
         l = licenza.leggi(codice_licenza())
     except (licenza.ErroreLicenza, ValueError):
         return None
-    return None if l.scaduta() else l
+    if l.scaduta():
+        return None
+    from sicurcantiere import licenza_pc
+
+    programma = min(l.programmi) if l.programmi else ""  # uno qualunque dei programmi della licenza
+    if licenza_pc.attive() and licenza_pc.situazione(programma, codice_licenza()).sola_lettura:
+        return None
+    return l
 
 
 def ai_disponibile() -> bool:
@@ -151,8 +158,16 @@ def motore() -> str:
     return AVANZATO if scelto == AVANZATO and l is not None and l.piano == "studio" else STANDARD
 
 
+def credenziali() -> dict[str, Any]:
+    from sicurcantiere import licenza_pc
+
+    return licenza_pc.credenziali_ai()
+
+
 def assistente() -> AssistenteAI:
-    return AssistenteAI(fornitore=INTEGRATO, api_key=codice_licenza() or None, modello=motore())
+    a = AssistenteAI(fornitore=INTEGRATO, api_key=codice_licenza() or None, modello=motore())
+    a.credenziali = credenziali()
+    return a
 
 
 def perche_non_disponibile() -> str:
@@ -268,7 +283,7 @@ def credito_integrato() -> dict[str, Any]:
     if not codice_licenza():
         raise ErroreAI("L'assistente AI richiede una licenza: inseriscila in «Aiuto > Licenza».")
     richiesta = urllib.request.Request(f"{server_ai()}/api/ai/stato", method="POST",
-                                       data=json.dumps({"licenza": codice_licenza()}).encode(),
+                                       data=json.dumps({"licenza": codice_licenza(), **credenziali()}).encode(),
                                        headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(richiesta, timeout=15) as r:

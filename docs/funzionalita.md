@@ -437,6 +437,15 @@ Fatto (non ancora nei programmi pubblicati):
   - email del gestionale aggiornate: la consegna spiega l'attivazione sul PC e come spostarla, il promemoria
     dice che senza rinnovo il programma passa in sola lettura.
 - I codici `SC1-…` già venduti valgono anche con le attivazioni: nessun codice nuovo da mandare.
+- **Assistente AI con il certificato del PC** (passo 5): il programma manda il certificato e le impronte del
+  PC; il server accetta solo PC attivi sulla licenza e certificati non copiati. Il solo codice vale finché
+  la licenza non ha PC attivati (clienti con la versione precedente), poi non basta più; in sola lettura
+  l'assistente non è disponibile.
+- **Aggiornamenti firmati** (passo 5): ogni versione pubblicata ha la firma (versione, dimensione, SHA-256)
+  fatta con la chiave degli aggiornamenti, segreta su GitHub; il programma verifica firma e file prima di
+  installare e scarta un installatore modificato o una firma di un'altra versione. Si attiva creando la
+  chiave sulla VM (`python -m licenze chiave-aggiornamenti`), mettendo la segreta su GitHub e la pubblica nel
+  programma (vedi licenze/README.md).
 
 Regole scelte (modificabili): abbonamento scaduto → sola lettura; licenza perpetua → funzionano le
 versioni uscite entro la fine degli aggiornamenti inclusi, le successive si aprono in sola lettura.
@@ -453,13 +462,12 @@ versioni uscite entro la fine degli aggiornamenti inclusi, le successive si apro
 
 ## Prossimi passi
 
-1. **Licenze per PC, passi successivi** (fatti i passi 1, 2, 3 e 4, vedi sopra):
+1. **Licenze per PC, passi successivi** (fatti i passi 1-5, vedi sopra):
    4. ancora da decidere: codici nuovi casuali al posto di `SC1-…` per le licenze nuove; prova gratuita
       legata al PC sul server (oggi riparte reinstallando il programma);
-   5. assistente AI con il certificato del PC al posto del codice; aggiornamenti firmati (elenco firmato
-      con l'hash dell'installatore, verificato prima di installare);
-   6. compilazione con Nuitka, firma del programma (certificato OV, circa 120 €/anno, o Azure Artifact
-      Signing), controlli in CI: SBOM, pip-audit, bandit, dipendenze bloccate;
+   6. compilazione con Nuitka, controlli in CI: SBOM, pip-audit, bandit, dipendenze bloccate;
+   8. ultimo passo prima del rilascio ufficiale (deciso a ottobre 2026): firma del programma con un
+      certificato di firma del codice (OV, circa 120 €/anno, o Azure Artifact Signing);
    7. checklist GDPR (informativa, registro dei trattamenti, backup cifrati con password) e Cyber
       Resilience Act (segnalazione delle vulnerabilità sfruttate già obbligatoria dall'11 settembre
       2026, requisiti completi dall'11 dicembre 2027).

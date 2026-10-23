@@ -135,3 +135,39 @@ def test_server_non_configurato(monkeypatch):
     with pytest.raises(ai.ErroreAI, match="non è ancora disponibile"):
         ai.AssistenteAI(fornitore=ai.INTEGRATO, api_key="x").scrivi_sezione("Area", "x")
     assert licenza  # modulo usato dal gestionale
+
+
+def test_assistente_con_il_certificato_del_pc(server, tmp_path, monkeypatch):
+    """Con un PC attivato il solo codice non basta più: serve il certificato del PC (non copiato)."""
+    from licenze import archivio
+    from sicur_license.cliente import Licenze
+
+    client, codice, conn, cliente, _ = server
+    c, id_ = codice("completo")
+    assert _chiedi(client, c).status_code == 200  # nessun PC attivato: il codice vale ancora (versioni vecchie)
+
+    def trasporto(percorso, dati):
+        r = client.post("/api/licenze/" + percorso, json=dati, environ_base={"REMOTE_ADDR": "203.0.113.9"})
+        return r.status_code, r.get_json()
+
+    monkeypatch.setenv("SICUR_LICENSE_CARTELLA", str(tmp_path / "pc"))
+    pc = Licenze("psc", archivio.radice_pubblica(), trasporto,
+                 componenti={"sistema": "g", "hardware": "h", "nome": "UFFICIO"}, nome="UFFICIO")
+    certificato = pc.attiva(c)
+    from sicur_license import custodia
+
+    credenziali = {"certificato": custodia.leggi_certificato(), "impronte": pc.impronte(certificato.sale)}
+
+    def chiedi(**extra):
+        return client.post("/api/ai/richiesta", json={"licenza": c, "motore": "standard", "testo": "Rischi?",
+                                                      "schema": {"type": "object"}, **extra})
+
+    r = chiedi()
+    assert r.status_code == 403 and "aggiorna SicurCantiere" in r.json["errore"]  # codice copiato: non basta
+    assert chiedi(**credenziali).status_code == 200
+    assert client.post("/api/ai/stato", json={"licenza": c, **credenziali}).status_code == 200
+    copiato = {**credenziali, "impronte": ["a" * 64, "b" * 64, "c" * 64]}  # certificato su un altro PC
+    assert chiedi(**copiato).status_code == 403
+    assert chiedi(certificato="{}", impronte=credenziali["impronte"]).status_code == 403
+    pc.disattiva()  # PC non più attivo: il certificato vecchio non vale
+    assert "non è attivo" in chiedi(**credenziali).json["errore"]

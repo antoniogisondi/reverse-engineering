@@ -100,30 +100,61 @@ def crea_api() -> Flask:
 
     app.register_blueprint(blueprint())  # attivazioni dei PC: /api/licenze/...
 
-    def licenza_valida(conn, codice: str):
-        """(riga della licenza nel registro, licenza) oppure una risposta di errore."""
-        try:
-            dati = licenza.leggi(codice or "", archivio.chiave_pubblica())
-        except licenza.ErroreLicenza:
-            return None, _errore("Codice di licenza non valido.", 403)
-        riga = conn.execute("SELECT * FROM licenze WHERE codice = ?", ("".join((codice or "").split()),)).fetchone()
+    def licenza_valida(conn, dati_richiesta: dict):
+        """(riga della licenza in vigore, piano) oppure una risposta di errore.
+
+        I programmi con le attivazioni mandano il certificato del PC: vale solo se il PC è attivo sulla
+        licenza e il certificato non è copiato da un altro PC. Il solo codice di licenza (versioni del
+        programma precedenti alle attivazioni) vale finché la licenza non ha nessun PC attivato: da quel
+        momento un codice copiato non basta più per usare l'assistente.
+        """
+        from licenze import attivazioni
+        from sicur_license import impronta
+        from sicur_license.certificato import ErroreCertificato, leggi_certificato
+
+        oggi = date.today()
+        testo_certificato = dati_richiesta.get("certificato")
+        if testo_certificato:
+            try:
+                cert = leggi_certificato(str(testo_certificato), archivio.radice_pubblica())
+            except ErroreCertificato:
+                return None, _errore("Attivazione del PC non valida: apri «Aiuto > Licenza» per attivare la licenza.", 403)
+            pc = conn.execute("SELECT * FROM pc_licenza WHERE codice_pc = ?", (cert.pc,)).fetchone()
+            impronte = dati_richiesta.get("impronte")
+            if (pc is None or pc["stato"] != "attivo" or cert.sale != pc["sale"] or not isinstance(impronte, list)
+                    or not impronta.stesso_pc([pc["impronta_sistema"], pc["impronta_hardware"],
+                                               pc["impronta_nome"]], [str(v) for v in impronte[:3]])):
+                return None, _errore("Questo PC non è attivo sulla licenza: apri «Aiuto > Licenza» per attivarla.", 403)
+            radice = conn.execute("SELECT * FROM licenze WHERE id = ?", (pc["radice_id"],)).fetchone()
+            riga = attivazioni.catena(conn, radice)[1]
+        else:
+            codice = dati_richiesta.get("licenza", "")
+            try:
+                licenza.leggi(codice or "", archivio.chiave_pubblica())
+            except licenza.ErroreLicenza:
+                return None, _errore("Codice di licenza non valido.", 403)
+            riga = conn.execute("SELECT * FROM licenze WHERE codice = ?", ("".join((codice or "").split()),)).fetchone()
+            if riga is not None:
+                radice_id, riga = attivazioni.catena(conn, riga)
+                if os.environ.get("SICURCANTIERE_AI_SOLO_CERTIFICATO") == "1" or attivazioni.pc_attivi(conn, radice_id):
+                    return None, _errore("Per usare l'assistente AI aggiorna SicurCantiere all'ultima versione e "
+                                         "attiva la licenza su questo PC («Aiuto > Licenza»).", 403)
         if riga is None or riga["stato"] == "annullata":
             return None, _errore("Licenza non attiva per l'assistente AI: contatta l'assistenza SicurCantiere.", 403)
-        if dati.scaduta():
-            return None, _errore("Licenza scaduta: l'assistente AI incluso tornerà disponibile con il rinnovo. "
-                                 "Le altre funzioni del programma restano disponibili.", 403)
-        return (riga, dati), None
+        if riga["scadenza"] and date.fromisoformat(riga["scadenza"]) < oggi:
+            return None, _errore("Licenza scaduta: l'assistente AI incluso tornerà disponibile con il rinnovo.", 403)
+        return (riga, riga["piano"]), None
 
     @app.post("/api/ai/stato")
     def stato():
         conn = archivio.connessione()
-        trovata, errore = licenza_valida(conn, (request.get_json(silent=True) or {}).get("licenza", ""))
+        trovata, errore = licenza_valida(conn, request.get_json(silent=True) or {})
         if errore:
             return errore
-        riga, dati = trovata
+        riga, piano = trovata
         configurati = motori()
-        return jsonify({"credito": situazione(conn, riga["cliente_id"], dati.piano),
-                        "motori": {k: {"sede": m.sede, "disponibile": k != ai.AVANZATO or dati.piano in PIANI_AVANZATO}
+        return jsonify({"credito": situazione(conn, riga["cliente_id"], piano),
+                        "motori": {k: {"sede": m.sede, "disponibile": k != ai.AVANZATO or piano in PIANI_AVANZATO}
                                    for k, m in configurati.items() if m}})
 
     @app.post("/api/ai/richiesta")
@@ -136,12 +167,12 @@ def crea_api() -> Flask:
         if len(testo) > MAX_TESTO or len(json.dumps(schema)) > MAX_SCHEMA:
             return _errore("Richiesta troppo lunga: dividi il testo in parti più brevi.", 413)
         conn = archivio.connessione()
-        trovata, errore = licenza_valida(conn, dati_richiesta.get("licenza", ""))
+        trovata, errore = licenza_valida(conn, dati_richiesta)
         if errore:
             return errore
-        riga, dati = trovata
+        riga, piano = trovata
         motore = motori()[nome_motore]
-        if nome_motore == ai.AVANZATO and dati.piano not in PIANI_AVANZATO:
+        if nome_motore == ai.AVANZATO and piano not in PIANI_AVANZATO:
             return _errore("Il motore avanzato (Claude) è incluso solo nel piano Studio: usa il motore Standard.", 403)
         if motore is None:
             return _errore("Il servizio SicurCantiere AI non è al momento disponibile: riprova più tardi.", 503)
@@ -150,7 +181,7 @@ def crea_api() -> Flask:
                                (cliente, time.time() - 60)).fetchone()[0]
         if recenti >= RICHIESTE_AL_MINUTO:
             return _errore("Troppe richieste in poco tempo: riprova tra un minuto.", 429)
-        credito = situazione(conn, cliente, dati.piano)
+        credito = situazione(conn, cliente, piano)
         if credito["residuo"] <= 0:
             return _errore("Credito AI del mese esaurito: tornerà disponibile il primo giorno del mese prossimo, oppure "
                            "puoi acquistare una ricarica. Le altre funzioni del programma restano disponibili.", 402)
@@ -180,7 +211,7 @@ def crea_api() -> Flask:
                       crediti))
         conn.commit()
         return jsonify({"contenuto": contenuto, "troncata": troncata, "uso": [entrata, uscita],
-                        "credito": situazione(conn, cliente, dati.piano)})
+                        "credito": situazione(conn, cliente, piano)})
 
     @app.errorhandler(413)
     def troppo_grande(_):

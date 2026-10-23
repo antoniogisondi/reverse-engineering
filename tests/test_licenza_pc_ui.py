@@ -309,3 +309,21 @@ def test_messaggi_senza_server(ufficio):
         assert not licenza_pc.attive() and _stato().utilizzabile
     finally:
         ai.SERVER_AI = vecchio
+
+
+def test_assistente_ai_usa_il_certificato(ufficio, monkeypatch):
+    from sicurcantiere.ui import lavoro_ai
+    from sicurcantiere.ui import licenza as licenza_ui
+
+    codice, id_ = ufficio.licenza()
+    ufficio.salva_codice(codice)
+    monkeypatch.setattr(lavoro_ai, "impostazioni_comuni", licenza_ui.impostazioni_comuni)
+    assert licenza_pc.credenziali_ai() == {}  # PC non ancora attivato
+    licenza_pc.attiva("psc", codice)
+    credenziali = lavoro_ai.assistente().credenziali
+    assert credenziali["certificato"] and len(credenziali["impronte"]) == 3
+    assert lavoro_ai.licenza_ai() is not None
+    ufficio.conn.execute("UPDATE licenze SET stato = 'annullata' WHERE id = ?", (id_,))
+    ufficio.conn.commit()
+    licenza_pc.verifica_in_sottofondo("psc", codice)
+    assert lavoro_ai.licenza_ai() is None  # in sola lettura l'assistente non c'è

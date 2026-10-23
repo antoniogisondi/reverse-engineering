@@ -298,3 +298,30 @@ la chiave delle licenze resta al sicuro.
 la cartella `/var/lib/sicurcantiere-licenze` (database, chiavi): PC attivati, registro e licenze
 passano così come sono. Se cambia l'indirizzo pubblico, va aggiornato nel programma prima di
 spegnere la VM vecchia.
+
+## Aggiornamenti firmati
+
+Il programma installa un aggiornamento solo se è firmato con la chiave degli aggiornamenti: la firma
+(file `SicurCantiere-setup.exe.firma` della versione pubblicata) contiene versione, dimensione e impronta
+SHA-256 dell'installatore. Un installatore sostituito o modificato non viene avviato.
+
+Da fare una volta sola per attivarla:
+
+1. Sulla VM, aggiornato il codice: `python -m licenze chiave-aggiornamenti` (con l'utente del servizio).
+   Crea `chiave_aggiornamenti.key` nella cartella dei dati e mostra due chiavi.
+2. Su GitHub, repository `sicurcantiere`: *Settings > Secrets and variables > Actions > New repository
+   secret*, nome `SICURCANTIERE_FIRMA_AGGIORNAMENTI`, valore la chiave **segreta** mostrata al punto 1. Non
+   va scritta in chat, email o file del repository.
+3. La chiave **pubblica** va inserita nel programma (`CHIAVE_AGGIORNAMENTI` in
+   `sicurcantiere/aggiornamenti.py`): da quella versione in poi ogni aggiornamento deve essere firmato, e la
+   pubblicazione si ferma da sola se il segreto manca o non corrisponde.
+
+Conserva una copia di `chiave_aggiornamenti.key` insieme a `chiave_privata.pem`: se va persa, i programmi già
+installati non accettano più aggiornamenti automatici (si reinstalla a mano dal sito).
+
+## Assistente AI e attivazioni
+
+Il programma manda al server ponte il certificato del PC attivato (con le impronte), non solo il codice: il
+server controlla che il PC sia attivo sulla licenza e che il certificato non sia stato copiato. Il solo codice
+(versioni del programma precedenti alle attivazioni) vale finché la licenza non ha nessun PC attivato; con
+`SICURCANTIERE_AI_SOLO_CERTIFICATO=1` in `ai.env` non vale più in nessun caso.

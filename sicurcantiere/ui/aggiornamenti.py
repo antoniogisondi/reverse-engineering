@@ -138,7 +138,7 @@ def scarica_e_installa(finestra, versione: aggiornamenti.Versione) -> None:
         def avanzamento(letti: int, totale: int) -> bool:
             segnali.avanzamento.emit(letti, totale)
             return not lavoro_corrente.annullato
-        return aggiornamenti.scarica(versione.url_installatore, destinazione, avanzamento)
+        return aggiornamenti.scarica_verificato(versione, destinazione, avanzamento)
 
     lavoro_corrente = _Lavoro(lavoro)
     lavoro_corrente.segnali.avanzamento.connect(
