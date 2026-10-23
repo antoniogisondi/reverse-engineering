@@ -57,6 +57,9 @@ cp -r licenze "$APP/codice/"
 rm -rf "$APP/codice/licenze/__pycache__"
 cp sicurcantiere/__init__.py sicurcantiere/licenza.py sicurcantiere/ed25519.py sicurcantiere/ai.py \
     "$APP/codice/sicurcantiere/"
+# modulo comune delle licenze per PC (certificati, impronte): lo usa il server delle attivazioni
+cp -r sicur_license "$APP/codice/"
+rm -rf "$APP/codice/sicur_license/__pycache__"
 chown -R root:root "$APP/codice"
 chown "$UTENTE:$UTENTE" "$DATI"
 chmod 700 "$DATI"

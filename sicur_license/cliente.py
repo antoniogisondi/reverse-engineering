@@ -1,12 +1,16 @@
 """Collegamento con il server delle licenze e gestione della licenza su questo PC.
 
 Richieste al server (POST con JSON, tutte sotto /api/licenze/):
-- attiva      {codice, impronte, nome_pc, programma, versione}  → {certificato}
-- convalida   {certificato, impronte, versione}                 → {certificato}
-- disattiva   {certificato, impronte}                           → {ok}
-- pc          {codice, impronte}                                → {pc: [...], posti, trasferimenti_rimasti}
-- libera      {codice, impronte, pc}                            → {ok, trasferimenti_rimasti}
+- attiva      {codice, sale, impronte, nome_pc, programma, versione}  → {certificato}
+- convalida   {certificato, impronte, versione}                       → {certificato}
+- disattiva   {certificato, impronte}                                 → {ok}
+- pc          {codice, sale, impronte}                → {pc: [...], posti, attivi, trasferimenti_rimasti}
+- libera      {codice, sale, impronte, pc}            → {ok, trasferimenti_rimasti}
 Gli errori hanno {errore, messaggio} e, con i posti esauriti, l'elenco dei PC attivi.
+
+Il sale delle impronte lo assegna il server (uno per licenza): alla prima richiesta il programma
+non lo conosce, il server risponde con l'errore «sale» e il sale giusto, e il programma ripete la
+richiesta una volta con le impronte ricalcolate.
 
 L'attivazione offline usa due file: la richiesta (creata qui, da mandare all'assistenza) e il
 certificato restituito, che ha una scadenza propria perché un file offline non si può revocare.
@@ -28,6 +32,7 @@ from sicur_license.stato import OROLOGIO, Esito, valuta
 
 POSTI_ESAURITI, CODICE_ERRATO, LICENZA_SCADUTA, LICENZA_REVOCATA, TROPPI_TRASFERIMENTI, TROPPE_RICHIESTE = (
     "posti_esauriti", "codice_errato", "scaduta", "revocata", "troppi_trasferimenti", "troppe_richieste")
+SALE, PC_LIBERATO, ALTRO_PC = "sale", "pc_liberato", "altro_pc"
 
 # (stato HTTP, risposta) per una richiesta: sostituibile nei test
 Trasporto = Callable[[str, dict], tuple[int, dict]]
@@ -78,7 +83,11 @@ class Licenze:
     versione: str = ""
     data_versione: date | None = None
     componenti: dict[str, str] | None = None  # valori dei componenti (nei test); None = di questo PC
+    nome: str = ""                # nome del PC mostrato nell'elenco; vuoto = quello di Windows
     _impronte: dict[str, list[str]] = field(default_factory=dict, repr=False)
+
+    def nome_del_pc(self) -> str:
+        return self.nome or impronta.nome_pc()
 
     # --- impronte ---
 
@@ -136,12 +145,31 @@ class Licenze:
         custodia.registra_ora(certificato.emesso)
         return certificato
 
+    def _sale(self, codice: str) -> str:
+        return str(custodia.leggi_memoria().get("sali", {}).get(codice, ""))
+
+    def _con_sale(self, percorso: str, codice: str, dati: dict) -> tuple[dict, list[str]]:
+        """Richiesta con codice e impronte; se il sale non è quello della licenza, si ripete con quello giusto."""
+        sale = self._sale(codice)
+        for _ in range(2):
+            impronte = self.impronte(sale) if sale else ["", "", ""]
+            try:
+                return self._invia(percorso, {**dati, "codice": codice, "sale": sale, "impronte": impronte}), impronte
+            except ErroreServer as e:
+                nuovo = str(e.dati.get("sale") or "")
+                if e.codice != SALE or not nuovo or nuovo == sale:
+                    raise
+                sale = nuovo
+                memoria = custodia.leggi_memoria()
+                custodia.salva_memoria({**memoria, "sali": {**memoria.get("sali", {}), codice: sale}})
+        raise ErroreServer(SALE, "Il server delle licenze non ha accettato l'impronta del PC.")
+
     def attiva(self, codice: str) -> Certificato:
         """Attiva questo PC; ErroreServer con codice POSTI_ESAURITI ed elenco dei PC se non c'è posto."""
         codice = impronta.normalizza_codice(codice)
-        impronte = self.impronte(impronta.sale_della_licenza(codice))
-        risposta = self._invia("attiva", {"codice": codice, "impronte": impronte, "nome_pc": impronta.nome_pc(),
-                                          "programma": self.programma, "versione": self.versione})
+        risposta, impronte = self._con_sale("attiva", codice, {"nome_pc": self.nome_del_pc(),
+                                                              "programma": self.programma,
+                                                              "versione": self.versione})
         certificato = self._salva(str(risposta.get("certificato", "")), impronte)
         custodia.salva_memoria({**custodia.leggi_memoria(), "codice": codice})
         return certificato
@@ -157,9 +185,10 @@ class Licenze:
             risposta = self._invia("convalida", {"certificato": custodia.leggi_certificato(), "impronte": impronte,
                                                  "versione": self.versione})
         except ErroreServer as e:
-            # licenza revocata o PC liberato da un altro: il server manda il certificato aggiornato
-            if e.dati.get("certificato"):
+            if e.dati.get("certificato"):  # licenza revocata: il server manda il certificato aggiornato
                 return self._salva(str(e.dati["certificato"]), impronte)
+            if e.codice in (PC_LIBERATO, ALTRO_PC):  # il posto di questo PC è stato liberato
+                custodia.elimina_certificato()
             raise
         return self._salva(str(risposta.get("certificato", "")), impronte)
 
@@ -167,19 +196,22 @@ class Licenze:
         """Libera il posto di questo PC sul server e cancella il certificato salvato."""
         certificato, _ = self.certificato()
         if certificato is not None:
-            self._invia("disattiva", {"certificato": custodia.leggi_certificato(),
-                                      "impronte": self.impronte(certificato.sale)})
+            try:
+                self._invia("disattiva", {"certificato": custodia.leggi_certificato(),
+                                          "impronte": self.impronte(certificato.sale)})
+            except ErroreServer as e:
+                if e.codice not in (PC_LIBERATO, ALTRO_PC):  # già liberato: basta cancellarlo qui
+                    raise
         custodia.elimina_certificato()
 
     def elenco_pc(self, codice: str) -> dict:
-        codice = impronta.normalizza_codice(codice)
-        return self._invia("pc", {"codice": codice, "impronte": self.impronte(impronta.sale_della_licenza(codice))})
+        """PC attivi della licenza, con nome e ultimo utilizzo («questo» indica questo PC)."""
+        return self._con_sale("pc", impronta.normalizza_codice(codice), {})[0]
 
     def libera(self, codice: str, pc: str) -> dict:
         """Disattiva un altro PC della licenza (trasferimento): poi si può attivare questo."""
-        codice = impronta.normalizza_codice(codice)
-        return self._invia("libera", {"codice": codice, "pc": pc,
-                                      "impronte": self.impronte(impronta.sale_della_licenza(codice))})
+        return self._con_sale("libera", impronta.normalizza_codice(codice), {"pc": pc,
+                                                                             "nome_pc": self.nome_del_pc()})[0]
 
     def codice_salvato(self) -> str:
         return str(custodia.leggi_memoria().get("codice", ""))
@@ -189,9 +221,10 @@ class Licenze:
     def richiesta_offline(self, codice: str) -> str:
         """Testo del file di richiesta da mandare all'assistenza (solo impronte, nessun dato in chiaro)."""
         codice = impronta.normalizza_codice(codice)
-        return json.dumps({"tipo": "richiesta_attivazione_offline", "codice": codice,
-                           "impronte": self.impronte(impronta.sale_della_licenza(codice)),
-                           "nome_pc": impronta.nome_pc(), "programma": self.programma, "versione": self.versione,
+        sale = self._sale(codice) or impronta.sale_provvisorio()
+        return json.dumps({"tipo": "richiesta_attivazione_offline", "codice": codice, "sale": sale,
+                           "impronte": self.impronte(sale),
+                           "nome_pc": self.nome_del_pc(), "programma": self.programma, "versione": self.versione,
                            "creata": ora_utc().isoformat()}, ensure_ascii=False, indent=1)
 
     def importa_offline(self, testo: str) -> Certificato:

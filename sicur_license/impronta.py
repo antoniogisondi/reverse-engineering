@@ -5,18 +5,16 @@ Componenti (su Windows):
 - «hardware»: UUID e numero di serie della scheda madre (restano anche reinstallando Windows);
 - «nome»: nome del PC.
 
-Al server arrivano solo gli hash: nessun dato dell'hardware in chiaro. Il sale dipende dalla
-licenza (`sale_della_licenza`), così le impronte di due licenze diverse sullo stesso PC non sono
-collegabili tra loro; il certificato lo riporta, e a ogni avvio il programma ricalcola l'impronta
-con quello. Due impronte sono dello stesso PC se coincidono almeno 2 componenti su 3:
+Al server arrivano solo gli hash: nessun dato dell'hardware in chiaro. Il sale lo assegna il
+server, uno per licenza (resta lo stesso nei rinnovi), così le impronte di due licenze diverse sullo
+stesso PC non sono collegabili tra loro; il certificato lo riporta, e a ogni avvio il programma
+ricalcola l'impronta con quello. Due impronte sono dello stesso PC se coincidono almeno 2 componenti su 3:
 cambiare il disco, la scheda di rete o il nome del PC non consuma un nuovo posto.
 """
 
 from __future__ import annotations
 
-import base64
 import hashlib
-import json
 import os
 import platform
 import subprocess
@@ -85,17 +83,11 @@ def normalizza_codice(codice: str) -> str:
     return "".join(codice.split())
 
 
-def sale_della_licenza(codice: str) -> str:
-    """Sale delle impronte: l'identificativo per i codici SC1 (che cambiano al rinnovo), altrimenti
-    un hash del codice. Lo calcolano allo stesso modo il programma e il server."""
-    codice = normalizza_codice(codice)
-    if codice.startswith("SC1-") and "." in codice:
-        parte = codice[4:].split(".", 1)[0]
-        try:
-            return "id:" + str(json.loads(base64.urlsafe_b64decode(parte + "=" * (-len(parte) % 4)))["i"])
-        except (ValueError, KeyError, TypeError):
-            pass
-    return "codice:" + hashlib.sha256(("SicurCantiere/sale/" + codice.upper()).encode()).hexdigest()[:32]
+def sale_provvisorio() -> str:
+    """Sale per un'attivazione offline quando il programma non ha ancora parlato con il server."""
+    import secrets
+
+    return "provvisorio:" + secrets.token_hex(12)
 
 
 def calcola(sale: str, componenti: dict[str, str] | None = None) -> list[str]:

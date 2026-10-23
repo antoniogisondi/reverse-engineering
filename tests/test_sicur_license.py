@@ -18,7 +18,7 @@ from sicur_license.certificato import (
     leggi_certificato,
     pubblica_da_privata,
 )
-from sicur_license.cliente import POSTI_ESAURITI, ErroreRete, ErroreServer, Licenze
+from sicur_license.cliente import ErroreRete, Licenze
 from sicur_license.stato import (
     AGGIORNAMENTI,
     ALTRO_PC,
@@ -38,6 +38,7 @@ ORA = datetime(2026, 10, 23, 9, 0, tzinfo=timezone.utc)
 PC_A = {"sistema": "guid-a", "hardware": "uuid-a|serie-a", "nome": "UFFICIO-1"}
 PC_B = {"sistema": "guid-b", "hardware": "uuid-b|serie-b", "nome": "PORTATILE"}
 CODICE = "SC-7KQ4-M2XD-9WPA-H3TR"
+SALE = "licenza:prova-sale"
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +51,7 @@ def _servizio(da=ORA - timedelta(days=30), a=ORA + timedelta(days=150)):
 
 
 def _certificato(componenti=PC_A, **modifiche) -> Certificato:
-    sale = impronta.sale_della_licenza(CODICE)
+    sale = SALE
     valori = dict(licenza="SC-2026-0001", cliente="Studio Rossi", prodotti=frozenset({"psc", "pos"}),
                   tipo=ABBONAMENTO, pc="pc-1", impronte=tuple(impronta.calcola(sale, componenti)), sale=sale,
                   emesso=ORA, valido_fino=ORA + timedelta(days=14), scadenza_licenza=date(2027, 10, 22),
@@ -70,7 +71,7 @@ def _radice_pubblica() -> bytes:
 # --- impronta ---
 
 def test_impronta_solo_hash_e_tolleranza_due_su_tre():
-    sale = impronta.sale_della_licenza(CODICE)
+    sale = SALE
     a = impronta.calcola(sale, PC_A)
     assert len(a) == 3 and all(len(h) == 64 for h in a)
     assert not any(v in "".join(a) for v in ("guid-a", "serie-a", "UFFICIO"))  # mai dati in chiaro
@@ -86,18 +87,12 @@ def test_impronta_solo_hash_e_tolleranza_due_su_tre():
     assert vuoto[:2] == ["", ""] and not impronta.stesso_pc(vuoto, vuoto)
     assert impronta._pulito("To be filled by O.E.M.") == ""
     # licenze diverse: impronte diverse dello stesso PC (non collegabili)
-    assert impronta.calcola(impronta.sale_della_licenza("SC-ALTRO-CODICE"), PC_A) != a
+    assert impronta.calcola("licenza:altra", PC_A) != a
 
 
-def test_sale_dei_codici_sc1_stabile_al_rinnovo():
-    from sicurcantiere import licenza
-
-    l = licenza.Licenza(id="SC-2026-0007", cliente="Rossi", piano="pos", emessa=date(2026, 1, 1))
-    primo = licenza.firma(l, RADICE)
-    rinnovato = licenza.firma(licenza.Licenza(**{**l.__dict__, "scadenza": date(2027, 1, 1)}), RADICE)
-    assert primo != rinnovato
-    assert impronta.sale_della_licenza(primo) == impronta.sale_della_licenza(rinnovato) == "id:SC-2026-0007"
-    assert impronta.sale_della_licenza(" sc-7kq4-m2xd \n") == impronta.sale_della_licenza("SC-7KQ4-M2XD")
+def test_sale_provvisorio_casuale():
+    assert impronta.sale_provvisorio() != impronta.sale_provvisorio()
+    assert impronta.normalizza_codice(" SC-7KQ4\n -M2XD ") == "SC-7KQ4-M2XD"
 
 
 def test_componenti_locali_senza_errori():
@@ -154,7 +149,7 @@ def test_verifica_senza_libreria_compilata(monkeypatch):
 # --- stato ---
 
 def _impronte(componenti=PC_A):
-    return impronta.calcola(impronta.sale_della_licenza(CODICE), componenti)
+    return impronta.calcola(SALE, componenti)
 
 
 def test_stato_attiva_e_avvisi():
@@ -223,124 +218,25 @@ def test_custodia_certificato_e_orologio():
     assert custodia.leggi_certificato() == ""
 
 
-# --- collegamento al server (server finto: quello vero è in licenze/) ---
+# --- attivazione offline (l'attivazione online è provata con il server vero in test_server_licenze.py) ---
 
-class ServerFinto:
-    def __init__(self, posti=3):
-        self.posti = posti
-        self.pc: dict[str, list[str]] = {}
-        self.revocata = False
-        self.raggiungibile = True
-        self.contatore = 0
-
-    def _emetti(self, impronte, pc, ora=ORA):
-        c = _certificato(impronte=tuple(impronte), pc=pc, emesso=ora, valido_fino=ora + timedelta(days=14),
-                         stato=REVOCATA if self.revocata else "attiva")
-        return _testo(c)
-
-    def __call__(self, percorso, dati):
-        if not self.raggiungibile:
-            raise ErroreRete("offline")
-        if percorso == "attiva":
-            if dati["codice"] != CODICE:
-                return 404, {"errore": "codice_errato", "messaggio": "Codice di licenza non valido."}
-            for id_, impronte in self.pc.items():
-                if impronta.stesso_pc(impronte, dati["impronte"]):
-                    return 200, {"certificato": self._emetti(dati["impronte"], id_)}  # stesso PC: nessun posto
-            if len(self.pc) >= self.posti:
-                return 409, {"errore": POSTI_ESAURITI,
-                             "messaggio": f"La licenza è già attiva su {self.posti} PC su {self.posti}.",
-                             "pc": [{"id": k, "nome": k} for k in self.pc]}
-            self.contatore += 1
-            id_ = f"pc-{self.contatore}"
-            self.pc[id_] = dati["impronte"]
-            return 200, {"certificato": self._emetti(dati["impronte"], id_)}
-        if percorso == "convalida":
-            c = leggi_certificato(dati["certificato"], _radice_pubblica())
-            if self.revocata:
-                return 403, {"errore": "revocata", "messaggio": "Licenza revocata.",
-                             "certificato": self._emetti(dati["impronte"], c.pc, ORA + timedelta(days=1))}
-            return 200, {"certificato": self._emetti(dati["impronte"], c.pc, ORA + timedelta(days=1))}
-        if percorso == "disattiva":
-            self.pc.pop(leggi_certificato(dati["certificato"], _radice_pubblica()).pc, None)
-            return 200, {"ok": True}
-        if percorso == "libera":
-            self.pc.pop(dati["pc"], None)
-            return 200, {"ok": True, "trasferimenti_rimasti": 1}
-        return 404, {"errore": "sconosciuto"}
-
-
-def _licenze(server, componenti=PC_A, programma="psc"):
-    return Licenze(programma, _radice_pubblica(), server, versione="0.23.0", componenti=componenti)
-
-
-def test_attivazione_quarto_pc_e_trasferimento(tmp_path, monkeypatch):
-    server = ServerFinto(posti=3)
-    l = _licenze(server)
-    assert l.esito(ORA).tipo == DA_ATTIVARE
-    l.attiva(CODICE)
-    assert l.esito(ORA).puo_modificare and l.codice_salvato() == CODICE
-    l.attiva(CODICE)  # riattivazione dello stesso PC: nessun posto in più
-    assert len(server.pc) == 1
-    for i, nome in enumerate(("PC-2", "PC-3"), 2):
-        monkeypatch.setenv("SICUR_LICENSE_CARTELLA", str(tmp_path / nome))
-        _licenze(server, {"sistema": f"g{i}", "hardware": f"h{i}", "nome": nome}).attiva(CODICE)
-    monkeypatch.setenv("SICUR_LICENSE_CARTELLA", str(tmp_path / "PC-4"))
-    quarto = _licenze(server, PC_B)
-    with pytest.raises(ErroreServer) as rifiuto:
-        quarto.attiva(CODICE)
-    assert rifiuto.value.codice == POSTI_ESAURITI and "3 PC su 3" in str(rifiuto.value)
-    assert len(rifiuto.value.pc) == 3
-    quarto.libera(CODICE, "pc-1")  # trasferimento: libera il primo PC e attiva questo
-    quarto.attiva(CODICE)
-    assert quarto.esito(ORA).puo_modificare and len(server.pc) == 3
-    with pytest.raises(ErroreServer):
-        quarto.attiva("SC-CODICE-SBAGLIATO")
-
-
-def test_convalida_revoca_rete_e_disattivazione():
-    server = ServerFinto()
-    l = _licenze(server)
-    l.attiva(CODICE)
-    assert l.convalida().emesso == ORA + timedelta(days=1)  # rinnovato
-    server.raggiungibile = False
-    with pytest.raises(ErroreRete):
-        l.convalida()
-    assert l.esito(ORA + timedelta(days=2)).puo_modificare  # senza rete continua con il certificato
-    server.raggiungibile, server.revocata = True, True
-    l.convalida()
-    assert l.esito(ORA + timedelta(days=2)).tipo == REVOCATA_
-    server.revocata = False
-    l.disattiva()
-    assert not server.pc and l.esito(ORA + timedelta(days=2)).tipo == DA_ATTIVARE
-
-
-def test_certificato_copiato_su_altro_pc(tmp_path):
-    l = _licenze(ServerFinto())
-    l.attiva(CODICE)
-    copia = _licenze(ServerFinto(), PC_B)  # stessa cartella, altro hardware
-    assert copia.esito(ORA).tipo == ALTRO_PC
-
-
-def test_orologio_con_custodia():
-    l = _licenze(ServerFinto())
-    l.attiva(CODICE)
-    assert l.esito(ORA + timedelta(days=6)).puo_modificare
-    assert l.esito(ORA + timedelta(days=2)).tipo == OROLOGIO  # torna indietro di 4 giorni
+def _licenze(componenti=PC_A, programma="psc"):
+    return Licenze(programma, _radice_pubblica(), None, versione="0.23.0", componenti=componenti)
 
 
 def test_attivazione_offline():
-    l = _licenze(None)
+    l = _licenze()
     richiesta = json.loads(l.richiesta_offline(CODICE))
     assert richiesta["codice"] == CODICE and len(richiesta["impronte"]) == 3
+    assert richiesta["sale"].startswith("provvisorio:")  # il programma non ha ancora parlato con il server
     assert "guid-a" not in json.dumps(richiesta)
     # l'assistenza carica la richiesta nel gestionale e restituisce il file firmato
-    risposta = _testo(_certificato(impronte=tuple(richiesta["impronte"]), offline=True,
+    risposta = _testo(_certificato(impronte=tuple(richiesta["impronte"]), sale=richiesta["sale"], offline=True,
                                    valido_fino=ORA + timedelta(days=90)))
     assert l.importa_offline(risposta).offline
     assert l.esito(ORA + timedelta(days=30)).puo_modificare
     with pytest.raises(ErroreCertificato):
-        _licenze(None, PC_B).importa_offline(risposta)  # file di un altro PC
+        _licenze(PC_B).importa_offline(risposta)  # file di un altro PC
     with pytest.raises(ErroreCertificato):
         l.importa_offline("non è un file di attivazione")
     with pytest.raises(ErroreRete):

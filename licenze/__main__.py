@@ -5,6 +5,11 @@
     python -m licenze togli-2fa NOME    disattiva la verifica in due passaggi (telefono perso)
     python -m licenze chiave-pubblica   stampa la chiave pubblica da inserire nel programma
     python -m licenze prova             avvia il gestionale in locale su http://127.0.0.1:8080 (solo prove)
+    python -m licenze attivazione-offline RICHIESTA [RISPOSTA]
+                                        crea il file di attivazione offline per la richiesta di un cliente
+    python -m licenze chiave-servizio   crea una nuova chiave di servizio (servizio.json) per il server delle
+                                        attivazioni: da copiare sul server separato, se c'è
+    python -m licenze pc CODICE_LICENZA elenca i PC attivi di una licenza (es. SC-2026-0012)
 """
 
 from __future__ import annotations
@@ -49,6 +54,43 @@ def main(argv: list[str]) -> int:
         conn.commit()
         print(f"Verifica in due passaggi disattivata per {argv[1]}." if cambiati else f"Utente {argv[1]} inesistente.")
         return 0 if cambiati else 1
+    if comando == "attivazione-offline" and len(argv) in (2, 3):
+        from pathlib import Path
+
+        from licenze import attivazioni
+
+        conn = archivio.connessione()
+        try:
+            testo = attivazioni.attiva_offline(conn, Path(argv[1]).read_text(encoding="utf-8"))
+        except attivazioni.Rifiuto as e:
+            print(f"Attivazione non creata: {e.messaggio}")
+            return 1
+        conn.commit()
+        uscita = Path(argv[2] if len(argv) == 3 else Path(argv[1]).with_suffix(".attivazione"))
+        uscita.write_text(testo, encoding="utf-8")
+        print(f"File di attivazione offline creato: {uscita} (valido {attivazioni.VALIDITA_OFFLINE.days} giorni)")
+        return 0
+    if comando == "chiave-servizio":
+        dati = archivio.nuova_chiave_servizio()
+        print(f"Nuova chiave di servizio valida fino al {dati['fino_al'][:10]}: {archivio.cartella_dati()}/servizio.json")
+        return 0
+    if comando == "pc" and len(argv) == 2:
+        from licenze import attivazioni
+
+        conn = archivio.connessione()
+        riga = conn.execute("SELECT * FROM licenze WHERE codice_licenza = ?", (argv[1],)).fetchone()
+        if riga is None:
+            print(f"Licenza {argv[1]} inesistente.")
+            return 1
+        radice, attuale = attivazioni.catena(conn, riga)
+        posti = attivazioni.posti(attuale, attivazioni.dati_catena(conn, radice))
+        attivi = attivazioni.elenco(conn, radice)
+        print(f"Licenza {attuale['codice_licenza']}: {len(attivi)} PC attivi su {posti}")
+        for p in attivi:
+            print(f"  {p['id']}  {p['nome']:<30} attivato {p['attivato']}  ultimo uso {p['ultimo_uso']}"
+                  + ("  (offline)" if p["offline"] else ""))
+        conn.commit()
+        return 0
     if comando == "prova":
         from licenze.app import crea_app
 

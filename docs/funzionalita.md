@@ -4,7 +4,7 @@ Documento di riferimento del prodotto, da tenere aggiornato a ogni versione. Ser
 di vendita, per le presentazioni ai clienti e per non perdere le decisioni prese. Il dettaglio
 tecnico è nel [README](../README.md).
 
-*Ultimo aggiornamento: versione 0.22.0, ottobre 2026.*
+*Ultimo aggiornamento: versione 0.22.0 e lavori della prossima versione (licenze per PC), ottobre 2026.*
 
 ## Lo scopo
 
@@ -112,6 +112,12 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 - Interferenze tra imprese nella stessa zona, ordinate per gravità, con le prescrizioni del
   coordinatore.
 - Costi della sicurezza, fascicolo dell'opera e notifica preliminare.
+- **Il PSC è uno per tutto il cantiere**: lo redige il CSP su incarico del committente (art. 90,
+  commi 3-4, e art. 91) e riguarda tutte le imprese esecutrici e tutti i lavoratori autonomi, che
+  devono attuarlo insieme ai rispettivi POS (art. 100, comma 3). Per questo nel PSC non si sceglie
+  mai un'impresa: la pagina Documenti ha solo PSC, fascicolo e notifica. Il verbale di verifica
+  dell'idoneità (art. 90, comma 9, e Allegato XVII), che è invece uno per impresa o lavoratore
+  autonomo, si genera con «Genera il verbale...» nella scheda «Idoneità e patente» di ciascuna.
 
 ### Il documento finale (PSC, fascicolo, notifica)
 - **Stessa impaginazione del POS**, nei colori arancioni del programma PSC: copertina con
@@ -365,9 +371,54 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
   - registro dei codici consegnati e dei promemoria inviati;
   - accesso con verifica in due passaggi.
 
+### Licenze per PC (in sviluppo, ottobre 2026)
+
+Decisione di ottobre 2026: le licenze diventano **legate ai PC**, con attivazione online sul server
+dell'ufficio (opzione «server proprio», scelta al posto dei servizi esterni come Keygen,
+LicenseSpring o Cryptolens, che costerebbero 600-3.600 € l'anno). Il server gira sulla VM del NAS
+insieme al ponte AI (stesso indirizzo pubblico con Tailscale Funnel); passerà al server Proxmox
+copiando la cartella dei dati.
+
+Fatto (non ancora nei programmi pubblicati):
+- **Modulo comune `sicur_license`** (passo 1), usato da tutti i programmi della suite e dal server:
+  - *impronta del PC*: codice di Windows, scheda madre e nome del PC, trasformati in hash con un
+    sale assegnato dal server per ogni licenza; al server non arriva nessun dato in chiaro. Lo
+    stesso PC è riconosciuto se coincidono 2 elementi su 3 (cambio di disco, di nome o
+    reinstallazione di Windows non consumano un posto);
+  - *certificato firmato* valido 14 giorni e legato al PC, rinnovato in sottofondo a ogni avvio;
+    firme a due livelli: la chiave delle licenze (radice, già nota ai programmi) autorizza ogni 6
+    mesi una chiave di servizio, con cui il server firma i certificati;
+  - *custodia cifrata* con DPAPI di Windows (copiata su un altro PC non si legge) e ultima ora vista,
+    contro l'orologio spostato indietro;
+  - *sola lettura* invece del blocco: se la licenza non è valida si aprono, si stampano e si
+    esportano in PDF i documenti già fatti, sempre con il motivo e cosa fare (non attivato, altro
+    PC, orologio, revocata, scaduta, programma non incluso, aggiornamenti finiti, 14 giorni senza
+    internet, con avviso 3 giorni prima);
+  - *attivazione offline* con file di richiesta e file di attivazione valido 90 giorni.
+- **Server delle attivazioni** (passo 2, `licenze/attivazioni.py`), nello stesso servizio pubblico del
+  ponte AI e sullo stesso database del gestionale:
+  - una licenza per N postazioni si attiva su N PC: **il PC in più rispetto alla licenza** (con 1
+    postazione il secondo, con 3 il quarto) è rifiutato con «La licenza è già attiva su N PC su N»,
+    l'elenco dei PC (nome e ultimo uso) e la possibilità di liberarne uno; il rifiuto va nel registro;
+  - riattivare lo stesso PC non consuma posti;
+  - trasferimenti: liberare un PC è sempre possibile, ma in 30 giorni si attivano al massimo N PC nuovi
+    più 2; oltre serve l'assistenza;
+  - i rinnovi restano la stessa licenza: i PC attivati non vanno riattivati;
+  - la licenza annullata nel gestionale si blocca davvero al primo collegamento (sola lettura);
+  - limiti contro i tentativi (10 codici sbagliati in un'ora per indirizzo, 30 richieste l'ora per
+    licenza), segnalazione delle macchine virtuali copiate, registro conservato un anno, errori
+    senza dettagli tecnici;
+  - comandi sulla VM: PC attivi di una licenza, file di attivazione offline, nuova chiave di servizio.
+- I codici `SC1-…` già venduti valgono anche con le attivazioni: nessun codice nuovo da mandare.
+
+Regole scelte (modificabili): abbonamento scaduto → sola lettura; licenza perpetua → funzionano le
+versioni uscite entro la fine degli aggiornamenti inclusi, le successive si aprono in sola lettura.
+
 ## Decisioni prese
 
-- Licenze offline, senza vincolo al PC; alla scadenza il programma continua a funzionare.
+- Fino alla versione 0.22: licenze offline, senza vincolo al PC; alla scadenza il programma continua a
+  funzionare. Da ottobre 2026 (in sviluppo): licenze legate ai PC con attivazione online sul server
+  proprio, sola lettura quando la licenza non è valida, mai blocco dei dati.
 - La chiave privata delle licenze resta solo sul server; nel programma c'è la chiave pubblica.
 - AI spenta finché il cliente non la attiva con la sua chiave; nessun nome di persona viene inviato.
 - Si pubblica una nuova versione solo quando lo decide il titolare.
@@ -375,8 +426,19 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
 
 ## Prossimi passi
 
-1. **Licenze, passo 2**: attivazione online con conteggio delle postazioni, sullo stesso server
-   ponte dell'AI (già raggiungibile da internet con Tailscale Funnel).
+1. **Licenze per PC, passi successivi** (fatti i passi 1 e 2, vedi sopra):
+   3. gestionale: pagina dei PC attivi, revoca di un PC o della licenza, posti e trasferimenti in più,
+      file di attivazione offline, registro dei tentativi;
+   4. finestre nei programmi: attivazione, elenco dei PC con i posti finiti, «Disattiva questo PC»,
+      sola lettura e avvisi; codici nuovi casuali al posto di `SC1-…`; decidere se legare al PC anche
+      la prova gratuita;
+   5. assistente AI con il certificato del PC al posto del codice; aggiornamenti firmati (elenco firmato
+      con l'hash dell'installatore, verificato prima di installare);
+   6. compilazione con Nuitka, firma del programma (certificato OV, circa 120 €/anno, o Azure Artifact
+      Signing), controlli in CI: SBOM, pip-audit, bandit, dipendenze bloccate;
+   7. checklist GDPR (informativa, registro dei trattamenti, backup cifrati con password) e Cyber
+      Resilience Act (segnalazione delle vulnerabilità sfruttate già obbligatoria dall'11 settembre
+      2026, requisiti completi dall'11 dicembre 2027).
 1. **Server ponte AI**: da ottobre 2026 il motore Standard è DeepSeek V4.1 Flash su **Scaleway**
    (Parigi, dati trattati nell'UE). Il programma mostra ai clienti la sede comunicata dal server (riga
    SEDE di `ai.env`), quindi cambiando fornitore non serve una nuova versione. All'arrivo dei primi

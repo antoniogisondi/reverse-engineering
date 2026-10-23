@@ -226,3 +226,56 @@ dell'assistente AI.
 - **Senza licenza.** Il programma funziona in prova per 30 giorni, con un solo cantiere.
 - **Annullamento.** Una licenza segnata come annullata resta tale solo nel registro: un codice
   già consegnato non si può revocare a distanza, perché il programma non si collega al server.
+
+## Attivazioni dei PC (limite di postazioni)
+
+Il server pubblico (lo stesso del ponte AI, porta 8100 pubblicata con Tailscale Funnel) controlla
+su quanti PC è attiva ogni licenza. I programmi lo useranno dalla versione che contiene le nuove
+finestre di attivazione; fino ad allora resta valido quanto descritto sopra.
+
+- **Postazioni.** Una licenza per N postazioni si attiva su N PC. Il PC in più (con 1 postazione
+  il secondo, con 3 il quarto, e così via) viene rifiutato: il programma mostra «La licenza è già
+  attiva su N PC su N» con l'elenco dei PC (nome e ultimo utilizzo) e permette di disattivarne uno.
+  Ogni rifiuto resta nel registro (`eventi_licenza`, esito `posti_esauriti`): serve a capire chi ha
+  bisogno di più postazioni o chi prova a condividere il codice.
+- **Stesso PC.** Reinstallare il programma o Windows, cambiare il disco o il nome del PC non
+  consuma un posto: il PC è riconosciuto se coincidono 2 dei 3 elementi dell'impronta (codice di
+  Windows, scheda madre, nome). Al server arrivano solo hash, mai i dati del PC.
+- **Trasferimenti.** Liberare un PC è sempre possibile; in 30 giorni si possono attivare al massimo
+  N PC nuovi più 2, così un posto non si fa «girare» tra più PC. Oltre il limite il cliente deve
+  contattare l'assistenza.
+- **Rinnovi.** Il codice nuovo del rinnovo appartiene alla stessa licenza: i PC già attivati
+  restano validi, senza riattivarli.
+- **Certificato.** A ogni avvio il programma rinnova in sottofondo il proprio certificato, valido
+  14 giorni: senza internet il programma funziona fino alla fine del certificato, poi passa in sola
+  lettura (i documenti già fatti si aprono, si stampano e si esportano sempre).
+- **Annullamento.** Con le attivazioni, una licenza annullata nel gestionale si blocca davvero: al
+  primo collegamento il programma passa in sola lettura.
+- **Macchine virtuali copiate.** Se lo stesso PC si collega da due reti lontane a pochi minuti di
+  distanza, il PC viene segnato come sospetto (colonna `sospetto`) e l'evento va nel registro.
+- **Limiti contro i tentativi.** 10 codici sbagliati in un'ora dallo stesso indirizzo bloccano
+  quell'indirizzo per un'ora; ogni licenza ha al massimo 30 richieste l'ora.
+
+Comandi utili sulla VM (nella cartella del codice, con l'utente del servizio):
+
+```bash
+python -m licenze pc SC-2026-0012                     # PC attivi della licenza
+python -m licenze attivazione-offline richiesta.json  # cliente senza internet: crea richiesta.attivazione
+python -m licenze chiave-servizio                     # nuova chiave di servizio (vedi sotto)
+```
+
+**Attivazione senza internet.** Il cliente salva dal programma il file di richiesta e lo manda
+all'assistenza; il comando sopra crea il file di attivazione da rimandargli. Vale 90 giorni (un file
+offline non si può revocare), poi serve un nuovo file o un collegamento.
+
+**Chiavi.** La chiave delle licenze (`chiave_privata.pem`, la «radice») firma ogni 6 mesi una chiave
+di servizio (`servizio.json`), con cui il server firma i certificati dei PC. Sulla VM attuale la
+chiave di servizio si rinnova da sola. Se il server delle attivazioni andrà su una macchina diversa
+dal gestionale, su quella si copia **solo** `servizio.json` (da rinnovare con il comando sopra
+almeno ogni 6 mesi), mai `chiave_privata.pem`: così, anche se il server pubblico venisse violato,
+la chiave delle licenze resta al sicuro.
+
+**Trasloco sul server Proxmox.** Basta reinstallare con `installa.sh` sulla nuova macchina e copiare
+la cartella `/var/lib/sicurcantiere-licenze` (database, chiavi): PC attivati, registro e licenze
+passano così come sono. Se cambia l'indirizzo pubblico, va aggiornato nel programma prima di
+spegnere la VM vecchia.

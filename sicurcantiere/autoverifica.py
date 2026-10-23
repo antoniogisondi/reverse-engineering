@@ -321,7 +321,7 @@ def _prova_licenza_pc() -> str:
     assert custodia.apri(custodia.proteggi(b"prova")) == b"prova", "cifratura DPAPI non riuscita"
     radice, servizio = os.urandom(32), os.urandom(32)
     ora = ora_utc()
-    sale = impronta.sale_della_licenza("SC-AUTOVERIFICA")
+    sale = impronta.sale_provvisorio()
     impronte = impronta.calcola(sale, componenti)
     c = Certificato("PROVA", "Autoverifica", frozenset({"psc"}), "abbonamento", "pc", tuple(impronte), sale, ora,
                     ora + timedelta(days=14))

@@ -1,4 +1,6 @@
-"""Server ponte dell'assistente AI incluso nella licenza (SicurCantiere AI).
+"""Server pubblico: ponte dell'assistente AI incluso nella licenza (SicurCantiere AI) e attivazioni dei PC.
+
+Le attivazioni (limite di PC, certificati, trasferimenti) sono in licenze/attivazioni.py.
 
 I programmi dei clienti non hanno chiavi dei fornitori AI: mandano qui la richiesta con il codice di
 licenza. Il server verifica la licenza, controlla il credito del mese, inoltra la richiesta al
@@ -89,6 +91,14 @@ def _errore(messaggio: str, stato: int):
 def crea_api() -> Flask:
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = 2 * MAX_TESTO
+    # Il servizio ascolta solo in locale (127.0.0.1) e arriva da internet tramite Tailscale Funnel o un
+    # tunnel: l'indirizzo vero del programma che si collega è in X-Forwarded-For.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+    from licenze.attivazioni import blueprint
+
+    app.register_blueprint(blueprint())  # attivazioni dei PC: /api/licenze/...
 
     def licenza_valida(conn, codice: str):
         """(riga della licenza nel registro, licenza) oppure una risposta di errore."""
