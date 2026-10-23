@@ -18,7 +18,7 @@ sicurcantiere-pos = "sicurcantiere.app:main_pos"
 sicurcantiere-pimus = "sicurcantiere.app:main_pimus"
 
 [tool.setuptools.packages.find]
-include = ["sicurcantiere*"]
+include = ["sicurcantiere*", "sicur_license*"]
 
 [tool.setuptools.package-data]
 sicurcantiere = ["risorse/segnali/*.png", "risorse/tema/*.qss", "risorse/font/*", "risorse/logo/*"]

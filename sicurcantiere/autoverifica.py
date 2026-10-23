@@ -301,4 +301,44 @@ def _prova_licenza() -> str:
     pubblica = base64.b64encode(ed25519.chiave_pubblica(segreto)).decode()
     prova = licenza.Licenza("PROVA", "Autoverifica", "completo", date.today())
     assert licenza.leggi(licenza.firma(prova, segreto), pubblica) == prova, "verifica della licenza non riuscita"
-    return f"licenze: verifica della firma riuscita (controllo {'attivo' if licenza.controllo_attivo() else 'non attivo'})"
+    esito = f"licenze: verifica della firma riuscita (controllo {'attivo' if licenza.controllo_attivo() else 'non attivo'})"
+    return esito + "; " + _prova_licenza_pc()
+
+
+def _prova_licenza_pc() -> str:
+    """Modulo delle licenze per PC: impronta di questo PC, cifratura DPAPI e certificato firmato."""
+    import os
+    import tempfile
+    from datetime import timedelta
+
+    from sicur_license import custodia, impronta
+    from sicur_license.certificato import Certificato, emetti, firma_servizio, ora_utc, pubblica_da_privata
+    from sicur_license.stato import valuta
+
+    componenti = impronta.componenti_locali()
+    trovati = [nome for nome in impronta.COMPONENTI if componenti[nome]]
+    assert len(trovati) >= 2, f"impronta del PC incompleta: trovati solo {trovati}"
+    assert custodia.apri(custodia.proteggi(b"prova")) == b"prova", "cifratura DPAPI non riuscita"
+    radice, servizio = os.urandom(32), os.urandom(32)
+    ora = ora_utc()
+    sale = impronta.sale_della_licenza("SC-AUTOVERIFICA")
+    impronte = impronta.calcola(sale, componenti)
+    c = Certificato("PROVA", "Autoverifica", frozenset({"psc"}), "abbonamento", "pc", tuple(impronte), sale, ora,
+                    ora + timedelta(days=14))
+    testo = emetti(c, servizio, firma_servizio(radice, pubblica_da_privata(servizio), ora - timedelta(days=1),
+                                               ora + timedelta(days=1)))
+    vecchia = os.environ.get("SICUR_LICENSE_CARTELLA")
+    with tempfile.TemporaryDirectory() as cartella:
+        os.environ["SICUR_LICENSE_CARTELLA"] = cartella
+        try:
+            custodia.salva_certificato(testo)
+            from sicur_license.certificato import leggi_certificato
+
+            letto = leggi_certificato(custodia.leggi_certificato(), pubblica_da_privata(radice))
+        finally:
+            if vecchia is None:
+                os.environ.pop("SICUR_LICENSE_CARTELLA", None)
+            else:
+                os.environ["SICUR_LICENSE_CARTELLA"] = vecchia
+    assert valuta(letto, "psc", impronte, ora).puo_modificare, "certificato di prova non valido"
+    return f"licenze per PC: impronta ({', '.join(trovati)}), DPAPI e certificato riusciti"
