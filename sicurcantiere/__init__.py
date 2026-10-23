@@ -1,3 +1,3 @@
 """SicurCantiere: gestione della sicurezza nei cantieri temporanei o mobili."""
 
-__version__ = "0.22.0"
+__version__ = "0.22.1"
