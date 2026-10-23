@@ -41,11 +41,13 @@ def _gestore_eccezioni(file_log: Path):
 
 def traduci_in_italiano(app: QApplication) -> bool:
     """Pulsanti e menu standard di Qt in italiano (Sì/No/Annulla/Salva, Copia/Incolla...)."""
-    cartella = QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+    # nel programma compilato le traduzioni sono nella cartella «traduzioni» accanto ai pacchetti
+    cartelle = (QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath),
+                str(Path(__file__).resolve().parent.parent / "traduzioni"))
     caricate = False
     for nome in ("qtbase_it", "qt_it"):
         traduttore = QTranslator(app)
-        if traduttore.load(nome, cartella):
+        if any(traduttore.load(nome, cartella) for cartella in cartelle):
             app.installTranslator(traduttore)
             caricate = True
     return caricate

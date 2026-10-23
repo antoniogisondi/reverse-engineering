@@ -24,6 +24,9 @@ set VERSIONE=%VERSIONE: =%
 set VERSIONE=%VERSIONE:"=%
 echo Versione %VERSIONE%
 
+REM traduzioni italiane di Qt (Sì/No/Annulla...): Nuitka le include solo con QtWebEngine, qui si aggiungono
+for /f "delims=" %%t in ('python -c "from PySide6.QtCore import QLibraryInfo as L; print(L.path(L.LibraryPath.TranslationsPath))"') do set TRADUZIONI=%%t
+
 if exist build\nuitka rmdir /s /q build\nuitka
 if exist dist\SicurCantiere rmdir /s /q dist\SicurCantiere
 python -m nuitka --standalone --assume-yes-for-downloads --msvc=latest ^
@@ -33,6 +36,8 @@ python -m nuitka --standalone --assume-yes-for-downloads --msvc=latest ^
     --file-version=%VERSIONE% --product-version=%VERSIONE% --file-description="SicurCantiere" ^
     --include-package=sicurcantiere --include-package=sicur_license ^
     --include-data-dir=sicurcantiere\risorse=sicurcantiere\risorse ^
+    "--include-data-files=%TRADUZIONI%\qtbase_it.qm=traduzioni\qtbase_it.qm" ^
+    "--include-data-files=%TRADUZIONI%\qt_it.qm=traduzioni\qt_it.qm" ^
     --nofollow-import-to=openai,anthropic,cryptography,pytest,flask,licenze,tests ^
     --output-dir=build\nuitka --output-filename=SicurCantiere.exe ^
     scripts\avvio.py || goto :errore
