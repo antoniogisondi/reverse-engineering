@@ -1,4 +1,4 @@
-"""Punto di ingresso del programma compilato (Nuitka): l'edizione dipende dal nome dell'eseguibile
+"""Punto di ingresso (il nome non deve essere «sicurcantiere», come il pacchetto) del programma compilato (Nuitka): l'edizione dipende dal nome dell'eseguibile
 («SicurCantiere PSC.exe», «SicurCantiere POS.exe», «SicurCantiere PiMUS.exe»), altrimenti dal primo
 argomento (psc, pos, pimus)."""
 

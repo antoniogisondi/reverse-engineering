@@ -32,12 +32,13 @@ python -m nuitka --standalone --assume-yes-for-downloads --msvc=latest ^
     --company-name=SicurCantiere --product-name=SicurCantiere ^
     --file-version=%VERSIONE% --product-version=%VERSIONE% --file-description="SicurCantiere" ^
     --include-package=sicurcantiere --include-package=sicur_license ^
-    --include-data-dir=sicurcantiere\risorse=sicurcantiere\risorse --include-package-data=docx ^
+    --include-data-dir=sicurcantiere\risorse=sicurcantiere\risorse ^
     --nofollow-import-to=openai,anthropic,cryptography,pytest,flask,licenze,tests ^
     --output-dir=build\nuitka --output-filename=SicurCantiere.exe ^
-    scripts\sicurcantiere.py || goto :errore
+    scripts\avvio.py || goto :errore
 
-move build\nuitka\sicurcantiere.dist dist\SicurCantiere || goto :errore
+if not exist dist mkdir dist
+move build\nuitka\avvio.dist dist\SicurCantiere || goto :errore
 for %%p in (PSC POS PiMUS) do (
     copy /y dist\SicurCantiere\SicurCantiere.exe "dist\SicurCantiere\SicurCantiere %%p.exe" >nul || goto :errore
 )

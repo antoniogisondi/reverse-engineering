@@ -12,7 +12,7 @@ from sicurcantiere.app import edizione_da_eseguibile  # noqa: E402
     (r"C:\Program Files\SicurCantiere\SicurCantiere POS.exe", "pos"),
     (r"C:\Program Files\SicurCantiere\SicurCantiere PiMUS.exe", "pimus"),
     ("/opt/sicurcantiere/SicurCantiere POS", "pos"),
-    ("scripts/sicurcantiere.py", None),  # da sorgente: decide l'argomento (psc, pos, pimus)
+    ("scripts/avvio.py", None),  # da sorgente: decide l'argomento (psc, pos, pimus)
     (r"C:\Python\python.exe", None),
 ])
 def test_edizione_dal_nome_dell_eseguibile(percorso, edizione):
