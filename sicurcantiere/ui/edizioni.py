@@ -114,7 +114,9 @@ class PaginaImpresePSC(PaginaImprese):
 
 
 class PaginaDocumentiPSC(PaginaDocumenti):
-    documenti = ("psc", "fascicolo", "notifica", "idoneita")
+    # il PSC comprende tutte le imprese e i lavoratori autonomi: nessun documento si sceglie per impresa
+    # (il verbale di idoneità si genera dalla scheda «Idoneità e patente» di ciascuna)
+    documenti = ("psc", "fascicolo", "notifica")
     principale = "psc"
 
 

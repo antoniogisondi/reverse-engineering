@@ -1892,8 +1892,8 @@ class PaginaDocumenti(Pagina):
         nome_principale = self.COMPONIBILI.get(self.componibile, "documento")
         self.impresa = QComboBox()
         self.impresa.setMinimumWidth(260)
-        # il selettore d'impresa serve solo ai documenti dell'impresa (POS); nel PSC la verifica
-        # dell'idoneità chiede l'impresa quando la si genera
+        # il selettore d'impresa serve solo ai documenti dell'impresa (POS): il PSC riguarda tutte le
+        # imprese e i lavoratori autonomi del cantiere e non ha documenti da generare per una sola impresa
         self.con_impresa = self.componibile == "pos"
         if self.con_impresa:
             riga = QHBoxLayout()
@@ -2095,10 +2095,7 @@ class PaginaDocumenti(Pagina):
             return
         cantiere = self.repo.cantiere()["nome"] or "Cantiere"
         if chiave in self.PER_IMPRESA:
-            if self.con_impresa:
-                impresa, nome = self.impresa.currentData(), self.impresa.currentText()
-            else:
-                impresa, nome = self._scegli_impresa(self.NOMI[chiave])
+            impresa, nome = self.impresa.currentData(), self.impresa.currentText()
             if impresa is None:
                 if not self.repo.elenco("imprese"):
                     QMessageBox.information(self, "Documenti", "Inserisci prima l'impresa nella pagina «Imprese».")
@@ -2129,20 +2126,6 @@ class PaginaDocumenti(Pagina):
         funzioni = {"psc": genera_psc, "fascicolo": genera_fascicolo, "notifica": genera_notifica}
         nomi = {"psc": "PSC", "fascicolo": "Fascicolo", "notifica": "Notifica preliminare"}
         self._salva_docx(f"{nomi[chiave]} - {cantiere}", lambda p: funzioni[chiave](self.repo, p))
-
-    def _scegli_impresa(self, titolo: str) -> tuple[int | None, str]:
-        """Impresa o lavoratore autonomo a cui si riferisce il documento (nel PSC, la verifica dell'idoneità)."""
-        voci = [(i["id"], (i["ragione_sociale"] or f"Impresa {i['id']}")
-                 + (" (lavoratore autonomo)" if anagrafiche.autonomo(i) else "")) for i in self.repo.elenco("imprese")]
-        if not voci:
-            return None, ""
-        if len(voci) == 1:
-            return voci[0]
-        nome, ok = QInputDialog.getItem(self, titolo, "Per quale impresa o lavoratore autonomo?",
-                                        [n for _, n in voci], 0, False)
-        if not ok:
-            return None, ""
-        return next(v for v in voci if v[1] == nome)
 
     def genera_principale(self) -> None:
         self.genera()

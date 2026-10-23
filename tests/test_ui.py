@@ -120,6 +120,9 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     imprese.tabella.seleziona(a)
     file_pos = imprese.prepara_pos(str(tmp_path / "pos alfa"))
     assert file_pos.suffix == ".spo" and file_pos.is_file()
+    # il verbale di idoneità si genera dalla scheda dell'impresa, non scegliendo l'impresa nei documenti
+    verbale = imprese.idoneita.genera_verbale(str(tmp_path / "idoneita alfa.docx"))
+    assert verbale is not None and verbale.is_file()
     copia = Progetto(file_pos)
     assert [i["id"] for i in Repository(copia).elenco("imprese")] == [a]
     copia.chiudi()
@@ -134,7 +137,8 @@ def test_apre_e_mostra_tutte_le_pagine(app, tmp_path):
     doc = _pagina(f, PaginaDocumenti)
     f.navigazione.setCurrentRow(f.pagine.index(doc))
     assert doc.controlli.count() > 0
-    assert doc.documenti == ("psc", "fascicolo", "notifica", "idoneita")
+    assert doc.documenti == ("psc", "fascicolo", "notifica")
+    assert not doc.con_impresa and doc._documento_composto() == "PSC"
     assert not any(type(pg).__name__ in ("PaginaValutazioni", "PaginaPonteggi") for pg in f.pagine)
 
     f.navigazione.setCurrentRow(0)

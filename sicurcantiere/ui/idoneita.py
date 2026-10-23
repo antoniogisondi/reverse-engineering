@@ -5,15 +5,19 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -63,12 +67,17 @@ class PannelloIdoneita(QScrollArea):
         riga_esito = QHBoxLayout()
         riga_esito.addWidget(self.esito, 1)
         riga_esito.addWidget(tutti)
+        self.verbale = QPushButton("Genera il verbale...")
+        self.verbale.setToolTip("Verbale di verifica dell'idoneità tecnico-professionale (Allegato XVII) di questa "
+                                "impresa o di questo lavoratore autonomo, in Word")
+        self.verbale.clicked.connect(lambda: self.genera_verbale())
+        riga_esito.addWidget(self.verbale)
         corpo = QVBoxLayout()
         corpo.addLayout(riga_esito)
         corpo.addLayout(self.griglia)
         nota = QLabel("Il committente o il responsabile dei lavori verifica l'idoneità delle imprese affidatarie, "
                       "esecutrici e dei lavoratori autonomi (art. 90, comma 9); l'impresa affidataria quella delle "
-                      "imprese a cui subappalta (art. 97, comma 2). Il verbale si genera nella pagina dei documenti.")
+                      "imprese a cui subappalta (art. 97, comma 2). «Genera il verbale...» ne prepara il verbale in Word.")
         nota.setWordWrap(True)
         nota.setObjectName("hint")
         corpo.addWidget(nota)
@@ -149,6 +158,34 @@ class PannelloIdoneita(QScrollArea):
         self.esito.setText(f"Esito della verifica: {esito}")
         self.esito.setStyleSheet(f"color: {colore};")
 
+    def genera_verbale(self, destinazione: str | None = None) -> Path | None:
+        """Verbale di verifica dell'idoneità dell'impresa (o del lavoratore autonomo) mostrata."""
+        if self.id_ is None:
+            return None
+        self.salva_in_sospeso()
+        from sicurcantiere.documenti.idoneita import genera_verifica_idoneita
+
+        if not destinazione:
+            impresa = self.repo.leggi("imprese", self.id_) or {}
+            nome = (impresa.get("ragione_sociale") or "impresa").replace("/", "-")
+            proposta = self.repo.progetto.percorso.with_name(f"Verifica idoneità - {nome}.docx")
+            destinazione, _ = QFileDialog.getSaveFileName(self, "Salva il verbale", str(proposta),
+                                                          "Documento Word (*.docx)")
+            if not destinazione:
+                return None
+        try:
+            file = genera_verifica_idoneita(self.repo, self.id_, destinazione)
+        except PermissionError:
+            QMessageBox.warning(self, "Salvataggio non riuscito",
+                                "Impossibile scrivere il file. Se è aperto in Word, chiudilo e riprova.")
+            return None
+        if QApplication.platformName() != "offscreen":
+            from sicurcantiere.ui.anteprima import documento_creato
+            from sicurcantiere.ui.pagine import AVVISO_RESPONSABILITA
+
+            documento_creato(self, file, avviso=AVVISO_RESPONSABILITA)
+        return Path(file)
+
     # --- caricamento e salvataggio ---
 
     def imposta_impresa(self, id_: int | None) -> None:
@@ -158,6 +195,7 @@ class PannelloIdoneita(QScrollArea):
         impresa = self.repo.leggi("imprese", id_) if id_ is not None else None
         self._carico = True
         self._costruisci_righe(impresa or {})
+        self.verbale.setEnabled(impresa is not None)
         if impresa is not None:
             for chiave, valori in anagrafiche.leggi_idoneita(impresa).items():
                 esito, nota = self.righe[chiave]

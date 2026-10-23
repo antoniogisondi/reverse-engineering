@@ -311,7 +311,9 @@ programma apre anche i file degli altri: per esempio il POS può partire dal fil
     segnalata con il collegamento a Fasi;
   - *Documenti e controlli*: in testa lo stato («Il POS non è ancora pronto: 1 errore»), poi l'elenco da
     sistemare con «Vai alla pagina», un solo pulsante «Componi la bozza», lo storico e gli altri
-    documenti; nel PSC l'impresa si sceglie solo per la verifica dell'idoneità; la notifica è segnata
+    documenti; nel PSC non si sceglie mai un'impresa (il PSC comprende tutte le imprese e i lavoratori
+    autonomi del cantiere: il verbale di idoneità si genera dalla scheda «Idoneità e patente» di
+    ciascuna, con «Genera il verbale...»); la notifica è segnata
     «non obbligatoria» quando non serve; l'avvertenza legale compare all'emissione (coordinatore per il
     PSC, datore di lavoro per il POS);
   - *esiti solo con i dati*: «Da determinare» finché mancano imprese e fasi; Costi, Fascicolo e Sostanze
