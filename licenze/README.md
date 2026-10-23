@@ -256,11 +256,30 @@ finestre di attivazione; fino ad allora resta valido quanto descritto sopra.
 - **Limiti contro i tentativi.** 10 codici sbagliati in un'ora dallo stesso indirizzo bloccano
   quell'indirizzo per un'ora; ogni licenza ha al massimo 30 richieste l'ora.
 
+Nel gestionale:
+
+- **Pagina della licenza → «PC attivati»**: quanti PC su quanti posti, nome, data di attivazione,
+  ultimo uso, programma e versione di ogni PC, tentativi rifiutati del mese. Da qui:
+  - *Disattiva* un PC (con il motivo, per esempio PC rubato o dismesso): il posto si libera e quel
+    PC, al prossimo collegamento, va riattivato;
+  - *Posti in più rispetto alla licenza*: per un posto venduto a parte, senza emettere una licenza nuova;
+  - *Sblocca i trasferimenti*: il conteggio dei PC nuovi del mese riparte da oggi (cliente con PC
+    guasti che ha superato il limite);
+  - *Attivazione senza internet*: si carica il file di richiesta del cliente e si scarica il file
+    di attivazione (`.sclic`) da rimandargli;
+  - *Registro delle attivazioni* della licenza (le verifiche periodiche si mostrano a richiesta).
+- **Annulla la licenza** ora la blocca davvero (sola lettura al prossimo collegamento); *Riattiva la
+  licenza* la rimette in funzione.
+- **Cruscotto → «Da guardare»**: licenze con PC rifiutati nell'ultimo mese (con 3 o più tentativi
+  probabilmente servono posti in più, o il codice gira tra più persone) e PC sospetti di copia.
+- **Attivazioni** (menu in alto): registro di tutte le licenze per tipo (tentativi rifiutati,
+  attivazioni e disattivazioni, codici errati e sospetti, interventi dal gestionale) e periodo.
+
 Comandi utili sulla VM (nella cartella del codice, con l'utente del servizio):
 
 ```bash
 python -m licenze pc SC-2026-0012                     # PC attivi della licenza
-python -m licenze attivazione-offline richiesta.json  # cliente senza internet: crea richiesta.attivazione
+python -m licenze attivazione-offline richiesta.json  # cliente senza internet: crea richiesta.sclic
 python -m licenze chiave-servizio                     # nuova chiave di servizio (vedi sotto)
 ```
 

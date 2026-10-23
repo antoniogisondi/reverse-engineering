@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import os
 import secrets
 import time
 from datetime import date, timedelta
 from urllib.parse import quote
 
-from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, flash, g, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from licenze import archivio, totp
@@ -54,6 +55,25 @@ def crea_app(https: bool = True) -> Flask:
 
     app.template_filter("data")(_data)
 
+    @app.template_filter("istante")
+    def istante(valore):
+        """Data e ora (ora italiana) di un evento registrato in UTC."""
+        if not valore:
+            return "—"
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        try:
+            return datetime.fromisoformat(valore).astimezone(ZoneInfo("Europe/Rome")).strftime("%d/%m/%Y %H:%M")
+        except (ValueError, KeyError):
+            return str(valore)[:16]
+
+    @app.template_filter("evento")
+    def evento(riga):
+        from licenze.attivazioni import descrizione
+
+        return descrizione(riga["evento"], riga["esito"])
+
     @app.template_filter("milioni")
     def milioni(valore):
         return f"{(valore or 0) / 1_000_000:.2f}".replace(".", ",") + " mln"
@@ -83,6 +103,12 @@ def crea_app(https: bool = True) -> Flask:
             risposta.headers.setdefault("Cache-Control", "no-store")
         return risposta
 
+    @app.teardown_appcontext
+    def chiudi_db(_errore):
+        conn = g.pop("db", None)
+        if conn is not None:
+            conn.close()
+
     _rotte(app)
     return app
 
@@ -94,7 +120,11 @@ def _token() -> str:
 
 
 def _db():
-    return archivio.connessione()
+    """Connessione della richiesta: si chiude alla fine (le modifiche non confermate si annullano), così una
+    pagina interrotta da un errore non lascia il database bloccato per le richieste successive."""
+    if "db" not in g:
+        g.db = archivio.connessione()
+    return g.db
 
 
 def _stato_licenza(riga) -> str:
@@ -245,9 +275,13 @@ def _rotte(app: Flask) -> None:
                                "ORDER BY l.id DESC LIMIT 8").fetchall()
         promemoria = {r["id"]: mailto(r["email"], f"Rinnovo licenza SicurCantiere {r['codice_licenza']}",
                                       testo_promemoria(r, licenza.PIANI[r["piano"]][0])) for r in righe}
+        from licenze import attivazioni
+
+        segnalazioni = attivazioni.segnalazioni(conn)
+        conn.commit()
         return render_template("cruscotto.html", in_scadenza=in_scadenza, scadute=scadute, numeri=numeri,
                                recenti=recenti, anno=oggi.year, giorni=giorni, finestre=FINESTRE_CRUSCOTTO,
-                               promemoria=promemoria)
+                               promemoria=promemoria, segnalazioni=segnalazioni)
 
     @app.route("/clienti")
     def clienti():
@@ -305,9 +339,18 @@ def _rotte(app: Flask) -> None:
         consumi = conn.execute("SELECT substr(data, 1, 7) AS mese, motore, SUM(token_ingresso + token_uscita) AS token, "
                                "SUM(crediti) AS crediti, COUNT(*) AS richieste FROM consumi_ai WHERE cliente_id = ? "
                                "GROUP BY mese, motore ORDER BY mese DESC LIMIT 12", (id_,)).fetchall()
+        from licenze import attivazioni
+
+        pc = {}
+        for l in licenze_:
+            radice, attuale = attivazioni.catena(conn, l)
+            if l["id"] == attuale["id"]:  # i PC si mostrano sulla licenza in vigore della catena
+                pc[l["id"]] = (len(attivazioni.pc_attivi(conn, radice)),
+                               attivazioni.posti(attuale, attivazioni.dati_catena(conn, radice)))
+        conn.commit()
         return render_template("cliente.html", cliente=c, licenze=licenze_, pagamenti=pagamenti,
                                stato=_stato_licenza, metodi=METODI_PAGAMENTO, credito=credito,
-                               ricariche=ricariche, consumi=consumi)
+                               ricariche=ricariche, consumi=consumi, pc=pc)
 
     @app.route("/clienti/<int:id_>/ricarica", methods=["POST"])
     def nuova_ricarica(id_: int):
@@ -351,8 +394,13 @@ def _rotte(app: Flask) -> None:
         nome_piano = licenza.PIANI[l["piano"]][0]
         consegna, rinnovo = testo_consegna(l, nome_piano), testo_promemoria(l, nome_piano) if l["scadenza"] else ""
         invii = conn.execute("SELECT * FROM invii WHERE licenza_id = ? ORDER BY data DESC, id DESC", (id_,)).fetchall()
+        from licenze import attivazioni
+
+        att = attivazioni.scheda(conn, attivazioni.catena(conn, l)[0], con_verifiche=request.args.get("verifiche") == "1")
+        conn.commit()
         return render_template(
-            "licenza.html", l=l, stato=_stato_licenza(l), precedente=precedente, successiva=successiva,
+            "licenza.html", l=l, stato=_stato_licenza(l), precedente=precedente, successiva=successiva, att=att,
+            verifiche=request.args.get("verifiche") == "1",
             nome_piano=nome_piano, consegna=consegna, rinnovo=rinnovo, invii=invii, tipi_invio=TIPI_INVIO,
             email_consegna=mailto(l["email"], f"Licenza SicurCantiere {l['codice_licenza']}", consegna),
             email_rinnovo=mailto(l["email"], f"Rinnovo licenza SicurCantiere {l['codice_licenza']}", rinnovo)
@@ -397,12 +445,142 @@ def _rotte(app: Flask) -> None:
 
     @app.route("/licenze/<int:id_>/annulla", methods=["POST"])
     def annulla(id_: int):
+        from licenze import attivazioni
+
         conn = _db()
         conn.execute("UPDATE licenze SET stato = 'annullata' WHERE id = ?", (id_,))
+        attivazioni.registra_stato_licenza(conn, id_, "annullata", session.get("utente", ""))
         conn.commit()
-        flash("Licenza segnata come annullata (solo nel registro: un codice già consegnato resta valido "
-              "fino alla scadenza).", "ok")
+        flash("Licenza annullata: al prossimo collegamento i PC attivati passano in sola lettura e non se ne possono "
+              "attivare altri. I programmi senza attivazione (versioni precedenti) la usano fino alla scadenza.", "ok")
         return redirect(url_for("dettaglio_licenza", id_=id_))
+
+    @app.route("/licenze/<int:id_>/riattiva", methods=["POST"])
+    def riattiva(id_: int):
+        from licenze import attivazioni
+
+        conn = _db()
+        conn.execute("UPDATE licenze SET stato = 'attiva' WHERE id = ? AND stato = 'annullata'", (id_,))
+        attivazioni.registra_stato_licenza(conn, id_, "riattivata", session.get("utente", ""))
+        conn.commit()
+        flash("Licenza riattivata: i PC tornano a funzionare al prossimo collegamento.", "ok")
+        return redirect(url_for("dettaglio_licenza", id_=id_))
+
+    def _radice(conn, id_: int) -> int:
+        from licenze import attivazioni
+
+        riga = conn.execute("SELECT * FROM licenze WHERE id = ?", (id_,)).fetchone()
+        if riga is None:
+            abort(404)
+        return attivazioni.catena(conn, riga)[0]
+
+    @app.route("/licenze/<int:id_>/pc/<codice_pc>/disattiva", methods=["POST"])
+    def disattiva_pc(id_: int, codice_pc: str):
+        from licenze import attivazioni
+
+        conn = _db()
+        fatto = attivazioni.disattiva_da_gestionale(conn, _radice(conn, id_), codice_pc, session.get("utente", ""),
+                                                    request.form.get("motivo", "").strip()[:200])
+        conn.commit()
+        flash("PC disattivato: il posto è libero e quel PC, al prossimo collegamento, dovrà essere riattivato."
+              if fatto else "Il PC non risulta attivo su questa licenza.", "ok" if fatto else "errore")
+        return redirect(url_for("dettaglio_licenza", id_=id_))
+
+    @app.route("/licenze/<int:id_>/pc/<codice_pc>/ignora", methods=["POST"])
+    def ignora_sospetto(id_: int, codice_pc: str):
+        from licenze import attivazioni
+
+        conn = _db()
+        _radice(conn, id_)
+        attivazioni.ignora_sospetto(conn, codice_pc, session.get("utente", ""))
+        conn.commit()
+        flash("Segnalazione ignorata.", "ok")
+        return redirect(request.form.get("torna") if request.form.get("torna", "").startswith("/")
+                        else url_for("dettaglio_licenza", id_=id_))
+
+    @app.route("/licenze/<int:id_>/posti", methods=["POST"])
+    def posti_extra(id_: int):
+        from licenze import attivazioni
+
+        conn = _db()
+        try:
+            numero = int(request.form.get("posti_extra") or 0)
+        except ValueError:
+            abort(400, "Numero non valido.")
+        attivazioni.imposta_posti_extra(conn, _radice(conn, id_), numero, session.get("utente", ""))
+        conn.commit()
+        flash(f"Posti in più rispetto alla licenza: {max(0, min(numero, 100))}.", "ok")
+        return redirect(url_for("dettaglio_licenza", id_=id_))
+
+    @app.route("/licenze/<int:id_>/trasferimenti", methods=["POST"])
+    def sblocca_trasferimenti(id_: int):
+        from licenze import attivazioni
+
+        conn = _db()
+        attivazioni.sblocca_trasferimenti(conn, _radice(conn, id_), session.get("utente", ""))
+        conn.commit()
+        flash("Trasferimenti sbloccati: il conteggio dei PC nuovi riparte da oggi.", "ok")
+        return redirect(url_for("dettaglio_licenza", id_=id_))
+
+    @app.route("/licenze/<int:id_>/offline", methods=["POST"])
+    def attivazione_offline(id_: int):
+        """File di attivazione per un cliente senza internet, dalla sua richiesta (file o testo incollato)."""
+        from licenze import attivazioni
+
+        conn = _db()
+        radice = _radice(conn, id_)
+        file = request.files.get("richiesta")
+        testo = (file.read(100_000).decode("utf-8", errors="replace") if file and file.filename
+                 else request.form.get("testo", ""))
+        if not testo.strip():
+            flash("Scegli il file di richiesta mandato dal cliente, oppure incollane il contenuto.", "errore")
+            return redirect(url_for("dettaglio_licenza", id_=id_))
+        if attivazioni.radice_della_richiesta(conn, testo) not in (None, radice):
+            flash("La richiesta è di un'altra licenza: aprila dalla pagina della licenza giusta.", "errore")
+            return redirect(url_for("dettaglio_licenza", id_=id_))
+        try:
+            risposta = attivazioni.attiva_offline(conn, testo)
+        except attivazioni.Rifiuto as e:
+            conn.commit()
+            flash(f"Attivazione non creata: {e.messaggio}", "errore")
+            return redirect(url_for("dettaglio_licenza", id_=id_))
+        conn.commit()
+        try:
+            nome = json.loads(testo).get("nome_pc", "") or "PC"
+        except ValueError:
+            nome = "PC"
+        nome = "".join(c for c in nome if c.isalnum() or c in "-_") or "PC"
+        return Response(risposta, mimetype="application/json",
+                        headers={"Content-Disposition": f"attachment; filename=attivazione-{nome}.sclic"})
+
+    @app.route("/attivazioni")
+    def pagina_attivazioni():
+        from licenze import attivazioni
+
+        conn = _db()
+        giorni = request.args.get("giorni", type=int)
+        giorni = giorni if giorni in (7, 30, 90) else 30
+        tipo = request.args.get("tipo", "rifiuti")
+        filtri = {
+            "rifiuti": ("e.evento = 'attivazione' AND e.esito NOT IN ('nuovo_pc', 'stesso_pc')", "Tentativi rifiutati"),
+            "attivazioni": ("e.evento IN ('attivazione', 'disattivazione')", "Attivazioni e disattivazioni"),
+            "sicurezza": ("e.evento IN ('codice_errato', 'sospetto_clone') OR e.esito = 'altro_pc'",
+                          "Codici errati e sospetti"),
+            "gestionale": ("e.evento = 'gestionale'", "Interventi dal gestionale"),
+        }
+        condizione, _ = filtri.get(tipo, filtri["rifiuti"])
+        from datetime import datetime, timezone
+
+        dal = (datetime.now(timezone.utc) - timedelta(days=giorni)).isoformat()
+        eventi = conn.execute(
+            "SELECT e.*, l.codice_licenza, l.cliente_id, c.nome AS cliente, p.nome AS nome_pc FROM eventi_licenza e "
+            "LEFT JOIN licenze l ON l.id = e.radice_id LEFT JOIN clienti c ON c.id = l.cliente_id "
+            f"LEFT JOIN pc_licenza p ON p.codice_pc = e.codice_pc WHERE ({condizione}) AND e.quando >= ? "
+            "ORDER BY e.quando DESC, e.id DESC LIMIT 300", (dal,)).fetchall()
+        segnalazioni = attivazioni.segnalazioni(conn, giorni=giorni)
+        conn.commit()
+        return render_template("attivazioni.html", eventi=eventi, segnalazioni=segnalazioni, giorni=giorni,
+                               tipo=tipo, filtri={k: v[1] for k, v in filtri.items()})
 
     @app.route("/clienti/<int:id_>/pagamento", methods=["POST"])
     def nuovo_pagamento(id_: int):

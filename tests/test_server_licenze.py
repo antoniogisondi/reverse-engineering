@@ -399,7 +399,7 @@ def test_comandi_del_server(server, tmp_path, capsys):
     richiesta = tmp_path / "richiesta.json"
     richiesta.write_text(a.richiesta_offline(codice), encoding="utf-8")
     assert main(["attivazione-offline", str(richiesta)]) == 0
-    assert a.importa_offline((tmp_path / "richiesta.attivazione").read_text(encoding="utf-8")).offline
+    assert a.importa_offline((tmp_path / "richiesta.sclic").read_text(encoding="utf-8")).offline
     identificativo = server.conn.execute("SELECT codice_licenza FROM licenze WHERE id = ?", (id_,)).fetchone()[0]
     assert main(["pc", identificativo]) == 0
     uscita = capsys.readouterr().out

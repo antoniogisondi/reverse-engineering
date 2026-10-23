@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block titolo %}Attivazioni{% endblock %}
+{% block contenuto %}
+<h1>Attivazioni dei PC</h1><p class="sotto">Tentativi oltre i posti, trasferimenti, codici errati e interventi dell'assistenza.</p>
+{% set n = segnalazioni.numeri %}
+<div class="tessere">
+  <div class="tessera"><div class="t">PC attivati</div><div class="v">{{ n.pc_attivi }}</div></div>
+  <div class="tessera"><div class="t">Tentativi oltre i posti ({{ giorni }} giorni)</div><div class="v">{{ n.rifiuti }}</div></div>
+  <div class="tessera"><div class="t">Codici errati ({{ giorni }} giorni)</div><div class="v">{{ n.codici_errati }}</div></div>
+  <div class="tessera"><div class="t">PC sospetti</div><div class="v">{{ segnalazioni.sospetti|length }}</div></div>
+</div>
+<p class="riga">{% for k, v in filtri.items() %}<a class="pulsante{% if k == tipo %} primario{% endif %}" href="{{ url_for('pagina_attivazioni', tipo=k, giorni=giorni) }}">{{ v }}</a>{% endfor %}
+<span class="sotto" style="margin:0 0 0 12px">Periodo:</span>
+{% for g in (7, 30, 90) %}<a class="pulsante{% if g == giorni %} primario{% endif %}" href="{{ url_for('pagina_attivazioni', tipo=tipo, giorni=g) }}">{{ g }} giorni</a>{% endfor %}</p>
+
+{% if segnalazioni.rifiuti and tipo == "rifiuti" %}
+<div class="card"><h2>Licenze con PC rifiutati</h2>
+<table><tr><th>Licenza</th><th>Cliente</th><th>PC</th><th>Tentativi</th><th>Ultimo</th></tr>
+{% for r in segnalazioni.rifiuti %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=r.licenza_id) }}#pc">{{ r.codice_licenza }}</a></td>
+<td><a href="{{ url_for('cliente', id_=r.cliente_id) }}">{{ r.cliente }}</a></td><td>{{ r.attivi }} su {{ r.posti }}</td><td><b>{{ r.tentativi }}</b></td><td>{{ r.ultimo|istante }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+<div class="card"><h2>{{ filtri[tipo] if tipo in filtri else filtri["rifiuti"] }} <span class="badge b-rinnovata">{{ eventi|length }}</span></h2>
+{% if eventi %}<table><tr><th>Quando</th><th>Evento</th><th>Licenza</th><th>Cliente</th><th>PC</th><th>Dettagli</th><th>Indirizzo</th></tr>
+{% for e in eventi %}<tr><td>{{ e.quando|istante }}</td><td>{{ e|evento }}</td>
+<td class="mono">{% if e.radice_id %}<a href="{{ url_for('dettaglio_licenza', id_=e.radice_id) }}#pc">{{ e.codice_licenza }}</a>{% else %}—{% endif %}</td>
+<td>{{ e.cliente or "—" }}</td><td>{{ e.nome_pc or e.codice_pc or "—" }}</td><td>{{ e.dettagli }}</td><td class="mono">{{ e.ip }}</td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Nessun evento nel periodo.</div>{% endif %}</div>
+<p class="sotto">Il registro si conserva per un anno.</p>
+{% endblock %}

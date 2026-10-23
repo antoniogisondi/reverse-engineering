@@ -409,6 +409,12 @@ Fatto (non ancora nei programmi pubblicati):
     licenza), segnalazione delle macchine virtuali copiate, registro conservato un anno, errori
     senza dettagli tecnici;
   - comandi sulla VM: PC attivi di una licenza, file di attivazione offline, nuova chiave di servizio.
+- **Gestionale** (passo 3): nella pagina della licenza i PC attivati («2 su 3») con nome, ultimo uso,
+  programma e versione; disattivazione di un PC con il motivo; posti in più venduti a parte; «Sblocca i
+  trasferimenti»; file di attivazione offline da caricare e scaricare; registro della licenza.
+  «Annulla la licenza» la blocca davvero (con «Riattiva»). Nel cruscotto «Da guardare»: licenze con PC
+  rifiutati nel mese e PC sospetti di copia; pagina «Attivazioni» con il registro di tutte le licenze.
+  Nella scheda del cliente, per ogni licenza, i PC attivati su quelli disponibili.
 - I codici `SC1-…` già venduti valgono anche con le attivazioni: nessun codice nuovo da mandare.
 
 Regole scelte (modificabili): abbonamento scaduto → sola lettura; licenza perpetua → funzionano le
@@ -426,12 +432,12 @@ versioni uscite entro la fine degli aggiornamenti inclusi, le successive si apro
 
 ## Prossimi passi
 
-1. **Licenze per PC, passi successivi** (fatti i passi 1 e 2, vedi sopra):
-   3. gestionale: pagina dei PC attivi, revoca di un PC o della licenza, posti e trasferimenti in più,
-      file di attivazione offline, registro dei tentativi;
+1. **Licenze per PC, passi successivi** (fatti i passi 1, 2 e 3, vedi sopra):
    4. finestre nei programmi: attivazione, elenco dei PC con i posti finiti, «Disattiva questo PC»,
       sola lettura e avvisi; codici nuovi casuali al posto di `SC1-…`; decidere se legare al PC anche
-      la prova gratuita;
+      la prova gratuita; aggiornare i testi delle email del gestionale (consegna: «vale per N PC, per
+      spostarla usa Disattiva questo PC»; promemoria: alla scadenza sola lettura invece di «continua a
+      funzionare»), da fare insieme alla versione dei programmi con le attivazioni;
    5. assistente AI con il certificato del PC al posto del codice; aggiornamenti firmati (elenco firmato
       con l'hash dell'installatore, verificato prima di installare);
    6. compilazione con Nuitka, firma del programma (certificato OV, circa 120 €/anno, o Azure Artifact

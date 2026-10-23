@@ -92,8 +92,7 @@ CREATE TABLE IF NOT EXISTS ricariche_ai (
 CREATE TABLE IF NOT EXISTS catene_licenza (
     radice_id INTEGER PRIMARY KEY REFERENCES licenze(id),
     sale TEXT NOT NULL,
-    posti_extra INTEGER NOT NULL DEFAULT 0,
-    trasferimenti_extra INTEGER NOT NULL DEFAULT 0
+    posti_extra INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS pc_licenza (
     id INTEGER PRIMARY KEY,

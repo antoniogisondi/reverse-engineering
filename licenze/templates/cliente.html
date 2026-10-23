@@ -4,9 +4,9 @@
 <p class="sotto">{{ cliente.tipo }}{% if cliente.email %} · {{ cliente.email }}{% endif %}{% if cliente.partita_iva %} · P. IVA {{ cliente.partita_iva }}{% endif %}</p>
 
 <div class="card"><h2>Licenze</h2>
-{% if licenze %}<table><tr><th>Licenza</th><th>Piano</th><th>Emessa</th><th>Scadenza</th><th>Postazioni</th><th>Prezzo</th><th>Stato</th></tr>
+{% if licenze %}<table><tr><th>Licenza</th><th>Piano</th><th>Emessa</th><th>Scadenza</th><th>PC attivati</th><th>Prezzo</th><th>Stato</th></tr>
 {% for l in licenze %}{% set s = stato(l) %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=l.id) }}">{{ l.codice_licenza }}</a></td>
-<td>{{ piani[l.piano][0] }}</td><td>{{ l.emessa|data }}</td><td>{{ l.scadenza|data }}</td><td>{{ l.postazioni }}</td><td>{{ l.prezzo|euro }}</td>
+<td>{{ piani[l.piano][0] }}</td><td>{{ l.emessa|data }}</td><td>{{ l.scadenza|data }}</td><td>{% if l.id in pc %}<a href="{{ url_for('dettaglio_licenza', id_=l.id) }}#pc">{{ pc[l.id][0] }} su {{ pc[l.id][1] }}</a>{% else %}<span class="sotto">—</span>{% endif %}</td><td>{{ l.prezzo|euro }}</td>
 <td><span class="badge b-{{ s|replace(' ', '-') }}">{{ s }}</span></td></tr>{% endfor %}</table>
 {% else %}<div class="vuoto">Nessuna licenza.</div>{% endif %}</div>
 

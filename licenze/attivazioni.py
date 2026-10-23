@@ -152,13 +152,16 @@ def _impronte_pc(pc: sqlite3.Row) -> list[str]:
 
 
 def nuove_attivazioni(conn: sqlite3.Connection, radice: int, ora: datetime) -> int:
+    """PC nuovi attivati negli ultimi 30 giorni (o dall'ultimo «Sblocca i trasferimenti» del gestionale)."""
+    dal = (ora - FINESTRA_TRASFERIMENTI).isoformat()
+    sblocco = conn.execute("SELECT MAX(quando) FROM eventi_licenza WHERE radice_id = ? AND evento = 'gestionale' "
+                           "AND esito = 'sblocca_trasferimenti'", (radice,)).fetchone()[0]
     return conn.execute("SELECT COUNT(*) FROM eventi_licenza WHERE radice_id = ? AND evento = 'attivazione' "
-                        "AND esito = 'nuovo_pc' AND quando >= ?",
-                        (radice, (ora - FINESTRA_TRASFERIMENTI).isoformat())).fetchone()[0]
+                        "AND esito = 'nuovo_pc' AND quando >= ?", (radice, max(dal, sblocco or ""))).fetchone()[0]
 
 
 def trasferimenti_rimasti(conn, radice: int, attuale, dati, ora: datetime) -> int:
-    massimo = posti(attuale, dati) + TRASFERIMENTI_MESE + int(dati["trasferimenti_extra"] or 0)
+    massimo = posti(attuale, dati) + TRASFERIMENTI_MESE
     return max(massimo - nuove_attivazioni(conn, radice, ora), 0)
 
 
@@ -436,6 +439,133 @@ def attiva_offline(conn, testo_richiesta: str, ora: datetime | None = None) -> s
     if not isinstance(richiesta, dict) or richiesta.get("tipo") != "richiesta_attivazione_offline":
         raise Rifiuto(400, "richiesta", "Il file non è una richiesta di attivazione di SicurCantiere.")
     return attiva(conn, richiesta, ip="gestionale", ora=ora, offline=True)["certificato"]
+
+
+# --- gestionale: PC delle licenze, interventi dell'assistenza, segnalazioni ---
+
+DESCRIZIONI = {
+    ("attivazione", "nuovo_pc"): "PC attivato",
+    ("attivazione", "stesso_pc"): "Riattivazione dello stesso PC (nessun posto in più)",
+    ("attivazione", POSTI_ESAURITI): "Rifiutato: posti esauriti",
+    ("attivazione", TROPPI_TRASFERIMENTI): "Rifiutato: troppi trasferimenti nel mese",
+    ("attivazione", LICENZA_SCADUTA): "Rifiutato: licenza scaduta",
+    ("attivazione", LICENZA_REVOCATA): "Rifiutato: licenza annullata",
+    ("attivazione", NON_INCLUSO): "Rifiutato: programma non compreso nella licenza",
+    ("convalida", "ok"): "Verifica periodica",
+    ("convalida", ALTRO_PC): "Certificato usato su un altro PC",
+    ("convalida", LICENZA_REVOCATA): "Verifica: licenza annullata, PC in sola lettura",
+    ("disattivazione", "dal_pc"): "PC disattivato dal cliente",
+    ("disattivazione", "trasferimento"): "PC liberato da un altro PC (trasferimento)",
+    ("disattivazione", "gestionale"): "PC disattivato dal gestionale",
+    ("sospetto_clone", ""): "Possibile copia della macchina (stesso PC da due reti)",
+    ("codice_errato", ""): "Codice di licenza errato",
+    ("gestionale", "posti_extra"): "Posti in più modificati",
+    ("gestionale", "sblocca_trasferimenti"): "Trasferimenti sbloccati",
+    ("gestionale", "annullata"): "Licenza annullata",
+    ("gestionale", "riattivata"): "Licenza riattivata",
+    ("gestionale", "sospetto_ignorato"): "Segnalazione di copia ignorata",
+}
+RIFIUTI = (POSTI_ESAURITI, TROPPI_TRASFERIMENTI)
+
+
+def descrizione(evento: str, esito: str) -> str:
+    return DESCRIZIONI.get((evento, esito)) or DESCRIZIONI.get((evento, "")) or f"{evento} {esito}".strip()
+
+
+def scheda(conn, radice: int, ora: datetime | None = None, con_verifiche: bool = False) -> dict:
+    """Dati della pagina della licenza nel gestionale: posti, PC attivi e disattivati, registro."""
+    ora = ora or adesso()
+    attuale = catena(conn, conn.execute("SELECT * FROM licenze WHERE id = ?", (radice,)).fetchone())[1]
+    dati = dati_catena(conn, radice)
+    filtro = "" if con_verifiche else " AND NOT (evento = 'convalida' AND esito = 'ok')"
+    eventi = conn.execute(f"SELECT * FROM eventi_licenza WHERE radice_id = ?{filtro} ORDER BY quando DESC, id DESC "
+                          "LIMIT 100", (radice,)).fetchall()
+    rifiuti = conn.execute("SELECT COUNT(*), MAX(quando) FROM eventi_licenza WHERE radice_id = ? AND evento = "
+                           "'attivazione' AND esito IN (?, ?) AND quando >= ?",
+                           (radice, *RIFIUTI, (ora - timedelta(days=30)).isoformat())).fetchone()
+    return {
+        "radice": radice, "attuale": attuale, "posti": posti(attuale, dati), "postazioni": attuale["postazioni"],
+        "posti_extra": dati["posti_extra"], "attivi": pc_attivi(conn, radice),
+        "disattivati": conn.execute("SELECT * FROM pc_licenza WHERE radice_id = ? AND stato != 'attivo' "
+                                    "ORDER BY disattivato DESC LIMIT 10", (radice,)).fetchall(),
+        "eventi": eventi, "rifiuti_30": rifiuti[0], "ultimo_rifiuto": rifiuti[1],
+        "trasferimenti_rimasti": trasferimenti_rimasti(conn, radice, attuale, dati, ora),
+        "nuove_30": nuove_attivazioni(conn, radice, ora),
+    }
+
+
+def disattiva_da_gestionale(conn, radice: int, codice_pc: str, utente: str, motivo: str = "") -> bool:
+    pc = conn.execute("SELECT * FROM pc_licenza WHERE codice_pc = ? AND radice_id = ? AND stato = 'attivo'",
+                      (codice_pc, radice)).fetchone()
+    if pc is None:
+        return False
+    ora = adesso()
+    _disattiva_pc(conn, pc, f"disattivato dal gestionale ({utente})" + (f": {motivo}" if motivo else ""), ora)
+    registra(conn, "disattivazione", "gestionale", radice, codice_pc, f"gestionale:{utente}",
+             f"{pc['nome']}" + (f" - {motivo}" if motivo else ""), ora)
+    return True
+
+
+def imposta_posti_extra(conn, radice: int, numero: int, utente: str) -> None:
+    dati_catena(conn, radice)
+    numero = max(0, min(int(numero), 100))
+    conn.execute("UPDATE catene_licenza SET posti_extra = ? WHERE radice_id = ?", (numero, radice))
+    registra(conn, "gestionale", "posti_extra", radice, ip=f"gestionale:{utente}", dettagli=f"posti in più: {numero}")
+
+
+def sblocca_trasferimenti(conn, radice: int, utente: str) -> None:
+    registra(conn, "gestionale", "sblocca_trasferimenti", radice, ip=f"gestionale:{utente}")
+
+
+def registra_stato_licenza(conn, licenza_id: int, esito: str, utente: str) -> None:
+    riga = conn.execute("SELECT * FROM licenze WHERE id = ?", (licenza_id,)).fetchone()
+    if riga is not None:
+        registra(conn, "gestionale", esito, catena(conn, riga)[0], ip=f"gestionale:{utente}",
+                 dettagli=riga["codice_licenza"])
+
+
+def segnalazioni(conn, ora: datetime | None = None, giorni: int = 30) -> dict:
+    """Per il cruscotto: licenze con PC rifiutati (servono posti in più o il codice gira) e PC sospetti."""
+    ora = ora or adesso()
+    dal = (ora - timedelta(days=giorni)).isoformat()
+    rifiuti = conn.execute(
+        "SELECT e.radice_id, COUNT(*) AS tentativi, MAX(e.quando) AS ultimo, l.codice_licenza, l.cliente_id, "
+        "c.nome AS cliente FROM eventi_licenza e JOIN licenze l ON l.id = e.radice_id JOIN clienti c ON "
+        "c.id = l.cliente_id WHERE e.evento = 'attivazione' AND e.esito IN (?, ?) AND e.quando >= ? "
+        "GROUP BY e.radice_id ORDER BY tentativi DESC, ultimo DESC", (*RIFIUTI, dal)).fetchall()
+    elenco_rifiuti = []
+    for r in rifiuti:
+        attuale = catena(conn, conn.execute("SELECT * FROM licenze WHERE id = ?", (r["radice_id"],)).fetchone())[1]
+        elenco_rifiuti.append({**dict(r), "licenza_id": attuale["id"], "codice_licenza": attuale["codice_licenza"],
+                               "posti": posti(attuale, dati_catena(conn, r["radice_id"])),
+                               "attivi": len(pc_attivi(conn, r["radice_id"]))})
+    sospetti = conn.execute(
+        "SELECT p.*, l.codice_licenza, c.nome AS cliente FROM pc_licenza p JOIN licenze l ON l.id = p.radice_id "
+        "JOIN clienti c ON c.id = l.cliente_id WHERE p.stato = 'attivo' AND p.sospetto != '' ORDER BY p.ultimo_uso "
+        "DESC").fetchall()
+    numeri = {
+        "pc_attivi": conn.execute("SELECT COUNT(*) FROM pc_licenza WHERE stato = 'attivo'").fetchone()[0],
+        "rifiuti": sum(r["tentativi"] for r in elenco_rifiuti),
+        "codici_errati": conn.execute("SELECT COUNT(*) FROM eventi_licenza WHERE evento = 'codice_errato' AND "
+                                      "quando >= ?", (dal,)).fetchone()[0],
+    }
+    return {"rifiuti": elenco_rifiuti, "sospetti": sospetti, "numeri": numeri, "giorni": giorni}
+
+
+def ignora_sospetto(conn, codice_pc: str, utente: str) -> None:
+    pc = conn.execute("SELECT * FROM pc_licenza WHERE codice_pc = ?", (codice_pc,)).fetchone()
+    if pc is not None:
+        conn.execute("UPDATE pc_licenza SET sospetto = '' WHERE id = ?", (pc["id"],))
+        registra(conn, "gestionale", "sospetto_ignorato", pc["radice_id"], codice_pc, f"gestionale:{utente}")
+
+
+def radice_della_richiesta(conn, testo_richiesta: str) -> int | None:
+    """Licenza a cui si riferisce un file di richiesta offline (per controllare che sia quella giusta)."""
+    try:
+        trovata = trova(conn, str(json.loads(testo_richiesta).get("codice", "")))
+    except (ValueError, AttributeError):
+        return None
+    return trovata[0] if trovata else None
 
 
 # --- servizio web ---

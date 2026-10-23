@@ -16,6 +16,54 @@
 <input type="hidden" name="tipo" value="codice"><button>Segna il codice come consegnato oggi</button>
 {% if not l.email %}<span class="sotto">Per questo cliente non è indicata un'email: aggiungila nella sua scheda.</span>{% endif %}</form></div></div>
 
+<div class="card" id="pc"><h2>PC attivati <span class="badge {{ 'b-scaduta' if att.attivi|length >= att.posti else 'b-attiva' }}">{{ att.attivi|length }} su {{ att.posti }}</span></h2>
+<div class="corpo">
+<p class="sotto" style="margin:0 0 10px">La licenza si attiva su {{ att.posti }} PC ({{ att.postazioni }} {{ 'postazione' if att.postazioni == 1 else 'postazioni' }}{% if att.posti_extra %} più {{ att.posti_extra }} {{ 'posto aggiunto' if att.posti_extra == 1 else 'posti aggiunti' }}{% endif %}): il PC in più viene rifiutato.
+{% if precedente or successiva %}I PC valgono per tutta la licenza, compresi i rinnovi.{% endif %}
+Negli ultimi 30 giorni: {{ att.nuove_30 }} PC nuovi attivati, {{ att.trasferimenti_rimasti }} {{ 'attivazione' if att.trasferimenti_rimasti == 1 else 'attivazioni' }} di PC nuovi ancora possibili{% if att.rifiuti_30 %}, <b>{{ att.rifiuti_30 }} {{ 'tentativo rifiutato' if att.rifiuti_30 == 1 else 'tentativi rifiutati' }}</b> (ultimo il {{ att.ultimo_rifiuto|istante }}){% endif %}.</p>
+</div>
+{% if att.attivi %}<table><tr><th>PC</th><th>Attivato</th><th>Ultimo uso</th><th>Programma</th><th>Versione</th><th></th></tr>
+{% for p in att.attivi %}<tr><td><b>{{ p.nome or "PC senza nome" }}</b> <span class="mono sotto">{{ p.codice_pc }}</span>
+{% if p.offline %}<span class="badge b-rinnovata">offline</span>{% endif %}
+{% if p.sospetto %}<div class="badge b-in-scadenza" title="{{ p.sospetto }}">possibile copia della macchina</div><div class="sotto" style="margin:2px 0 0">{{ p.sospetto }}</div>{% endif %}</td>
+<td>{{ p.attivato|istante }}</td><td>{{ p.ultimo_uso|istante }}</td><td>{{ p.programma|upper }}</td><td>{{ p.versione or "—" }}</td>
+<td class="destra"><form class="riga" style="justify-content:flex-end" method="post" action="{{ url_for('disattiva_pc', id_=l.id, codice_pc=p.codice_pc) }}" data-conferma="Disattivare {{ p.nome }}? Il posto si libera e quel PC dovrà essere riattivato.">
+<input type="hidden" name="token" value="{{ token }}"><input name="motivo" placeholder="Motivo (facoltativo)" style="width:180px"><button class="pericolo">Disattiva</button></form>
+{% if p.sospetto %}<form method="post" action="{{ url_for('ignora_sospetto', id_=l.id, codice_pc=p.codice_pc) }}" style="margin-top:4px"><input type="hidden" name="token" value="{{ token }}"><button>Ignora la segnalazione</button></form>{% endif %}</td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Nessun PC attivato. I PC compaiono qui quando il cliente attiva la licenza da un programma che usa le attivazioni.</div>{% endif %}
+<div class="corpo" style="border-top:1px solid var(--line)">
+<form class="griglia" method="post" action="{{ url_for('posti_extra', id_=l.id) }}">
+<input type="hidden" name="token" value="{{ token }}">
+<div><label>Posti in più rispetto alla licenza</label><input type="number" name="posti_extra" min="0" max="100" value="{{ att.posti_extra }}"></div>
+<div><button>Salva i posti</button></div>
+<div class="largo sotto" style="margin:0">Per un posto venduto a parte, senza emettere una nuova licenza. Vale anche per i rinnovi.</div>
+</form>
+<form class="riga" method="post" action="{{ url_for('sblocca_trasferimenti', id_=l.id) }}" style="margin-top:12px" data-conferma="Sbloccare i trasferimenti? Il conteggio dei PC nuovi del mese riparte da oggi.">
+<input type="hidden" name="token" value="{{ token }}"><button>Sblocca i trasferimenti</button>
+<span class="sotto" style="margin:0">Se il cliente ha cambiato più PC del previsto nel mese (per esempio PC guasti) e chiede di poterne attivare un altro.</span></form>
+</div>
+<div class="corpo" style="border-top:1px solid var(--line)">
+<b>Attivazione senza internet</b>
+<p class="sotto" style="margin:4px 0 8px">Il cliente salva dal programma il file di richiesta e te lo manda: caricalo qui, scarica il file di attivazione e rimandaglielo. Vale {{ 90 }} giorni e occupa un posto.</p>
+<form class="riga" method="post" enctype="multipart/form-data" action="{{ url_for('attivazione_offline', id_=l.id) }}">
+<input type="hidden" name="token" value="{{ token }}"><input type="file" name="richiesta" accept=".json,.txt,.screq,application/json" style="width:auto">
+<span class="sotto" style="margin:0">oppure incolla il contenuto:</span>
+<textarea name="testo" class="codice" style="min-height:44px"></textarea>
+<button class="primario">Crea il file di attivazione</button></form>
+</div>
+{% if att.disattivati %}<div class="corpo" style="border-top:1px solid var(--line)"><b>Disattivati di recente</b></div>
+<table><tr><th>PC</th><th>Attivato</th><th>Disattivato</th><th>Motivo</th></tr>
+{% for p in att.disattivati %}<tr><td>{{ p.nome or "PC senza nome" }} <span class="mono sotto">{{ p.codice_pc }}</span></td><td>{{ p.attivato|istante }}</td><td>{{ p.disattivato|istante }}</td><td>{{ p.motivo }}</td></tr>{% endfor %}
+</table>{% endif %}
+</div>
+
+<div class="card"><h2>Registro delle attivazioni
+<a class="pulsante" href="{{ url_for('dettaglio_licenza', id_=l.id, verifiche=0 if verifiche else 1) }}#registro">{{ 'Nascondi' if verifiche else 'Mostra' }} le verifiche periodiche</a></h2>
+<div id="registro"></div>
+{% if att.eventi %}<table><tr><th>Quando</th><th>Evento</th><th>PC</th><th>Dettagli</th><th>Indirizzo</th></tr>
+{% for e in att.eventi %}<tr><td>{{ e.quando|istante }}</td><td>{{ e|evento }}</td><td class="mono">{{ e.codice_pc or "—" }}</td><td>{{ e.dettagli }}</td><td class="mono">{{ e.ip }}</td></tr>{% endfor %}
+</table>{% else %}<div class="vuoto">Nessun evento registrato.</div>{% endif %}</div>
+
 {% if rinnovo %}
 <div class="card"><h2>Promemoria di rinnovo</h2><div class="corpo">
 <p class="riga" style="justify-content:flex-end"><button type="button" data-copia="testo-rinnovo">Copia il testo</button>
@@ -39,8 +87,13 @@
 <div class="largo"><button class="primario">Rinnova per un anno</button></div>
 <div class="tutto sotto">La nuova scadenza decorre da quella attuale (o da oggi, se è già passata). Dopo il rinnovo invia al cliente il nuovo codice.</div>
 </form>
-<form class="corpo" method="post" action="{{ url_for('annulla', id_=l.id) }}" data-conferma="Vuoi segnare la licenza come annullata?">
-<input type="hidden" name="token" value="{{ token }}"><button class="pericolo">Segna come annullata</button>
-<span class="sotto">Solo nel registro: un codice già consegnato resta valido fino alla scadenza.</span></form></div>
+<form class="corpo" method="post" action="{{ url_for('annulla', id_=l.id) }}" data-conferma="Vuoi annullare la licenza? Al prossimo collegamento i PC passano in sola lettura.">
+<input type="hidden" name="token" value="{{ token }}"><button class="pericolo">Annulla la licenza</button>
+<span class="sotto">Al prossimo collegamento i PC attivati passano in sola lettura (i documenti già fatti restano consultabili) e non se ne possono attivare altri. Si può riattivare.</span></form></div>
+{% elif l.stato == "annullata" %}
+<div class="card"><h2>Licenza annullata</h2>
+<form class="corpo riga" method="post" action="{{ url_for('riattiva', id_=l.id) }}" data-conferma="Riattivare la licenza?">
+<input type="hidden" name="token" value="{{ token }}"><button>Riattiva la licenza</button>
+<span class="sotto" style="margin:0">I PC tornano a funzionare al prossimo collegamento.</span></form></div>
 {% endif %}
 {% endblock %}

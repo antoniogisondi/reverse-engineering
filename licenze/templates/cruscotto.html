@@ -5,9 +5,24 @@
   <div class="tessera"><div class="t">Clienti</div><div class="v">{{ numeri.clienti }}</div></div>
   <div class="tessera"><div class="t">Licenze valide</div><div class="v">{{ numeri.attive }}</div></div>
   <div class="tessera"><div class="t">In scadenza entro {{ giorni }} giorni</div><div class="v">{{ in_scadenza|length }}</div></div>
+  <div class="tessera"><div class="t">PC attivati</div><div class="v">{{ segnalazioni.numeri.pc_attivi }}</div></div>
   <div class="tessera"><div class="t">Token AI questo mese</div><div class="v">{{ numeri.token_ai|milioni }}</div></div>
   <div class="tessera"><div class="t">Incassato nel {{ anno }}</div><div class="v">{{ numeri.incassato|euro }}</div></div>
 </div>
+{% set sg = segnalazioni %}
+{% if sg.rifiuti or sg.sospetti %}
+<div class="card"><h2>Da guardare: attivazioni dei PC (ultimi {{ sg.giorni }} giorni) <a class="pulsante" href="{{ url_for('pagina_attivazioni') }}">Tutte le attivazioni</a></h2>
+{% if sg.rifiuti %}<table><tr><th>Licenza</th><th>Cliente</th><th>PC</th><th>Tentativi rifiutati</th><th>Ultimo</th><th></th></tr>
+{% for r in sg.rifiuti %}<tr><td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=r.licenza_id) }}#pc">{{ r.codice_licenza }}</a></td>
+<td><a href="{{ url_for('cliente', id_=r.cliente_id) }}">{{ r.cliente }}</a></td><td>{{ r.attivi }} su {{ r.posti }}</td>
+<td><b>{{ r.tentativi }}</b></td><td>{{ r.ultimo|istante }}</td>
+<td class="sotto">{{ 'Probabilmente servono posti in più, o il codice è stato passato ad altri.' if r.tentativi >= 3 else 'Il cliente ha provato ad attivare un PC in più.' }}</td></tr>{% endfor %}
+</table>{% endif %}
+{% if sg.sospetti %}<table><tr><th>PC sospetto</th><th>Licenza</th><th>Cliente</th><th>Segnalazione</th></tr>
+{% for p in sg.sospetti %}<tr><td>{{ p.nome }} <span class="mono sotto">{{ p.codice_pc }}</span></td>
+<td class="mono"><a href="{{ url_for('dettaglio_licenza', id_=p.radice_id) }}#pc">{{ p.codice_licenza }}</a></td><td>{{ p.cliente }}</td><td>{{ p.sospetto }}</td></tr>{% endfor %}
+</table>{% endif %}</div>
+{% endif %}
 <p class="riga">Mostra le scadenze entro:
 {% for g in finestre %}<a class="pulsante{% if g == giorni %} primario{% endif %}" href="{{ url_for('cruscotto', giorni=g) }}">{{ g }} giorni</a>{% endfor %}</p>
 {% for titolo, righe in (("In scadenza nei prossimi " ~ giorni ~ " giorni", in_scadenza), ("Scadute e non rinnovate", scadute)) %}

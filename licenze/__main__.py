@@ -66,7 +66,7 @@ def main(argv: list[str]) -> int:
             print(f"Attivazione non creata: {e.messaggio}")
             return 1
         conn.commit()
-        uscita = Path(argv[2] if len(argv) == 3 else Path(argv[1]).with_suffix(".attivazione"))
+        uscita = Path(argv[2] if len(argv) == 3 else Path(argv[1]).with_suffix(".sclic"))
         uscita.write_text(testo, encoding="utf-8")
         print(f"File di attivazione offline creato: {uscita} (valido {attivazioni.VALIDITA_OFFLINE.days} giorni)")
         return 0
